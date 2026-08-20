@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [feature/audio-pipeline, integration, main]
+  pull_request:
+    branches: [integration, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-tests:
+    name: Backend tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run pytest
+        run: pytest backend/tests -v
+
+  audio-deps-smoke:
+    name: Audio dependency install/import smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: backend/requirements-audio.txt
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Check ffmpeg binary
+        run: ffmpeg -version
+
+      - name: Check whether audio dependencies are declared yet
+        id: check-deps
+        run: |
+          if grep -qE '^[A-Za-z]' backend/requirements-audio.txt; then
+            echo "has_deps=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_deps=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install audio dependencies (CPU-only torch)
+        if: steps.check-deps.outputs.has_deps == 'true'
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install -r backend/requirements-audio.txt
+
+      - name: Import smoke test
+        if: steps.check-deps.outputs.has_deps == 'true'
+        run: |
+          python -c "
+          import importlib
+          mods = ['torch', 'faster_whisper', 'librosa', 'soundfile']
+          for m in mods:
+              importlib.import_module(m)
+              print(f'OK: {m}')
+          try:
+              importlib.import_module('silero_vad')
+              print('OK: silero_vad')
+          except ImportError:
+              importlib.import_module('webrtcvad')
+              print('OK: webrtcvad (fallback)')
+          "
+
+      - name: No audio dependencies declared yet
+        if: steps.check-deps.outputs.has_deps == 'false'
+        run: echo "backend/requirements-audio.txt is still a placeholder (Phase 2, Day 9+) — skipping install/import check. This is expected before Stage 1 implementation begins, not a failure."
