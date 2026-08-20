@@ -1,0 +1,13 @@
+# Audio pipeline dependencies — Phase 2, Day 9+ (see docs/unleash_project_plan.md Section 7 / .claude/context/audio-pipeline/)
+#
+# This file is intentionally empty until Stage 1 (Speech Gate) implementation begins.
+# Expected contents once populated:
+#   torch          (CPU build only — install via --index-url https://download.pytorch.org/whl/cpu)
+#   faster-whisper (tiny model)
+#   silero-vad     (primary; webrtcvad is the pre-approved fallback if Windows import issues occur —
+#                   see .claude/context/audio-pipeline/known-tricky-spots.md #2)
+#   librosa
+#   soundfile
+#
+# .github/workflows/ci.yml's audio-deps-smoke job installs directly from this file — populate it
+# with pinned versions as each dependency is actually adopted, not all at once speculatively.
