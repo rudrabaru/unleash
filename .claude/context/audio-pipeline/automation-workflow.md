@@ -47,7 +47,7 @@ The reliable contract is **typing the literal `/command-name`**. Prose requests 
 ```
 Day/Phase: Day <N>, Phase <P>.
 Context check: confirm you've read root CLAUDE.md and .claude/context/audio-pipeline/ before we start.
-Where I left off: <paste last /session-worklog entry, or check docs/worklog-dev1.md>.
+Where I left off: <paste last /session-worklog entry, or check docs/worklog.md>.
 Today's specific goal: <one concrete deliverable>.
 Boundaries: don't touch Dev 2/Dev 3 module folders; report-only on all checks unless I say fix;
   never commit/push without my go-ahead.
