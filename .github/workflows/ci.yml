@@ -30,8 +30,7 @@ jobs:
         run: |
           pip install -r backend/requirements.txt
           if grep -qE '^[A-Za-z]' backend/requirements-audio.txt; then
-            pip install --index-url https://download.pytorch.org/whl/cpu torch
-            pip install -r backend/requirements-audio.txt
+            pip install -r backend/requirements-audio.txt --extra-index-url https://download.pytorch.org/whl/cpu
           fi
 
       - name: Run pytest
@@ -65,26 +64,48 @@ jobs:
       - name: Install audio dependencies (CPU-only torch)
         if: steps.check-deps.outputs.has_deps == 'true'
         run: |
-          pip install --index-url https://download.pytorch.org/whl/cpu torch
-          pip install -r backend/requirements-audio.txt
+          pip install -r backend/requirements-audio.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
       - name: Import smoke test
         if: steps.check-deps.outputs.has_deps == 'true'
         run: |
-          python -c "
-          import importlib
-          # Note: faster_whisper and librosa will be added in Stage 2 & 3.
-          mods = ['torch', 'soundfile']
+          python - <<'EOF'
+          import importlib, re, sys
+
+          # Derive importable module names from requirements-audio.txt.
+          # Rules:
+          #   - Strip version specifiers and comments.
+          #   - Convert hyphens to underscores (install name vs import name).
+          #   - Skip torch/torchaudio — tested separately below.
+          #   - silero-vad is tested with a webrtcvad fallback.
+          SKIP = {"torch", "torchaudio", "silero_vad", "silero-vad"}
+
+          with open("backend/requirements-audio.txt") as f:
+              raw = [l.strip() for l in f if l.strip() and not l.startswith("#")]
+
+          mods = []
+          for line in raw:
+              name = re.split(r"[=<>!;]", line)[0].strip().replace("-", "_").lower()
+              if name not in SKIP:
+                  mods.append(name)
+
+          # Test generic modules
           for m in mods:
               importlib.import_module(m)
-              print(f'OK: {m}')
+              print(f"OK: {m}")
+
+          # Test torch (always required)
+          importlib.import_module("torch")
+          print("OK: torch")
+
+          # Test silero_vad with webrtcvad fallback (pre-approved substitution)
           try:
-              importlib.import_module('silero_vad')
-              print('OK: silero_vad')
+              importlib.import_module("silero_vad")
+              print("OK: silero_vad")
           except ImportError:
-              importlib.import_module('webrtcvad')
-              print('OK: webrtcvad (fallback)')
-          "
+              importlib.import_module("webrtcvad")
+              print("OK: webrtcvad (fallback — silero_vad unavailable on this platform)")
+          EOF
 
       - name: No audio dependencies declared yet
         if: steps.check-deps.outputs.has_deps == 'false'

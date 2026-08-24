@@ -3,8 +3,7 @@
 > Read this file before doing anything else in this repository. It applies to all three developers.
 > Companion documents (project scope, not checked into git): the project plan, team companion guide, and pipeline visualization doc live in `docs/` locally on each developer's machine (that folder is gitignored — private working docs, not shared history).
 > Dev 1's deep audio-pipeline spec lives in `.claude/context/audio-pipeline/` (see Section E). Dev 2 and Dev 3 will add equivalent folders for their verticals when they set up their own Claude Code workflow. (Note: this lives under `.claude/context/`, not `.claude/agents/` — that path is reserved for real Claude Code subagent definitions, to avoid a naming collision.)
-> Active project rules and documentation standards are shared in `.agents/rules/` (including `document_observations.md` and `commit_message_generation.md`).
-
+> Active project rules and documentation standards are shared in `.agents/rules/`. Claude Code hooks (ownership guard, schema guard, syntax check) live in `.claude/hooks/` and are wired in `.claude/settings.json`. Claude Code subagents live in `.claude/agents/`. Slash commands live in `.claude/commands/`. For Antigravity IDE sessions, `AGENTS.md` at the repo root is the primary discovery file and mirrors all rules.
 
 ---
 
@@ -14,10 +13,13 @@
 
 **J2 — Dead Code Tracking:** After every stage implementation and before any integration PR, run `/dead-code-audit` to find dead functions, unused imports, and dependency drift between `requirements-audio.txt` and actual imports. Only delete after explicit user approval. Always verify with `pytest` after deletion. Full procedure: `.agents/rules/dead_code_tracking.md` and `.claude/commands/dead-code-audit.md`.
 
+**J3 — CI Dependency Sync:** Never edit `ci.yml` in response to a code bug — fix the code. Only edit `ci.yml` when adding a special-case package with a non-standard import name or a system-level dependency. The smoke test reads `requirements-audio.txt` dynamically and self-maintains. Full procedure: `.agents/rules/ci_dependency_sync.md`.
+
+**J4 — Feature Start Protocol:** When the user describes a new feature or stage in 1-2 lines, always read `docs/unleash_project_plan.md` first. If found, generate a structured implementation session prompt. If NOT found, stop and ask for explicit user authorization before writing any code. Use `/start-feature` to invoke this. Full procedure: `.agents/rules/feature_start_protocol.md` and `.claude/commands/start-feature.md`.
+
 ---
 
 ## A. What Unleash Is (and Is Not)
-
 
 **Unleash** is a multimodal, active challenge-response human verification system. It determines whether a live human is genuinely present in front of a camera and microphone, by issuing a randomized visual + verbal challenge and checking whether the response corroborates across visual, audio, and cross-modal signals.
 
