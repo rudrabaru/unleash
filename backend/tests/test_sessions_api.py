@@ -66,9 +66,10 @@ def test_session_lifecycle_with_real_audio_verification():
     assert res_data["signals"]["audio_pipeline"]["passed"] is True
     assert res_data["signals"]["audio_pipeline"]["details"]["phrase_matched"] is True
 
-    # Confirm no fake static advisory scores are emitted
-    assert "voice_authenticity_score" not in res_data["signals"]["audio_pipeline"]["details"]
-    assert "av_alignment_score" not in res_data["signals"]["audio_pipeline"]["details"]
+    # Stage 3 Voice Authenticity is real and computed; Stage 4 AV alignment is currently stubbed (None per canonical schema)
+    assert "voice_authenticity_score" in res_data["signals"]["audio_pipeline"]["details"]
+    assert isinstance(res_data["signals"]["audio_pipeline"]["details"]["voice_authenticity_score"], float)
+    assert res_data["signals"]["audio_pipeline"]["details"].get("av_alignment_score") is None
 
 
 def test_session_lifecycle_with_wrong_challenge_fails():

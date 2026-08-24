@@ -28,6 +28,7 @@ SESSION_STORE: Dict[str, Dict] = {}
 async def _run_background_pipeline(sid: str, media_file_path: Path, challenge_phrase: str):
     """
     Execute real audio pipeline and update session verification status.
+    Guarantees cleanup of temporary uploaded media file post-analysis (Privacy NFR §10).
     """
     try:
         audio_result = await process_audio_pipeline(str(media_file_path), challenge_phrase)
@@ -54,6 +55,13 @@ async def _run_background_pipeline(sid: str, media_file_path: Path, challenge_ph
             SESSION_STORE[sid]["confidence"] = None
             SESSION_STORE[sid]["decision_reason"] = f"Verification pipeline error: {e}"
             SESSION_STORE[sid]["updated_at"] = datetime.now(timezone.utc)
+    finally:
+        # Privacy NFR §10: Delete raw uploaded media blob after analysis completes
+        try:
+            if media_file_path.exists():
+                media_file_path.unlink()
+        except OSError:
+            pass
 
 
 @router.post("", response_model=SessionCreateResponse, status_code=status.HTTP_201_CREATED)

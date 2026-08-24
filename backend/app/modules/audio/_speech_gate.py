@@ -11,11 +11,11 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import numpy as np
-import soundfile as sf
-import torch
-
+from app.modules.audio._io import read_wav_torch
 from app.schemas.detector import DetectorResult
+
+# Backward compatibility alias
+read_wav_16k = read_wav_torch
 
 logger = logging.getLogger(__name__)
 
@@ -40,21 +40,24 @@ except Exception as _e:  # noqa: BLE001
     logger.error(f"Failed to load silero-vad model at module init: {_VAD_LOAD_ERROR}")
 
 
-def read_wav_16k(path: Path | str) -> Tuple[torch.Tensor, float]:
+def _evaluate_speech_gate(speech_detected: bool, total_speech_s: float, segment_count: int) -> Tuple[bool, str]:
     """
-    Read WAV audio using soundfile -> numpy float32 -> torch tensor.
-    Guarantees float32 single-channel 16kHz tensor.
-    Returns (audio_tensor, duration_seconds).
+    Evaluate hard gate conditions for speech presence and minimum duration.
+    Returns (passed, reason).
     """
-    data, sr = sf.read(str(path), dtype="float32", always_2d=False)
-    if sr != TARGET_SAMPLE_RATE:
-        raise ValueError(f"Expected sample rate {TARGET_SAMPLE_RATE}Hz, got {sr}Hz")
-    if data.ndim > 1:
-        data = np.mean(data, axis=1)
+    if not speech_detected:
+        return False, "No speech detected in audio submission."
     
-    duration = len(data) / float(sr) if sr > 0 else 0.0
-    tensor = torch.from_numpy(np.ascontiguousarray(data))
-    return tensor, duration
+    if total_speech_s < SPEECH_DURATION_THRESHOLD_S:
+        return False, (
+            f"Speech duration ({total_speech_s:.2f}s) is below required minimum threshold "
+            f"({SPEECH_DURATION_THRESHOLD_S:.1f}s) for a 3-digit challenge response."
+        )
+    
+    return True, (
+        f"Speech detected: {total_speech_s:.2f}s across {segment_count} segments "
+        f"(satisfies >= {SPEECH_DURATION_THRESHOLD_S:.1f}s threshold)."
+    )
 
 
 def run_speech_gate(wav_path: Path | str) -> DetectorResult:
@@ -108,7 +111,7 @@ def run_speech_gate(wav_path: Path | str) -> DetectorResult:
     try:
         # Load WAV file
         try:
-            audio, file_duration = read_wav_16k(path_obj)
+            audio, file_duration = read_wav_torch(path_obj)
         except Exception as e:
             return DetectorResult(
                 score=None,
@@ -156,24 +159,8 @@ def run_speech_gate(wav_path: Path | str) -> DetectorResult:
         file_duration = round(file_duration, 3)
         speech_detected = len(segments) > 0
 
-        # Hard Gate Logic:
-        # 1. Must detect speech
-        # 2. Total speech duration must be >= 2.0 seconds
-        if not speech_detected:
-            passed = False
-            reason = "No speech detected in audio submission."
-        elif total_speech_s < SPEECH_DURATION_THRESHOLD_S:
-            passed = False
-            reason = (
-                f"Speech duration ({total_speech_s:.2f}s) is below required minimum threshold "
-                f"({SPEECH_DURATION_THRESHOLD_S:.1f}s) for a 3-digit challenge response."
-            )
-        else:
-            passed = True
-            reason = (
-                f"Speech detected: {total_speech_s:.2f}s across {len(segments)} segments "
-                f"(satisfies >= {SPEECH_DURATION_THRESHOLD_S:.1f}s threshold)."
-            )
+        # Evaluate hard gate
+        passed, reason = _evaluate_speech_gate(speech_detected, total_speech_s, len(segments))
 
         return DetectorResult(
             score=None,  # Stage 1 is a hard gate, does not set score
@@ -205,3 +192,4 @@ def run_speech_gate(wav_path: Path | str) -> DetectorResult:
                 "vad_backend": _VAD_BACKEND
             }
         )
+
