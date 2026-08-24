@@ -45,7 +45,7 @@ signals.
               |                     |
               v                     v
        Pass / Fail Result      Liveness Score
-
+```
 ## Features
 
 ### Head Movement Detection
