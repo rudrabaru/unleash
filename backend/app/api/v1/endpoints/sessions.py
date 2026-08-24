@@ -1,11 +1,14 @@
 import random
+import shutil
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Dict
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile, status
 
 from app.core.config import settings
 from app.core.security import generate_challenge_token, verify_challenge_token
+from app.modules.audio import process_audio_pipeline
 from app.schemas.detector import DetectorResult
 from app.schemas.session import (
     ChallengePayload,
@@ -18,8 +21,39 @@ from app.schemas.session import (
 
 router = APIRouter()
 
-# In-memory store for session stubs (will be SQLite in Phase 2/3)
+# In-memory store for session records (will be SQLite in Phase 2/3)
 SESSION_STORE: Dict[str, Dict] = {}
+
+
+async def _run_background_pipeline(sid: str, media_file_path: Path, challenge_phrase: str):
+    """
+    Execute real audio pipeline and update session verification status.
+    """
+    try:
+        audio_result = await process_audio_pipeline(str(media_file_path), challenge_phrase)
+        now = datetime.now(timezone.utc)
+        if sid not in SESSION_STORE:
+            return
+
+        SESSION_STORE[sid]["updated_at"] = now
+        SESSION_STORE[sid]["signals"] = {
+            "audio_pipeline": audio_result
+        }
+
+        if audio_result.passed:
+            SESSION_STORE[sid]["status"] = VerificationStatus.VERIFIED
+            SESSION_STORE[sid]["confidence"] = audio_result.score
+            SESSION_STORE[sid]["decision_reason"] = f"Audio challenge verified: {audio_result.reason}"
+        else:
+            SESSION_STORE[sid]["status"] = VerificationStatus.FAILED
+            SESSION_STORE[sid]["confidence"] = audio_result.score
+            SESSION_STORE[sid]["decision_reason"] = f"Verification failed: {audio_result.reason}"
+    except Exception as e:
+        if sid in SESSION_STORE:
+            SESSION_STORE[sid]["status"] = VerificationStatus.FAILED
+            SESSION_STORE[sid]["confidence"] = None
+            SESSION_STORE[sid]["decision_reason"] = f"Verification pipeline error: {e}"
+            SESSION_STORE[sid]["updated_at"] = datetime.now(timezone.utc)
 
 
 @router.post("", response_model=SessionCreateResponse, status_code=status.HTTP_201_CREATED)
@@ -82,7 +116,7 @@ async def submit_session(
 ):
     """
     Submit the recorded single-blob .webm media for verification.
-    Validates HMAC token and launches the background analysis pipeline.
+    Validates HMAC token and launches the real background analysis pipeline.
     (Orchestration lead: Dev 3)
     """
     if session_id not in SESSION_STORE:
@@ -106,35 +140,16 @@ async def submit_session(
     SESSION_STORE[session_id]["status"] = VerificationStatus.PROCESSING
     SESSION_STORE[session_id]["updated_at"] = datetime.now(timezone.utc)
 
-    # In Phase 1/2, the background task runs all 5 module calls + fusion engine
-    def mock_background_pipeline(sid: str):
-        # Stub result simulation
-        SESSION_STORE[sid]["status"] = VerificationStatus.VERIFIED
-        SESSION_STORE[sid]["confidence"] = 0.91
-        SESSION_STORE[sid]["decision_reason"] = "All challenge hard gates passed. High multimodal confidence."
-        SESSION_STORE[sid]["updated_at"] = datetime.now(timezone.utc)
-        SESSION_STORE[sid]["signals"] = {
-            "visual_liveness": DetectorResult(
-                score=0.90, passed=True, reason="Natural eye movement & blink detected"
-            ),
-            "visual_challenge": DetectorResult(
-                score=0.95, passed=True, reason="User turned head in expected direction"
-            ),
-            "deepfake_detection": DetectorResult(
-                score=0.88, passed=True, reason="No deepfake manipulation artifacts"
-            ),
-            "replay_detection": DetectorResult(
-                score=0.85, passed=True, reason="No screen moire patterns detected"
-            ),
-            "voice_authenticity": DetectorResult(
-                score=0.89, passed=True, reason="Natural spectral voice distribution"
-            ),
-            "av_temporal_alignment": DetectorResult(
-                score=0.86, passed=True, reason="Lip openness temporally aligns with spoken digits"
-            )
-        }
+    # Save uploaded media file to temporary upload directory
+    temp_dir = Path(settings.UPLOAD_TEMP_DIR)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    media_path = temp_dir / f"{session_id}.webm"
 
-    background_tasks.add_task(mock_background_pipeline, session_id)
+    with open(media_path, "wb") as buffer:
+        shutil.copyfileobj(media.file, buffer)
+
+    verbal_challenge = str(SESSION_STORE[session_id]["challenge"]["verbal"])
+    background_tasks.add_task(_run_background_pipeline, session_id, media_path, verbal_challenge)
 
     return SessionSubmitResponse(
         session_id=session_id,

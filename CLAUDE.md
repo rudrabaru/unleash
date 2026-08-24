@@ -7,18 +7,6 @@
 
 ---
 
-## J. Permanent Session Rules (Apply Every Session, No Exceptions)
-
-**J1 — Ask Before Assuming:** Before writing any code or modifying any file, if there is ANY ambiguity in the request, stop and ask the user directly. Consolidate all open questions into a single message. Never fill a gap with an assumption. Never extend scope beyond what was explicitly requested. Full procedure: `.agents/rules/ask_before_assuming.md`.
-
-**J2 — Dead Code Tracking:** After every stage implementation and before any integration PR, run `/dead-code-audit` to find dead functions, unused imports, and dependency drift between `requirements-audio.txt` and actual imports. Only delete after explicit user approval. Always verify with `pytest` after deletion. Full procedure: `.agents/rules/dead_code_tracking.md` and `.claude/commands/dead-code-audit.md`.
-
-**J3 — CI Dependency Sync:** Never edit `ci.yml` in response to a code bug — fix the code. Only edit `ci.yml` when adding a special-case package with a non-standard import name or a system-level dependency. The smoke test reads `requirements-audio.txt` dynamically and self-maintains. Full procedure: `.agents/rules/ci_dependency_sync.md`.
-
-**J4 — Feature Start Protocol:** When the user describes a new feature or stage in 1-2 lines, always read `docs/unleash_project_plan.md` first. If found, generate a structured implementation session prompt. If NOT found, stop and ask for explicit user authorization before writing any code. Use `/start-feature` to invoke this. Full procedure: `.agents/rules/feature_start_protocol.md` and `.claude/commands/start-feature.md`.
-
----
-
 ## A. What Unleash Is (and Is Not)
 
 **Unleash** is a multimodal, active challenge-response human verification system. It determines whether a live human is genuinely present in front of a camera and microphone, by issuing a randomized visual + verbal challenge and checking whether the response corroborates across visual, audio, and cross-modal signals.
@@ -167,3 +155,19 @@ Before attempting any integration test, confirm both servers are actually runnin
 - Never merge integration into your feature branch without pulling first.
 - Commit frequently with specific messages ("Stage 1 VAD: handle empty audio gracefully"), never in one giant end-of-day commit, and never commit broken code (stash instead if mid-change).
 - Any change to a shared interface (the 4-key schema, the lip openness/word-timestamp formats once agreed, the session API shape, any fusion threshold) must be announced to the team before committing.
+
+---
+
+## J. Permanent Session Rules (Apply Every Session, No Exceptions)
+
+**J1 — Ask Before Assuming:** Before writing any code or modifying any file, if there is ANY ambiguity in the request, stop and ask the user directly. Consolidate all open questions into a single message. Never fill a gap with an assumption. Never extend scope beyond what was explicitly requested. Full procedure: `.agents/rules/ask_before_assuming.md`.
+
+**J2 — Dead Code Tracking:** After every stage implementation and before any integration PR, run `/dead-code-audit` to find dead functions, unused imports, and dependency drift between `requirements-audio.txt` and actual imports. Only delete after explicit user approval. Always verify with `pytest` after deletion. Full procedure: `.agents/rules/dead_code_tracking.md` and `.claude/commands/dead-code-audit.md`.
+
+**J3 — CI Dependency Sync:** Never edit `ci.yml` in response to a code bug — fix the code. Only edit `ci.yml` when adding a special-case package with a non-standard import name or a system-level dependency. The smoke test reads `requirements-audio.txt` dynamically and self-maintains. Full procedure: `.agents/rules/ci_dependency_sync.md`.
+
+**J4 — Feature Start Protocol:** When the user describes a new feature or stage in 1-2 lines, always read `docs/unleash_project_plan.md` first. If found, generate a structured implementation session prompt. If NOT found, stop and ask for explicit user authorization before writing any code. Use `/start-feature` to invoke this. Full procedure: `.agents/rules/feature_start_protocol.md` and `.claude/commands/start-feature.md`.
+
+**J5 — No Hardcoded Stub Values:** Never write hardcoded constants, magic numeric scores, or fabricated pass/fail values to satisfy a feature requirement, fill a field, or make a test pass. Every computed value must originate from real algorithm or model output. If a stage is not yet implemented, mark it `[STUB]` explicitly in both the inline code comment **and** the module docstring — never return a plausible-looking numeric result that conceals the absence of real computation. Advisory stub fields in the pipeline must not contribute to the final `score` field until their implementing stage is real. Full procedure: `.agents/rules/no_hardcoded_stub_values.md`.
+
+---

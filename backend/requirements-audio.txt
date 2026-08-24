@@ -5,3 +5,4 @@ torchaudio==2.9.1
 silero-vad==6.2.1
 soundfile==0.14.0
 numpy==2.3.0
+faster-whisper==1.2.1

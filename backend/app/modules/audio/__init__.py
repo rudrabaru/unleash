@@ -1,7 +1,7 @@
 """
 Audio Pipeline Module (Owned by Dev 1)
 - Stage 1: Speech Gate (silero-vad) [REAL]
-- Stage 2: Phrase Compliance (faster-whisper tiny) [STUB]
+- Stage 2: Phrase Compliance (faster-whisper tiny) [REAL]
 - Stage 3: Voice Authenticity (librosa spectral heuristics) [STUB]
 - Stage 4: AV Temporal Alignment (Whisper word timestamps x MediaPipe lip series) [STUB]
 """
@@ -9,14 +9,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
-
 from app.modules.audio._extraction import (
     check_extraction_completeness,
     extract_wav,
     probe_media,
     verify_wav,
 )
+from app.modules.audio._phrase_compliance import run_phrase_compliance
 from app.modules.audio._speech_gate import run_speech_gate
 from app.schemas.detector import DetectorResult
 
@@ -29,7 +28,8 @@ async def process_audio_pipeline(media_path: str, challenge_phrase: str) -> Dete
     1. Extract audio track from media container to 16kHz mono WAV in temp_uploads/
     2. Verify extraction completeness and audio format contract
     3. Stage 1 (Speech Gate - silero-vad): Hard gate on speech presence & duration >= 2.0s
-    4. Stages 2-4 (Phrase Compliance, Voice Authenticity, AV Alignment): Currently stubs.
+    4. Stage 2 (Phrase Compliance - faster-whisper tiny): Hard gate on 2-of-3 challenge digits match
+    5. Stages 3-4 (Voice Authenticity, AV Alignment): Currently stubs.
     
     Guarantees:
     - Never raises an uncaught exception (complies with 4-key contract).
@@ -132,21 +132,49 @@ async def process_audio_pipeline(media_path: str, challenge_phrase: str) -> Dete
                 details=stage1_result.details
             )
 
-        # 7. Stage 1 Passed -> Fold into pipeline result (Stages 2-4 are currently stubs)
-        digits = [int(d) for d in challenge_phrase if d.isdigit()]
+        # 7. Run Stage 2 Phrase Compliance (faster-whisper)
+        stage2_result = run_phrase_compliance(wav_path, challenge_phrase)
+
+        # If Stage 2 produced an internal error or failed the hard gate, return immediately
+        if stage2_result.error is not None:
+            combined_details = dict(stage1_result.details or {})
+            if stage2_result.details:
+                combined_details.update(stage2_result.details)
+            return DetectorResult(
+                score=None,
+                passed=False,
+                reason=stage2_result.reason,
+                error=stage2_result.error,
+                details=combined_details
+            )
+
+        if not stage2_result.passed:
+            combined_details = dict(stage1_result.details or {})
+            if stage2_result.details:
+                combined_details.update(stage2_result.details)
+            return DetectorResult(
+                score=None,
+                passed=False,
+                reason=stage2_result.reason,
+                error=None,
+                details=combined_details
+            )
+
+        # 8. Stages 1 & 2 Passed -> Fold into pipeline result (Stages 3-4 are currently stubs)
         combined_details = dict(stage1_result.details or {})
-        combined_details.update({
-            "phrase_matched": True,
-            "digits_detected": digits,
-            "voice_authenticity_score": 0.88,
-            "av_alignment_score": 0.85,
-            "extracted_wav_path": str(wav_path)
-        })
+        if stage2_result.details:
+            combined_details.update(stage2_result.details)
+
+        combined_details["extracted_wav_path"] = str(wav_path)
 
         return DetectorResult(
-            score=0.92,  # Stub score until Stages 2-4 are implemented
+            score=stage2_result.score,
             passed=True,
-            reason=f"Stage 1 Speech Gate passed ({stage1_result.details.get('speech_duration_seconds', 0.0):.2f}s speech). [STUB: Stages 2-4 passed]",
+            reason=(
+                f"Stages 1+2 passed: {stage1_result.details.get('speech_duration_seconds', 0.0):.2f}s speech detected, "
+                f"{stage2_result.details.get('match_count', 0)}/3 challenge digits verified. "
+                f"[STUB: Stages 3-4 passed]"
+            ),
             error=None,
             details=combined_details
         )
