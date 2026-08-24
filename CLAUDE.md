@@ -3,10 +3,21 @@
 > Read this file before doing anything else in this repository. It applies to all three developers.
 > Companion documents (project scope, not checked into git): the project plan, team companion guide, and pipeline visualization doc live in `docs/` locally on each developer's machine (that folder is gitignored — private working docs, not shared history).
 > Dev 1's deep audio-pipeline spec lives in `.claude/context/audio-pipeline/` (see Section E). Dev 2 and Dev 3 will add equivalent folders for their verticals when they set up their own Claude Code workflow. (Note: this lives under `.claude/context/`, not `.claude/agents/` — that path is reserved for real Claude Code subagent definitions, to avoid a naming collision.)
+> Active project rules and documentation standards are shared in `.agents/rules/` (including `document_observations.md` and `commit_message_generation.md`).
+
+
+---
+
+## J. Permanent Session Rules (Apply Every Session, No Exceptions)
+
+**J1 — Ask Before Assuming:** Before writing any code or modifying any file, if there is ANY ambiguity in the request, stop and ask the user directly. Consolidate all open questions into a single message. Never fill a gap with an assumption. Never extend scope beyond what was explicitly requested. Full procedure: `.agents/rules/ask_before_assuming.md`.
+
+**J2 — Dead Code Tracking:** After every stage implementation and before any integration PR, run `/dead-code-audit` to find dead functions, unused imports, and dependency drift between `requirements-audio.txt` and actual imports. Only delete after explicit user approval. Always verify with `pytest` after deletion. Full procedure: `.agents/rules/dead_code_tracking.md` and `.claude/commands/dead-code-audit.md`.
 
 ---
 
 ## A. What Unleash Is (and Is Not)
+
 
 **Unleash** is a multimodal, active challenge-response human verification system. It determines whether a live human is genuinely present in front of a camera and microphone, by issuing a randomized visual + verbal challenge and checking whether the response corroborates across visual, audio, and cross-modal signals.
 
