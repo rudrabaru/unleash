@@ -79,14 +79,14 @@ The project currently contains an experimental liveness signal using:
 ## Project Structure
 
 ```text
-.
-├── main.py
-├── feature_extractor.py
-├── challenge_detector.py
-├── calculation.py
-├── scoring.py
-├── config.py
-└── README.md
+Liveliness+challenge/
+    ├── main.py
+    ├── feature_extractor.py
+    ├── challenge_detector.py
+    ├── calculation.py
+    ├── scoring.py
+    ├── config.py
+
 ```
 
 ### `main.py`
