@@ -37,7 +37,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Run pytest
-        run: pytest backend/tests -v
+        working-directory: backend
+        run: pytest tests -v
 
   audio-deps-smoke:
     name: Audio dependency install/import smoke test
