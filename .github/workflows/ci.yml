@@ -38,7 +38,7 @@ jobs:
 
       - name: Run pytest
         working-directory: backend
-        run: pytest tests -v
+        run: python -m pytest tests -v
 
   audio-deps-smoke:
     name: Audio dependency install/import smoke test
