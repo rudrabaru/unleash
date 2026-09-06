@@ -1,4 +1,8 @@
-# /start-feature
+---
+description: Turn a 1-2 line feature description into a context-loaded implementation session prompt after checking docs/unleash_project_plan.md; never writes code.
+argument-hint: "<1-2 line feature or stage description>"
+allowed-tools: Read, Grep, Glob
+---
 
 Generates a complete, context-loaded implementation session from a 1-2 line feature description. Never writes code — outputs a structured prompt you can immediately use to start implementing.
 

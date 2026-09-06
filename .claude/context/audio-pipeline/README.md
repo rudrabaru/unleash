@@ -11,7 +11,7 @@ This folder is the "mission briefing" Claude Code reads specifically when workin
 6. `automation-workflow.md` — the layered automation model (CI vs. slash commands vs. hooks vs. human approval), the phase-gate commit/push/PR workflow, and how to prompt Claude Code so the right slash command gets invoked reliably
 7. `av-alignment-interface.md` — currently a blank placeholder; do not implement Stage 4 beyond a stub until this is filled in after the Day 19 design session with Dev 2
 
-**Available slash commands** (`.claude/commands/`): `/schema-check`, `/stage-done`, `/stub-interface-check`, `/latency-benchmark`, `/graceful-failure-audit`, `/scenario-runner`, `/threshold-sweep`, `/session-worklog`. See `automation-workflow.md` for when to use each.
+**Available slash commands:** the canonical list lives in `AGENTS.md` §3 (single source of truth — 12 commands). The audio-pipeline ones are `/schema-check`, `/stage-done`, `/stub-interface-check`, `/latency-benchmark`, `/graceful-failure-audit`, `/scenario-runner`, `/threshold-sweep`; plus the general `/session-worklog`, `/commit-message`, `/dead-code-audit`, `/solid-audit`, `/start-feature`. See `automation-workflow.md` for when to use each.
 
 **Ownership:** This folder and everything under `backend/app/modules/audio/` belongs exclusively to Dev 1. Claude Code should not modify Dev 2's or Dev 3's module folders from here.
 

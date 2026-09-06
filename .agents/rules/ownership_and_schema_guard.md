@@ -10,6 +10,8 @@ They apply unconditionally during Antigravity IDE sessions.
 - `backend/app/modules/visual/` — **Dev 2 exclusive**
 - `backend/app/modules/antispoof/` — **Dev 3 exclusive**
 - `backend/app/api/v1/endpoints/eval.py` — **Dev 3 exclusive**
+- `backend/app/core/` — **shared** (config + HMAC); changes require team agreement (CLAUDE.md Section G)
+- `backend/app/api/v1/endpoints/sessions.py` — **split-owned** (Dev 2 creation logic / Dev 3 orchestration); touch only for an agreed cross-team change
 
 If you find yourself about to edit one of these paths, STOP. Report to the user that the path is outside Dev 1's ownership boundary and ask for an explicit cross-team change instruction before writing any code.
 

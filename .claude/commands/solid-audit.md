@@ -1,4 +1,8 @@
-# /solid-audit
+---
+description: Audit the audio module for SOLID / separation-of-concerns violations (>40-line runners, direct I/O outside _io.py, lazy imports, contract gaps); report-only.
+argument-hint: "[path, defaults to backend/app/modules/audio/]"
+allowed-tools: Read, Grep, Glob
+---
 
 Systematically audits the audio pipeline module (`backend/app/modules/audio/`) for adherence to SOLID principles, separation of concerns, and clean architectural boundaries.
 

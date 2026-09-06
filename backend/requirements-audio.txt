@@ -1,5 +1,7 @@
-# Audio pipeline dependencies — Phase 2, Day 9+ (see docs/unleash_project_plan.md Section 7 / .claude/context/audio-pipeline/)
-# Pinned versions confirmed working in backend/prototypes/NOTES.md
+# Audio pipeline dependencies (see docs/unleash_project_plan.md Section 7 / .claude/context/audio-pipeline/)
+# Pinned versions confirmed working in backend/prototypes/NOTES.md.
+# Installed separately from requirements.txt, with the CPU torch index:
+#   pip install -r requirements-audio.txt --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.9.1
 torchaudio==2.9.1
 silero-vad==6.2.1

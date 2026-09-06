@@ -32,11 +32,17 @@ Capture all output including any import errors or collection errors.
 
 ### Step 2: Parse Output
 
-Classify each test result by stage:
-- **Stage 1 tests**: any test file named `test_stage1_*.py`
-- **Foundation tests**: any test file named `test_foundation.py`
-- **Stage 2+ tests**: any test file named `test_stage2_*.py` etc.
-- **Other**: anything else
+Classify each test result by the test file it came from. Derive the buckets from
+what pytest actually collected — do not assume a fixed set. Typical files:
+- **Foundation**: `test_foundation.py` (schema + HMAC)
+- **Stage 1 (Speech Gate)**: `test_stage1_speech_gate.py`
+- **Stage 2 (Phrase Compliance)**: `test_stage2_phrase_compliance.py`
+- **Stage 3 (Voice Authenticity)**: `test_stage3_voice_authenticity.py`
+- **Stage 4 (AV Alignment, stub)**: `test_stage4_av_alignment.py`
+- **Audio I/O**: `test_audio_io.py`
+- **Pipeline / orchestration**: `test_pipeline_schema.py`
+- **API integration**: `test_sessions_api.py`
+- **Other**: anything else pytest collected
 
 ### Step 3: Return Report
 
@@ -47,9 +53,11 @@ TEST RUN SUMMARY
 ================
 Total:   X passed, Y failed, Z errors  (in N.NNs)
 
-By stage:
-  Stage 1 (Speech Gate):  X/13 passed
-  Foundation:             X/3  passed
+By stage (one line per bucket pytest actually collected):
+  Foundation:                 X/X passed
+  Stage 1 (Speech Gate):      X/X passed
+  Stage 2 (Phrase Compliance):X/X passed
+  ...
 
 FAILURES (if any):
   test_name — first line of error message only

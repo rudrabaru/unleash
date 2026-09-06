@@ -9,7 +9,8 @@ This workspace is designed to be fully dual-compatible with both **Antigravity I
    - Respect the **4-Key Contract** (`DetectorResult` schema), Module Ownership boundaries (Dev 1 for Audio), Hard Gate definitions, and CPU-only constraints.
 
 2. **Slash Commands Integration (`.claude/commands/`)**:
-   - When the user runs or references any slash command (e.g., `/schema-check`, `/graceful-failure-audit`, `/commit-message`, `/session-worklog`, `/stage-done`, `/threshold-sweep`, `/latency-benchmark`, `/scenario-runner`, `/stub-interface-check`), **you must read the corresponding markdown file in `.claude/commands/<command-name>.md`** and execute the full workflow defined in that prompt.
+   - The canonical command list is `AGENTS.md` §3 (single source of truth).
+   - When the user runs or references any slash command, **you must read the corresponding markdown file in `.claude/commands/<command-name>.md`** and execute the full workflow defined in that prompt.
 
 3. **Domain Context (`.claude/context/`)**:
    - When working on the audio pipeline or related tests/features, actively reference all documents under [`.claude/context/audio-pipeline/`](file:///d:/Projects/Unleash/.claude/context/audio-pipeline) including:

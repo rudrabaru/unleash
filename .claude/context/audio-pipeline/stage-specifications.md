@@ -2,7 +2,9 @@
 
 Source of truth: Project Plan v2.1 Section 5. This document restates it in a form optimized for Claude Code to act on directly. If this document and the project plan ever disagree, treat that as a bug — flag it, don't silently pick one.
 
-**Integration contract:** The audio module exposes one async entrypoint (currently stubbed in `backend/app/modules/audio/__init__.py` as `process_audio_pipeline(media_path: str, challenge_phrase: str) -> DetectorResult`). Internally it runs Stages 1–4 in sequence and folds the result into a single `DetectorResult` (the 4-key contract, see root `CLAUDE.md` Section B). Dev 3's orchestrator calls only this one function — it does not call individual stages directly.
+**Integration contract:** The audio module exposes one async entrypoint in `backend/app/modules/audio/__init__.py`: `process_audio_pipeline(media_path: str, challenge_phrase: str) -> DetectorResult`. Internally it runs Stages 1–4 in sequence and folds the result into a single `DetectorResult` (the 4-key contract, see root `CLAUDE.md` Section B). Dev 3's orchestrator calls only this one function — it does not call individual stages directly.
+
+**Current implementation status:** Stages 1, 2, and 3 are fully implemented (`[REAL]`); Stage 4 is an honest `[STUB]` (returns `score=None`, never gates) pending the Day 19 interface agreement. The module is already wired into `backend/app/api/v1/endpoints/sessions.py`'s background-task flow.
 
 ---
 
@@ -107,8 +109,8 @@ audio_result = {
     "phrase_matched": bool,
     "digits_detected": list,
     "transcript": str,
-    "voice_authenticity_score": float,
-    "av_alignment_score": float
+    "voice_authenticity_score": float | None,
+    "av_alignment_score": float | None   # None while Stage 4 is stubbed
   }
 }
 ```

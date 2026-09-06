@@ -5,7 +5,10 @@ try:
 except json.JSONDecodeError:
     sys.exit(0)
 
-path = data.get("tool_input", {}).get("path", "")
+# Claude Code sends the target as tool_input.file_path for Edit/Write/MultiEdit;
+# fall back to "path" for other IDE bridges.
+tool_input = data.get("tool_input", {})
+path = tool_input.get("file_path") or tool_input.get("path") or ""
 
 if not path.endswith(".py"):
     sys.exit(0)

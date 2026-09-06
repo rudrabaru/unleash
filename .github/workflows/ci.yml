@@ -110,6 +110,6 @@ jobs:
               print("OK: webrtcvad (fallback — silero_vad unavailable on this platform)")
           EOF
 
-      - name: No audio dependencies declared yet
+      - name: No audio dependencies declared
         if: steps.check-deps.outputs.has_deps == 'false'
-        run: echo "backend/requirements-audio.txt is still a placeholder (Phase 2, Day 9+) — skipping install/import check. This is expected before Stage 1 implementation begins, not a failure."
+        run: echo "backend/requirements-audio.txt has no active requirements — skipping the install/import smoke check. Not a failure. (As of Phase 2 this file is populated; this branch is a safety net only.)"

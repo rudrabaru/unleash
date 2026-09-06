@@ -1,4 +1,8 @@
-# /dead-code-audit
+---
+description: Find dead functions, unused imports, and requirements-audio.txt dependency drift in the audio module; report-only until the user approves deletions.
+argument-hint: "[trigger note — post-stage, pre-PR, manual]"
+allowed-tools: Read, Grep, Glob, Bash, Edit
+---
 
 Systematically identifies dead, stale, and dependency-drift issues in the audio pipeline module. Never deletes anything automatically — produces a structured report and waits for user approval.
 

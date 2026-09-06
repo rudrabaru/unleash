@@ -9,15 +9,18 @@ You are closing out a work session. This command appends a concise daily summary
 
 1. Check current implementation progress and test execution results.
 2. Review `docs/worklog.md` to ensure continuity from previous entries.
-3. Draft an entry organized by project Day/Phase (e.g. `## Day N — <Milestone Title>`):
-   - **Accomplished:** high-level, professional bullet points describing what was built, verified, or discovered. (Never include low-level code snippets, line numbers, or raw file path listings).
-   - **Current State:** a 1-line high-level status of the vertical.
-   - **Next Objective:** the single concrete objective for the next session.
+3. Draft one entry headed by the project Day and a milestone title, with the actual
+   current date on the same line — e.g. `## Day N — <Milestone Title> (YYYY-MM-DD)`.
+   The entry has exactly three parts:
+   - **Done:** what was actually completed this session, evidenced by real diffs/commits
+     — not intentions or plans. High-level professional bullets; never low-level code
+     snippets, line numbers, or raw file-path listings.
+   - **Left mid-flight:** anything incomplete, half-implemented, or stashed, and its
+     current state. Write "nothing" if the tree is clean.
+   - **Next step:** the single exact, concrete objective the next session should start
+     with — specific enough that a cold-start read of this entry alone is enough to resume.
 4. Append the entry to `docs/worklog.md`.
-5. Show the developer the entry. Draft a dated entry (use the actual current date) with three parts:
-   - **Done:** what was actually completed this session, evidenced by real diffs/commits — not intentions or plans.
-   - **Left mid-flight:** anything incomplete, half-implemented, or stashed, and its current state.
-   - **Next step:** the exact, concrete thing the next session should start with — specific enough that a cold-start read of this entry alone is enough to resume.
+5. Show the developer the entry.
 
 ## Rules
 - Run `git status --short` and `git diff` (staged and unstaged) to see the actual current working-tree state — do not rely on conversation memory of what was done, since that can drift from what's actually on disk.

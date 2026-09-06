@@ -170,4 +170,8 @@ Before attempting any integration test, confirm both servers are actually runnin
 
 **J5 — No Hardcoded Stub Values:** Never write hardcoded constants, magic numeric scores, or fabricated pass/fail values to satisfy a feature requirement, fill a field, or make a test pass. Every computed value must originate from real algorithm or model output. If a stage is not yet implemented, mark it `[STUB]` explicitly in both the inline code comment **and** the module docstring — never return a plausible-looking numeric result that conceals the absence of real computation. Advisory stub fields in the pipeline must not contribute to the final `score` field until their implementing stage is real. Full procedure: `.agents/rules/no_hardcoded_stub_values.md`.
 
+**J6 — SOLID Audio Architecture:** Keep `backend/app/modules/audio/` strictly modular — one responsibility per file (`_io.py` decoding only, `_extraction.py` ffmpeg/probing, `_speech_gate.py`/`_phrase_compliance.py`/`_voice_authenticity.py`/`_av_alignment.py` one stage each, `__init__.py` orchestration only). Runner functions stay under ~40 lines via helpers; all WAV decoding goes through `_io.py`; score arithmetic is isolated in helpers; heavy libs are imported at module level with a graceful fallback flag. Use `/solid-audit` to check. Full procedure: `.agents/rules/solid_audio_pipeline.md`.
+
+**Always-on rule files (not numbered, but apply every session):** `.agents/rules/document_observations.md` (record findings in `docs/audio_pipeline_observations.md` + `docs/worklog.md` after every milestone) and `.agents/rules/commit_message_generation.md` (conventional-commit format, diff-grounded, no "Stage N"/"WIP" labels).
+
 ---

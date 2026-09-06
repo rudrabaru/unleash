@@ -1,7 +1,7 @@
 import sys, json
 
+# The directory substring covers detector.py and every other shared schema file.
 SCHEMA_FILES = [
-    "backend/app/schemas/detector.py",
     "backend/app/schemas/",
 ]
 
@@ -10,7 +10,10 @@ try:
 except json.JSONDecodeError:
     sys.exit(0)
 
-path = data.get("tool_input", {}).get("path", "")
+# Claude Code sends the target as tool_input.file_path for Edit/Write/MultiEdit;
+# fall back to "path" for other IDE bridges.
+tool_input = data.get("tool_input", {})
+path = tool_input.get("file_path") or tool_input.get("path") or ""
 path = path.replace("\\", "/")
 
 if any(s in path for s in SCHEMA_FILES):
