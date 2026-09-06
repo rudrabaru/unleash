@@ -115,6 +115,9 @@ def test_session_lifecycle_with_wrong_challenge_fails():
 
 def test_eval_dashboard_endpoint():
     """Test eval dashboard lists session results without fabricated scores."""
+    # Create a session so the store is not empty, isolating this test
+    client.post("/api/v1/sessions")
+    
     resp = client.get("/api/v1/eval/sessions")
     assert resp.status_code == 200
     sessions = resp.json()
