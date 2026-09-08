@@ -75,6 +75,23 @@ Stage 1 and Stage 2 gate the pipeline: if either fails, stop immediately and ret
 
 Produces a `0.0–1.0` advisory score. **Timebox implementation to 2 days max** — if the heuristic isn't working well by then, document the finding honestly and move on; do not let this stage block Stage 4 or the overall handoff.
 
+**Calibration status: `[UNCALIBRATED]` (Phase 4).** The heuristics are real computations on real
+audio — nothing here is stubbed — but every threshold, divisor and weight in `_voice_authenticity.py`
+(flux divisor `10.0`, hf_ratio divisor `0.15`, the noise-floor `cov`/`mean_rms` divisors, the
+`0.30/0.45/0.25` weights, the `0.5` neutral fallback, the `0.1/0.2` buckets) is an initial guess
+never fitted to a labelled recording set. Measured against the only labelled fixtures available
+(2 genuine, 1 TTS), the composite shows **no separation** between genuine and TTS speech: 0.723 and
+0.769 genuine vs 0.732 TTS. The spectral-flux term saturates to 1.0 on every real recording and the
+HF-rolloff term runs opposite to its documented direction. **No value has been changed**, because
+`test-scenarios.md` requires 8–10 recordings per scenario and we have 3 usable data points from 2
+sources — see `docs/audio_pipeline_observations.md` §7 for the evidence and the recording set needed
+to unblock calibration. Do not cite these numbers as tuned.
+
+**Degraded-run honesty:** branches that cannot perform a real measurement (librosa unavailable,
+audio shorter than one 512-sample STFT frame, no inter-speech silence) still return a numeric score
+— Stage 3 is advisory and must not disturb the pipeline — but flag `details["degraded"] = true` with
+a `degraded_reason`, so a placeholder is never mistaken for a measurement in the eval store.
+
 **Future upgrade path (out of scope now):** `speechbrain/aasist` (ASVspoof-trained). Design this stage's interface so swapping the heuristic for AASIST later requires no changes to Stage 4 or the orchestrator — i.e., keep the function signature `(audio_segments) -> float` stable regardless of internal implementation.
 
 ---

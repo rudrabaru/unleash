@@ -12,6 +12,8 @@ import pytest
 import soundfile as sf
 
 from app.modules.audio import process_audio_pipeline
+from app.modules.audio._extraction import extract_wav
+from app.modules.audio._speech_gate import run_speech_gate
 from app.modules.audio._voice_authenticity import (
     compute_hf_rolloff_score,
     compute_noise_floor_score,
@@ -178,6 +180,102 @@ def test_pipeline_integration_with_stage3():
 
     # Verify reason contains Stage 3 information
     assert "Stage 3 voice authenticity:" in res.reason
+
+
+def _stage3_score_for_fixture(fixture: Path, tmp_path: Path) -> float:
+    """
+    Run a .webm fixture through extraction -> Stage 1 VAD -> Stage 3 and return the
+    advisory score. Deliberately skips Stage 2 (faster-whisper): what is under test here
+    is Stage 3's spectral discrimination, not phrase compliance.
+    """
+    wav_path = tmp_path / f"{fixture.stem}_16k.wav"
+    ok, err, _ = extract_wav(fixture, wav_path)
+    assert ok, f"extraction failed for {fixture.name}: {err}"
+
+    gate = run_speech_gate(wav_path)
+    segments = (gate.details or {}).get("segments", [])
+
+    res = run_voice_authenticity(wav_path, segments)
+    assert res.passed is True, "Stage 3 is advisory and must never gate"
+    assert res.error is None
+    assert res.score is not None
+    return res.score
+
+
+@pytest.mark.xfail(
+    reason=(
+        "Stage 3 is UNCALIBRATED and shows no genuine-vs-TTS separation on the only labelled "
+        "fixtures available. Measured composites: genuine real_742=0.723, genuine "
+        "real_742-copy=0.769, TTS tts_742=0.732 -- the attack sample lands BETWEEN the two "
+        "genuine ones. Root causes (see docs/audio_pipeline_observations.md): the spectral-flux "
+        "term saturates to 1.0 on every real recording (std_flux 11.8/14.8/16.6 all exceed the "
+        "10.0 divisor) and the HF-rolloff term runs opposite to its documented direction. This "
+        "cannot be fixed by tuning divisors against 3 samples from 2 sources; it needs the "
+        "scenario 1/2/3/7/8/10 recording set. Remove this xfail once calibration lands."
+    ),
+    strict=False,
+)
+def test_stage3_discriminates_genuine_from_tts(tmp_path: Path):
+    """
+    Scenario 1 (genuine speech) must score higher on voice authenticity than scenario 8
+    (TTS injection). This is the coverage Stage 3 exists to provide, and the gap it is
+    currently failing to demonstrate.
+    """
+    genuine = FIXTURES_DIR / "real_742.webm"
+    tts = FIXTURES_DIR / "tts_742.webm"
+    if not genuine.exists() or not tts.exists():
+        pytest.skip("scenario 1 / scenario 8 fixtures not present")
+
+    genuine_score = _stage3_score_for_fixture(genuine, tmp_path)
+    tts_score = _stage3_score_for_fixture(tts, tmp_path)
+
+    assert genuine_score > tts_score, (
+        f"Stage 3 failed to separate genuine ({genuine_score:.3f}) from "
+        f"TTS ({tts_score:.3f}) -- no discrimination."
+    )
+
+
+def test_degraded_flag_set_when_heuristic_cannot_measure(tmp_path: Path):
+    """
+    A fallback branch that returns a placeholder instead of a real measurement must say so
+    via details["degraded"], while still honouring the advisory contract (passed=True,
+    error=None, numeric score).
+    """
+    sr = 16000
+    # Wall-to-wall speech segment leaves no inter-speech silence for the noise-floor heuristic.
+    audio = np.random.normal(0, 0.1, sr * 2).astype(np.float32)
+    wav_path = tmp_path / "no_silence.wav"
+    sf.write(str(wav_path), audio, sr)
+
+    res = run_voice_authenticity(wav_path, [{"start": 0.0, "end": 2.0}])
+
+    assert res.passed is True
+    assert res.error is None
+    assert res.score is not None
+    assert res.details is not None
+    assert res.details["degraded"] is True
+    assert any("noise floor" in r for r in res.details["degraded_reasons"])
+    assert res.details["metrics"]["noise"]["degraded"] is True
+    # The heuristics that did measure must not be flagged.
+    assert res.details["metrics"]["flux"]["degraded"] is False
+    assert "DEGRADED" in res.reason
+
+
+def test_degraded_flag_absent_on_fully_measured_run(tmp_path: Path):
+    """A run where all three heuristics measure successfully must report degraded=False."""
+    sr = 16000
+    t = np.linspace(0, 4.0, sr * 4, endpoint=False, dtype=np.float32)
+    audio = (0.3 * np.sin(2 * np.pi * 250 * t) + 0.02 * np.random.normal(0, 1, len(t))).astype(np.float32)
+    wav_path = tmp_path / "measured.wav"
+    sf.write(str(wav_path), audio, sr)
+
+    # Leaves real silence gaps before, between and after the two speech segments.
+    res = run_voice_authenticity(wav_path, [{"start": 0.5, "end": 1.5}, {"start": 2.0, "end": 3.0}])
+
+    assert res.details is not None
+    assert res.details["degraded"] is False
+    assert res.details["degraded_reasons"] == []
+    assert "DEGRADED" not in res.reason
 
 
 def test_pipeline_stage1_failure_does_not_run_stage3():
