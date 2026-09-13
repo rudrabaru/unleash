@@ -1,10 +1,15 @@
 from challenge_detector import analyze_blink
-from config import BLINK_HOLD_FRAMES , BLINK_THRESHOLD
+from config import (
+    BLINK_HOLD_FRAMES,
+    BLINK_THRESHOLD,
+    MICRO_MOVE_LOW_THRESHOLD,
+    MICRO_MOVE_HIGH_THRESHOLD,
+)
 
 def score_micro_movement(
     movement,
-    low_threshold=0.001,
-    high_threshold=0.005,
+    low_threshold=MICRO_MOVE_LOW_THRESHOLD,
+    high_threshold=MICRO_MOVE_HIGH_THRESHOLD,
 ):
     """
     Convert micro-movement into a 0-1 score.
@@ -18,7 +23,6 @@ def score_micro_movement(
     Between them:
         linearly interpolated.
     """
-
     mean_movement = movement["mean_movement"]
 
     if mean_movement <= low_threshold:
@@ -40,11 +44,10 @@ def score_blink(features):
 
     It is intentionally not mandatory.
     """
-
     result = analyze_blink(
         features,
         threshold=BLINK_THRESHOLD,
-        hold_frames=BLINK_HOLD_FRAMES
+        hold_frames=BLINK_HOLD_FRAMES,
     )
 
     return {
@@ -52,6 +55,7 @@ def score_blink(features):
         "score": result["score"],
         "max_blink": result["max_blink"],
     }
+
 def calculate_visual_liveness(
     movement,
     consistency,
@@ -66,43 +70,19 @@ def calculate_visual_liveness(
 
     Returns a score from 0 to 1.
     """
-
-    movement_score = score_micro_movement(
-        movement
-    )
-
-    consistency_score = consistency[
-        "consistency_score"
-    ]
-
+    movement_score = score_micro_movement(movement)
+    consistency_score = consistency["consistency_score"]
     blink_score = blink["score"]
 
-    # --------------------------------------------------
     # Primary liveness evidence
-    # --------------------------------------------------
-
-    # Micro-movement carries the most weight.
-    #
-    # Blink is supporting evidence rather than a
-    # requirement because a live person may not blink
-    # during a short recording.
-
     visual_score = (
         0.70 * movement_score
-        +
-        0.20 * blink_score
-        +
-        0.10 * consistency_score
+        + 0.20 * blink_score
+        + 0.10 * consistency_score
     )
 
-    # --------------------------------------------------
     # Tracking-quality gate
-    # --------------------------------------------------
-
     if consistency_score < 0.5:
         visual_score *= consistency_score
 
-    return max(
-        0.0,
-        min(visual_score, 1.0)
-    )
+    return max(0.0, min(visual_score, 1.0))

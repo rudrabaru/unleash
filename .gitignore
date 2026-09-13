@@ -3,7 +3,6 @@ plots/
 __pycache__
 videos/
 features.json
-face_landmarker.task
 progress.txt
 test.py 
 v1.py

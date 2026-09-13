@@ -2,14 +2,12 @@ import numpy as np
 import statistics
 
 def calculate_micro_movement(features):
-
     frames = features["frames"]
     movements = []
 
     previous = None
 
     for frame in frames:
-
         current = frame["landmarks"]
 
         if current is None:
@@ -74,9 +72,7 @@ def calculate_face_consistency(features):
     available throughout the video.
 
     Returns tracking statistics only.
-    It does not produce the final liveness score yet.
     """
-
     frames = features["frames"]
     total_frames = len(frames)
 
@@ -112,7 +108,6 @@ def calculate_face_consistency(features):
     current_missing_run = 0
 
     for valid in landmark_valid:
-
         if not valid:
             current_missing_run += 1
             longest_missing_run = max(
@@ -122,8 +117,6 @@ def calculate_face_consistency(features):
         else:
             current_missing_run = 0
 
-    # For now, consistency is simply the average
-    # of face and landmark coverage.
     consistency_score = (
         face_coverage +
         landmark_coverage
@@ -136,15 +129,33 @@ def calculate_face_consistency(features):
         "consistency_score": consistency_score,
     }
 
-def calculate_baseline_yaw(frames, baseline_seconds=0.5):
+def calculate_baseline_angle(frames, key="yaw", baseline_seconds=0.5, fallback_frames=10):
+    """
+    Calculate baseline angle (yaw or pitch) from initial frames.
+    Falls back to the first available valid frames if no face was
+    detected in the first baseline_seconds.
+    """
     values = [
-        frame["yaw"]
+        frame[key]
         for frame in frames
         if (
-            frame["yaw"] is not None
-            and frame["timestamp"] <= baseline_seconds
+            frame.get(key) is not None
+            and frame.get("timestamp", 0) <= baseline_seconds
         )
     ]
 
+    # Fallback to the first available valid frames if initial window was empty
+    if not values:
+        values = [
+            frame[key]
+            for frame in frames
+            if frame.get(key) is not None
+        ][:fallback_frames]
+
     return statistics.median(values) if values else None
 
+def calculate_baseline_yaw(frames, baseline_seconds=0.5):
+    return calculate_baseline_angle(frames, key="yaw", baseline_seconds=baseline_seconds)
+
+def calculate_baseline_pitch(frames, baseline_seconds=0.5):
+    return calculate_baseline_angle(frames, key="pitch", baseline_seconds=baseline_seconds)

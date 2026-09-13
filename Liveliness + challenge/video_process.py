@@ -6,6 +6,7 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 from config import MODEL_PATH
+
 # MEDIAPIPE
 options = vision.FaceLandmarkerOptions(
     base_options=python.BaseOptions(model_asset_path=MODEL_PATH),
@@ -51,73 +52,141 @@ def rotation_matrix_to_euler(matrix):
     )
 
 def process_video(video_path):
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(str(video_path))
 
     if not cap.isOpened():
         raise RuntimeError(f"Could not open video: {video_path}")
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    if fps <= 0:
+        fps = 30.0
+
     frames = []
     frame_index = 0
+    last_timestamp_ms = -1
 
-    with vision.FaceLandmarker.create_from_options(options) as landmarker:
-        while True:
-            success, frame = cap.read()
-            if not success:
-                break
+    try:
+        with vision.FaceLandmarker.create_from_options(options) as landmarker:
+            while True:
+                success, frame = cap.read()
+                if not success:
+                    break
 
-            timestamp = frame_index / fps
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                timestamp = frame_index / fps
+                timestamp_ms = int(timestamp * 1000)
+                if timestamp_ms <= last_timestamp_ms:
+                    timestamp_ms = last_timestamp_ms + 1
+                last_timestamp_ms = timestamp_ms
 
-            mp_image = mp.Image(
-                image_format=mp.ImageFormat.SRGB,
-                data=rgb
-            )
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            result = landmarker.detect_for_video(
-                mp_image,
-                int(timestamp * 1000)
-            )
-            landmarks = (np.array([[lm.x, lm.y] for lm in result.face_landmarks[0]],dtype=np.float32) if result.face_landmarks else None),
-
-            frame_data = {
-                "timestamp": timestamp,
-                "landmarks" : landmarks,
-                "face_present": bool(result.face_landmarks),
-                "yaw": None,
-                "pitch": None,
-                "roll": None,
-                "blink_left": None,
-                "blink_right": None,
-            }
-
-            if result.face_landmarks:
-                blendshapes = get_blendshape_scores(result)
-
-                frame_data["blink_left"] = blendshapes.get(
-                    "eyeBlinkLeft"
-                )
-                frame_data["blink_right"] = blendshapes.get(
-                    "eyeBlinkRight"
+                mp_image = mp.Image(
+                    image_format=mp.ImageFormat.SRGB,
+                    data=rgb
                 )
 
-            if result.facial_transformation_matrixes:
-                matrix = result.facial_transformation_matrixes[0]
+                result = landmarker.detect_for_video(
+                    mp_image,
+                    timestamp_ms
+                )
 
-                yaw, pitch, roll = rotation_matrix_to_euler(matrix)
+                landmarks = (
+                    np.array([[lm.x, lm.y] for lm in result.face_landmarks[0]], dtype=np.float32)
+                    if result.face_landmarks else None
+                )
 
-                frame_data["yaw"] = yaw
-                frame_data["pitch"] = pitch
-                frame_data["roll"] = roll
+                frame_data = {
+                    "timestamp": timestamp,
+                    "landmarks": landmarks,
+                    "face_present": bool(result.face_landmarks),
+                    "yaw": None,
+                    "pitch": None,
+                    "roll": None,
+                    "blink_left": None,
+                    "blink_right": None,
+                    "mouth_open": None,
+                    "mouth_open_raw": None,
+                }
 
-            frames.append(frame_data)
-            frame_index += 1
+                if result.face_landmarks:
+                    blendshapes = get_blendshape_scores(result)
 
-    cap.release()
+                    frame_data["blink_left"] = blendshapes.get("eyeBlinkLeft")
+                    frame_data["blink_right"] = blendshapes.get("eyeBlinkRight")
 
+                    mouth_open = calculate_mouth_openness(landmarks)
+                    frame_data["mouth_open"] = mouth_open
+                    frame_data["mouth_open_raw"] = mouth_open
+
+                if result.facial_transformation_matrixes:
+                    matrix = result.facial_transformation_matrixes[0]
+                    yaw, pitch, roll = rotation_matrix_to_euler(matrix)
+
+                    frame_data["yaw"] = yaw
+                    frame_data["pitch"] = pitch
+                    frame_data["roll"] = roll
+
+                frames.append(frame_data)
+                frame_index += 1
+    finally:
+        cap.release()
+
+    smooth_mouth_signal(frames)
     return {
         "fps": fps,
         "frame_count": frame_index,
-        "duration": frame_index / fps,
+        "duration": frame_index / fps if fps > 0 else 0.0,
         "frames": frames,
     }
+
+def calculate_mouth_openness(landmarks):
+    if landmarks is None:
+        return None
+
+    # Vertical mouth distances
+    d1 = np.linalg.norm(landmarks[13] - landmarks[14])
+    d2 = np.linalg.norm(landmarks[82] - landmarks[87])
+    d3 = np.linalg.norm(landmarks[312] - landmarks[317])
+
+    # Horizontal mouth width
+    width = np.linalg.norm(
+        landmarks[61] - landmarks[291]
+    )
+
+    if width < 1e-6:
+        return None
+
+    # Mouth Aspect Ratio (MAR)
+    mar = (d1 + d2 + d3) / (3.0 * width)
+    return float(mar)
+
+def smooth_mouth_signal(frames, window=5):
+    valid_indices = [
+        i
+        for i, frame in enumerate(frames)
+        if frame["mouth_open"] is not None
+    ]
+
+    values = [
+        frames[i]["mouth_open"]
+        for i in valid_indices
+    ]
+
+    if not values:
+        return
+
+    smoothed = []
+
+    for i in range(len(values)):
+        start = max(0, i - window // 2)
+        end = min(
+            len(values),
+            i + window // 2 + 1
+        )
+
+        smoothed.append(
+            float(np.median(values[start:end]))
+        )
+
+    for index, value in zip(valid_indices, smoothed):
+        frames[index]["mouth_open"] = value
