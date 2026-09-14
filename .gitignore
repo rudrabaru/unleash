@@ -1,9 +1,0 @@
-venv/
-plots/
-__pycache__
-videos/
-features.json
-progress.txt
-test.py 
-v1.py
-landmark.py
