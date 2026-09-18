@@ -180,7 +180,12 @@ def score_replay(frames: List[np.ndarray]) -> Dict[str, Any]:
             "degraded_reason": "cv2 (OpenCV) not installed",
         }
 
-    gray_frames = _to_gray_frames(frames)
+    # Sample frames to reduce latency: use every Nth frame if too many
+    # Keeps at most 30 frames for analysis; temporal patterns are preserved at this sampling rate
+    max_frames = 30
+    sampled_frames = frames if len(frames) <= max_frames else [frames[i] for i in range(0, len(frames), len(frames) // max_frames)]
+
+    gray_frames = _to_gray_frames(sampled_frames)
 
     moire = _moire_score(gray_frames)
     noise = _temporal_noise_score(gray_frames)

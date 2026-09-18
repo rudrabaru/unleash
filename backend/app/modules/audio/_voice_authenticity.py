@@ -60,6 +60,11 @@ _LIBROSA_LOAD_ERROR: Optional[str] = None
 try:
     import librosa
     _LIBROSA_AVAILABLE = True
+    # Warm up librosa on first import to eliminate first-call penalty (~4s)
+    # This runs once at module init, not on every inference request
+    _warmup_audio = np.zeros(512, dtype=np.float32)
+    _ = librosa.stft(_warmup_audio, n_fft=512, hop_length=128)
+    logger.info("librosa loaded and warmed up successfully")
 except Exception as _e:  # noqa: BLE001
     _LIBROSA_LOAD_ERROR = f"{type(_e).__name__}: {_e}"
     librosa = None  # type: ignore

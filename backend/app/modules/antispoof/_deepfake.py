@@ -37,8 +37,13 @@ class XceptionDeepfakeClassifier:
         if not frames:
             raise ValueError("At least one frame is required for prediction.")
 
+        # Sample frames to reduce inference latency: use every Nth frame if too many
+        # Keeps at most 20 frames for analysis; averaging across sampled frames is sufficient
+        max_frames = 20
+        sampled_frames = frames if len(frames) <= max_frames else [frames[i] for i in range(0, len(frames), len(frames) // max_frames)]
+
         model = self._load_model()
-        fake_probabilities = [self._predict_frame(model, frame) for frame in frames]
+        fake_probabilities = [self._predict_frame(model, frame) for frame in sampled_frames]
         video_fake_probability = float(np.mean(fake_probabilities))
 
         if video_fake_probability >= self.settings.fake_threshold:

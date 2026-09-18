@@ -8,6 +8,7 @@ Audio Pipeline Module (Owned by Dev 1)
 from __future__ import annotations
 
 import logging
+import time
 from pathlib import Path
 from app.core.config import settings
 from app.modules.audio._av_alignment import run_av_alignment
@@ -213,7 +214,12 @@ async def process_audio_pipeline(
                 )
 
             # 7. Run Stage 2 Phrase Compliance (faster-whisper)
+            t_stage2_start = time.perf_counter()
             stage2_result = run_phrase_compliance(wav_path, challenge_phrase)
+            stage2_elapsed = time.perf_counter() - t_stage2_start
+            if stage2_result.details is None:
+                stage2_result.details = {}
+            stage2_result.details["stage2_latency_seconds"] = round(stage2_elapsed, 3)
 
             # If Stage 2 produced an internal error or failed the hard gate, return immediately
             if stage2_result.error is not None:
@@ -240,9 +246,14 @@ async def process_audio_pipeline(
 
             # 9. Run Stage 4 AV Temporal Alignment (Whisper word timestamps x lip data - advisory)
             word_timestamps = stage2_result.details.get("word_timestamps") if stage2_result.details else None
+            t_stage4_start = time.perf_counter()
             stage4_result = run_av_alignment(
                 wav_path, word_timestamps=word_timestamps, lip_openness_data=lip_openness_data
             )
+            stage4_elapsed = time.perf_counter() - t_stage4_start
+            if stage4_result.details is None:
+                stage4_result.details = {}
+            stage4_result.details["stage4_latency_seconds"] = round(stage4_elapsed, 3)
 
             # 10. Stages 1 & 2 Passed -> Fold into pipeline result
             combined_details = _merge_stage_details(stage1_result, stage2_result, stage3_result, stage4_result)
