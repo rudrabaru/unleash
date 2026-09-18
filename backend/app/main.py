@@ -4,9 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app import db
 
 # Ensure temp uploads directory exists
 os.makedirs(settings.UPLOAD_TEMP_DIR, exist_ok=True)
+db.init_db()
 
 app = FastAPI(
     title="Unleash Multimodal Human Verification API",

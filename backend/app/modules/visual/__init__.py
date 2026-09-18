@@ -2,43 +2,99 @@
 Visual Liveness & Challenge Verification Module (Owned by Dev 2)
 - Module 1: Visual Liveness Detector (MediaPipe EAR + blink + micro-movement)
 - Module 2: Head Pose + Challenge Compliance Verifier (MediaPipe)
+
+Ported from the standalone `Liveliness + challenge/` app and fixed to the
+4-key DetectorResult contract (see implement-all-three-pillars Phase 0/2).
+
+Both entrypoints accept an optional pre-computed `features` dict (from
+`_landmarks.extract_landmark_features`) so a caller running MediaPipe once for several
+consumers — the orchestrator runs it for liveness, challenge compliance, and the Stage 4
+lip series, all over the same frame list — doesn't pay for three separate passes. Called
+without it (e.g. tests exercising one function directly against raw frames), each function
+still computes it itself; behavior and thresholds are unchanged either way.
 """
-from typing import List, Tuple
+from typing import Any, Dict, Optional
+
 from app.schemas.detector import DetectorResult
+from app.schemas.session import VisualChallengeType
+from app.modules.visual._landmarks import extract_landmark_features
+from app.modules.visual._liveness import score_liveness
+from app.modules.visual._pose import evaluate_challenge, YAW_THRESHOLD, PITCH_THRESHOLD
 
 
-async def detect_visual_liveness(frames: list) -> DetectorResult:
-    """
-    Stub implementation for Visual Liveness (EAR, blink detection, micro-movement).
-    """
-    return DetectorResult(
-        score=0.90,
-        passed=True,
-        reason="[STUB] Natural blink and micro-movement detected across frames.",
-        error=None,
-        details={
-            "blink_detected": True,
-            "natural_movement_detected": True,
-            "face_consistency_ratio": 0.98,
-            "ear_std": 0.024,
-            "frames_analyzed": len(frames) if frames else 30
-        }
-    )
+async def detect_visual_liveness(frames: list, features: Optional[Dict[str, Any]] = None) -> DetectorResult:
+    if not frames:
+        return DetectorResult(score=None, passed=False, reason="No video frames available.", error="empty frame list")
+
+    try:
+        if features is None:
+            features = extract_landmark_features(frames)
+        if features.get("error"):
+            return DetectorResult(score=None, passed=False, reason="Face landmark extraction unavailable.", error=features["error"])
+
+        result = score_liveness(features)
+        reason = (
+            f"Liveness score {result['score']:.2f}: blink={'yes' if result['blink_detected'] else 'no'}, "
+            f"face tracked in {result['face_consistency_ratio']:.0%} of frames."
+        )
+        return DetectorResult(
+            score=round(result["score"], 4),
+            passed=result["passed"],
+            reason=reason,
+            error=None,
+            details={
+                "blink_detected": result["blink_detected"],
+                "movement_mean": result["movement_mean"],
+                "movement_std": result["movement_std"],
+                "face_consistency_ratio": result["face_consistency_ratio"],
+                "frames_analyzed": result["frames_analyzed"],
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 - a detector must never raise
+        return DetectorResult(score=None, passed=False, reason="Visual liveness detection failed.", error=str(exc))
 
 
-async def verify_challenge_compliance(frames: list, visual_challenge: str) -> DetectorResult:
-    """
-    Stub implementation for Visual Challenge Compliance (Yaw/Pitch direction threshold).
-    """
-    return DetectorResult(
-        score=0.95,
-        passed=True,
-        reason=f"[STUB] User complied with {visual_challenge}.",
-        error=None,
-        details={
-            "visual_challenge": visual_challenge,
-            "max_yaw_reached": -22.5,
-            "max_pitch_reached": 2.1,
-            "complied": True
-        }
-    )
+async def verify_challenge_compliance(
+    frames: list, visual_challenge: str, features: Optional[Dict[str, Any]] = None
+) -> DetectorResult:
+    if not frames:
+        return DetectorResult(score=None, passed=False, reason="No video frames available.", error="empty frame list")
+
+    try:
+        challenge = VisualChallengeType(visual_challenge)
+    except ValueError as exc:
+        return DetectorResult(score=None, passed=False, reason=f"Unknown visual challenge '{visual_challenge}'.", error=str(exc))
+
+    try:
+        if features is None:
+            features = extract_landmark_features(frames)
+        if features.get("error"):
+            return DetectorResult(score=None, passed=False, reason="Face landmark extraction unavailable.", error=features["error"])
+
+        result = evaluate_challenge(features, challenge)
+        passed = bool(result["detected"])
+
+        if "max_displacement" in result and "blink_events" not in result:
+            denom = YAW_THRESHOLD if challenge in (VisualChallengeType.TURN_HEAD_LEFT, VisualChallengeType.TURN_HEAD_RIGHT) else PITCH_THRESHOLD
+            score = max(0.0, min(1.0, result["max_displacement"] / denom))
+        else:
+            score = max(0.0, min(1.0, result.get("blink_events", 0) / 2.0))
+
+        reason = (
+            f"Challenge {challenge.value} {'passed' if passed else 'failed'}: "
+            f"required {result['threshold_desc']}."
+        )
+
+        return DetectorResult(
+            score=round(score, 4),
+            passed=passed,
+            reason=reason,
+            error=None,
+            details={
+                "visual_challenge": challenge.value,
+                "complied": passed,
+                **{k: v for k, v in result.items() if k != "threshold_desc"},
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 - a detector must never raise
+        return DetectorResult(score=None, passed=False, reason="Challenge compliance check failed.", error=str(exc))

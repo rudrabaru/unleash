@@ -59,6 +59,12 @@ temp_uploads/
 *.jpg
 *.png
 
+# Trained model checkpoints & training working data (build artifacts, not source)
+checkpoints/
+*.pth
+*.pt
+backend/app/modules/antispoof/training/data/
+
 # IDE & OS
 .vscode/
 .idea/

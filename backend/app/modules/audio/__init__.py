@@ -3,7 +3,7 @@ Audio Pipeline Module (Owned by Dev 1)
 - Stage 1: Speech Gate (silero-vad) [REAL]
 - Stage 2: Phrase Compliance (faster-whisper tiny) [REAL]
 - Stage 3: Voice Authenticity (librosa spectral heuristics) [REAL]
-- Stage 4: AV Temporal Alignment (Whisper word timestamps x MediaPipe lip series) [STUB]
+- Stage 4: AV Temporal Alignment (Whisper word timestamps x MediaPipe lip series) [REAL]
 """
 from __future__ import annotations
 
@@ -73,6 +73,7 @@ def _build_pipeline_reason(
     s1_details: Dict[str, Any],
     s2_details: Dict[str, Any],
     s3_str: str,
+    s4_reason: str,
 ) -> str:
     """Build standardized human-readable reason string when all mandatory stages pass."""
     speech_dur = s1_details.get("speech_duration_seconds", 0.0)
@@ -80,7 +81,7 @@ def _build_pipeline_reason(
     return (
         f"Stages 1+2 passed: {speech_dur:.2f}s speech detected, "
         f"{match_count}/3 challenge digits verified. "
-        f"Stage 3 voice authenticity: {s3_str}. [STUB: Stage 4 passed]"
+        f"Stage 3 voice authenticity: {s3_str}. Stage 4: {s4_reason}"
     )
 
 
@@ -94,7 +95,11 @@ def _cleanup_temp_file(file_path: Optional[Path]) -> None:
             logger.warning(f"Could not delete temporary WAV file {file_path}: {e}")
 
 
-async def process_audio_pipeline(media_path: str, challenge_phrase: str) -> DetectorResult:
+async def process_audio_pipeline(
+    media_path: str,
+    challenge_phrase: str,
+    lip_openness_data: Optional[Dict[str, Any]] = None,
+) -> DetectorResult:
     """
     Execute the audio pipeline stages in sequence:
     1. Extract audio track from media container to 16kHz mono WAV in temp_uploads/
@@ -233,9 +238,11 @@ async def process_audio_pipeline(media_path: str, challenge_phrase: str) -> Dete
             stage1_segments = stage1_result.details.get("segments") if stage1_result.details else None
             stage3_result = run_voice_authenticity(wav_path, stage1_segments)
 
-            # 9. Run Stage 4 AV Temporal Alignment (Whisper word timestamps x lip data - advisory stub)
+            # 9. Run Stage 4 AV Temporal Alignment (Whisper word timestamps x lip data - advisory)
             word_timestamps = stage2_result.details.get("word_timestamps") if stage2_result.details else None
-            stage4_result = run_av_alignment(wav_path, word_timestamps=word_timestamps, lip_openness_data=None)
+            stage4_result = run_av_alignment(
+                wav_path, word_timestamps=word_timestamps, lip_openness_data=lip_openness_data
+            )
 
             # 10. Stages 1 & 2 Passed -> Fold into pipeline result
             combined_details = _merge_stage_details(stage1_result, stage2_result, stage3_result, stage4_result)
@@ -245,6 +252,7 @@ async def process_audio_pipeline(media_path: str, challenge_phrase: str) -> Dete
                 stage1_result.details or {},
                 stage2_result.details or {},
                 s3_str,
+                stage4_result.reason,
             )
 
             return DetectorResult(

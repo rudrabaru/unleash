@@ -81,14 +81,14 @@ Defined in `backend/app/schemas/detector.py` as the Pydantic model `DetectorResu
 
 ## E. Critical Integration Points Crossing Developer Boundaries
 
-Two data exchanges cross developer boundaries. Both are **frozen until the Day 19 AV-alignment design session** — neither Dev 1 nor Dev 2 should implement Stage 4 beyond a stub before that session happens and the format is written down.
+Two data exchanges cross developer boundaries. The intended process was a Day 19 AV-alignment design session between Dev 1 and Dev 2 to agree the exact formats before either side implemented Stage 4 beyond a stub. That session never happened and Dev 2 was unavailable; with explicit user authorization, Dev 1 wrote the agreement solo (based on the shapes the project plan had already specified plus what the real visual/audio code produces) and implemented the real Stage 4 against it. See `.claude/context/audio-pipeline/av-alignment-interface.md` for the finalized schema. If Dev 2 later reviews this and wants changes, that's a new interface negotiation — update that file, `stage-specifications.md`, and this section together in the same commit.
 
 | Data Exchange | Producer | Consumer | Contents |
 |---|---|---|---|
-| Lip openness series | Dev 2 (MediaPipe) | Dev 1 (Stage 4) | Per-frame lip openness ratio + video fps |
-| Word timestamps | Dev 1 (faster-whisper) | Dev 1's own Stage 4 | List of (word, start_seconds, end_seconds) |
+| Lip openness series | Dev 2 (MediaPipe) | Dev 1 (Stage 4) | `{"fps": float, "series": [{"frame_index": int, "lip_openness_ratio": float}, ...]}` — face-height-normalized, omits frames with no detected face |
+| Word timestamps | Dev 1 (faster-whisper) | Dev 1's own Stage 4 | List of `{"word": str, "start": float, "end": float, "probability": float}` dicts (not the plan's originally-sketched tuple shape) |
 
-Dev 1's deep audio-pipeline spec — including the stage-by-stage design, the 10 audio test scenarios, known implementation gotchas, the stage-level integration checklist, the automation/prompting workflow, and the (currently blank) AV-alignment interface placeholder — lives in **`.claude/context/audio-pipeline/`**. Read that folder in full before writing or modifying anything under `backend/app/modules/audio/`.
+Dev 1's deep audio-pipeline spec — including the stage-by-stage design, the 10 audio test scenarios, known implementation gotchas, the stage-level integration checklist, the automation/prompting workflow, and the finalized AV-alignment interface — lives in **`.claude/context/audio-pipeline/`**. Read that folder in full before writing or modifying anything under `backend/app/modules/audio/`.
 
 ---
 

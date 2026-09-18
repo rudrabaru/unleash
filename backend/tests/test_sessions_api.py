@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.v1.endpoints.sessions import SESSION_STORE
+from app import db
 from app.core.security import generate_challenge_token
 from app.main import app
 from app.schemas.session import VerificationStatus
@@ -19,7 +19,15 @@ client = TestClient(app)
 
 
 def test_session_lifecycle_with_real_audio_verification():
-    """Test full session creation, submit, and background verification with real speech fixture."""
+    """
+    Test full session creation, submit, and background verification with the real
+    speech fixture. `real_742.webm` has genuine speech but no face in its video
+    track (it's an audio-scenario fixture, not a face recording), so with the
+    real visual challenge-compliance module wired in (Phase 2), the session
+    correctly comes back FAILED via the visual hard gate even though every
+    audio-side assertion passes. A true end-to-end VERIFIED case needs a fixture
+    with an actual compliant face recording (Phase 4 evaluation scenarios).
+    """
     real_webm = FIXTURES_DIR / "real_742.webm"
     if not real_webm.exists():
         pytest.skip("Fixture real_742.webm not found")
@@ -33,17 +41,17 @@ def test_session_lifecycle_with_real_audio_verification():
     assert create_data["challenge"]["verbal"] is not None
 
     # Override verbal challenge to match fixture "742"
-    SESSION_STORE[session_id]["challenge"]["verbal"] = "742"
+    db.set_challenge(session_id, verbal_challenge="742")
     # Regenerate token with matching verbal challenge
     from app.core.config import settings
+    session = db.get_session(session_id)
     valid_token, _ = generate_challenge_token(
         session_id=session_id,
-        visual_challenge=SESSION_STORE[session_id]["challenge"]["visual"].value,
+        visual_challenge=session["visual_challenge"],
         verbal_challenge="742",
         secret_key=settings.SECRET_KEY,
         expiry_seconds=60
     )
-    SESSION_STORE[session_id]["token"] = valid_token
 
     # 2. Submit media with matching challenge
     with open(real_webm, "rb") as f:
@@ -60,11 +68,13 @@ def test_session_lifecycle_with_real_audio_verification():
     assert result_resp.status_code == 200
     res_data = result_resp.json()
 
-    assert res_data["status"] == VerificationStatus.VERIFIED
-    assert res_data["confidence"] is not None and res_data["confidence"] >= 0.67
+    # Overall verdict: FAILED, because this fixture has no face for the visual
+    # challenge hard gate to pass — not because the audio pipeline failed.
+    assert res_data["status"] == VerificationStatus.FAILED
     assert "audio_pipeline" in res_data["signals"]
     assert res_data["signals"]["audio_pipeline"]["passed"] is True
     assert res_data["signals"]["audio_pipeline"]["details"]["phrase_matched"] is True
+    assert res_data["signals"]["visual_challenge"]["passed"] is False
 
     # Stage 3 Voice Authenticity is real and computed; Stage 4 AV alignment is currently stubbed (None per canonical schema)
     assert "voice_authenticity_score" in res_data["signals"]["audio_pipeline"]["details"]
@@ -84,16 +94,16 @@ def test_session_lifecycle_with_wrong_challenge_fails():
     session_id = create_data["session_id"]
 
     # Challenge is "981" while audio says "742"
-    SESSION_STORE[session_id]["challenge"]["verbal"] = "981"
+    db.set_challenge(session_id, verbal_challenge="981")
     from app.core.config import settings
+    session = db.get_session(session_id)
     valid_token, _ = generate_challenge_token(
         session_id=session_id,
-        visual_challenge=SESSION_STORE[session_id]["challenge"]["visual"].value,
+        visual_challenge=session["visual_challenge"],
         verbal_challenge="981",
         secret_key=settings.SECRET_KEY,
         expiry_seconds=60
     )
-    SESSION_STORE[session_id]["token"] = valid_token
 
     with open(real_webm, "rb") as f:
         submit_resp = client.post(

@@ -9,12 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 
+from app.modules.antispoof._config import FAKE_CLASS_INDEX, IMAGENET_MEAN, IMAGENET_STD
+
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
 CLASS_TO_INDEX = {"real": 0, "fake": 1}
-FAKE_CLASS_INDEX = 1
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
 @dataclass(frozen=True)
@@ -209,10 +208,18 @@ def infer_source_ids(relative_path: PurePosixPath, class_name: str, media_type: 
             return stem_parts[:2]
 
     if media_type == "image":
+        # Image datasets are split by build_image_split (a plain random per-class split,
+        # not grouped by source), so the source ID's only real job here is to be
+        # non-empty and stable. Prefer a 2-part ID when the filename has one (keeps the
+        # original convention for datasets that do encode a source in the name), but fall
+        # back to the whole stem rather than raising when it doesn't — real-world dataset
+        # filenames (e.g. "071.png") aren't guaranteed to contain an underscore.
         if class_name == "real" and len(stem_parts) >= 1:
             return (stem_parts[0],)
         if class_name == "fake" and len(stem_parts) >= 2:
             return stem_parts[:2]
+        if class_name == "fake" and len(stem_parts) == 1:
+            return stem_parts
 
     return ()
 

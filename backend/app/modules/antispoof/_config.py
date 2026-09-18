@@ -1,7 +1,14 @@
+"""
+Deepfake detector configuration. Owns the constants that used to live in
+training/train_xception.py so the runtime module never has to import the
+training script (see Phase 3: invert the config -> training import direction).
+"""
 from dataclasses import dataclass
 import os
 
-from training.train_xception import FAKE_CLASS_INDEX
+FAKE_CLASS_INDEX = 1
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
 def _get_int(name: str, default: int) -> int:
@@ -32,14 +39,13 @@ def _get_bool(name: str, default: bool) -> bool:
 
 
 @dataclass(frozen=True)
-class Settings:
+class DeepfakeSettings:
     model_name: str = os.getenv("UNLEASH_XCEPTION_MODEL_NAME", "xception")
     checkpoint_path: str | None = os.getenv("UNLEASH_XCEPTION_CHECKPOINT", "checkpoints/xception_deepfake_best.pth")
     fake_threshold: float = _get_float("UNLEASH_FAKE_THRESHOLD", 0.5)
-    max_sampled_frames: int = _get_int("UNLEASH_MAX_FRAMES", 16)
     image_size: int = _get_int("UNLEASH_IMAGE_SIZE", 299)
     enable_face_crop: bool = _get_bool("UNLEASH_ENABLE_FACE_CROP", True)
     fake_class_index: int = _get_int("UNLEASH_FAKE_CLASS_INDEX", FAKE_CLASS_INDEX)
 
 
-settings = Settings()
+settings = DeepfakeSettings()

@@ -4,7 +4,7 @@ Source of truth: Project Plan v2.1 Section 5. This document restates it in a for
 
 **Integration contract:** The audio module exposes one async entrypoint in `backend/app/modules/audio/__init__.py`: `process_audio_pipeline(media_path: str, challenge_phrase: str) -> DetectorResult`. Internally it runs Stages 1–4 in sequence and folds the result into a single `DetectorResult` (the 4-key contract, see root `CLAUDE.md` Section B). Dev 3's orchestrator calls only this one function — it does not call individual stages directly.
 
-**Current implementation status:** Stages 1, 2, and 3 are fully implemented (`[REAL]`); Stage 4 is an honest `[STUB]` (returns `score=None`, never gates) pending the Day 19 interface agreement. The module is already wired into `backend/app/api/v1/endpoints/sessions.py`'s background-task flow.
+**Current implementation status:** Stages 1-4 are all `[REAL]`. Stage 4's interface was originally blocked on a Day 19 design session with Dev 2 that never happened; since Dev 2 was unavailable, Dev 1 wrote the agreed format solo (with explicit user authorization) — see `av-alignment-interface.md` for the finalized schema — and implemented the real alignment logic against it. Stage 4 remains advisory (`score` can be `None` when lip/word data is missing; `passed` is always `True`). The module is wired into `backend/app/orchestrator.py`, which extracts frame landmarks once and passes the lip openness series through.
 
 ---
 
@@ -98,17 +98,20 @@ a `degraded_reason`, so a placeholder is never mistaken for a measurement in the
 
 ## Stage 4 — AV Temporal Alignment (Cross-Modal)
 
-**⚠️ BLOCKED until the Day 19 design session with Dev 2.** See `av-alignment-interface.md` — it is currently a blank placeholder. Do not implement this stage beyond a stub that accepts both inputs and returns a hardcoded score until that document is filled in.
+**Interface finalized** — see `av-alignment-interface.md` for the exact lip-series and word-timestamp shapes, written by Dev 1 solo (Dev 2 unavailable) with explicit user authorization, since the Day 19 session never happened.
 
-**Purpose (for when it's unblocked):** Verify speech occurred at the same time the lips were moving — defeats replay-with-background-audio and TTS-injection-while-video-shows-a-real-person attacks.
+**Purpose:** Verify speech occurred at the same time the lips were moving — defeats replay-with-background-audio and TTS-injection-while-video-shows-a-real-person attacks.
 
-**Design (from the project plan, subject to the Day 19 agreement on exact data shapes):**
-1. For each spoken word's `[start, end]` window (from Stage 2's Whisper timestamps), find the corresponding video frames (using Dev 2's lip openness series + video fps).
-2. Check what fraction of those frames show lip openness above a threshold.
-3. Score = fraction of spoken-word windows with corresponding lip movement.
-4. **Tolerance: ±300ms misalignment window** (human speech and lip movement naturally lag up to ~150ms).
+**Implementation (`_av_alignment.py`):**
+1. For each spoken word's `[start, end]` window (from Stage 2's Whisper timestamps), widened by the ±300ms tolerance, find the corresponding sampled video frames by converting seconds to frame indices via the lip series' `fps`.
+2. Derive a per-session "open" threshold from the lip series' own median + half its stdev (lip geometry/camera distance vary per user, so a fixed global threshold doesn't generalize).
+3. A word counts as aligned if ≥30% of its overlapping frames exceed that threshold.
+4. Score = fraction of words (with ≥1 overlapping frame) that count as aligned.
+5. **Tolerance: ±300ms misalignment window** (human speech and lip movement naturally lag up to ~150ms).
 
-Advisory only — low AV alignment alone never fails a session; it's complementary to, not redundant with, Stage 2's hard gate.
+Degenerate inputs (no lip data, no word timestamps, or zero frame overlap for every word) return `score=None` with a `degraded_reason` in `details` — never a fabricated fraction (J5).
+
+Advisory only — low AV alignment alone never fails a session; `passed` is always `True`. It's complementary to, not redundant with, Stage 2's hard gate. **Calibration status: `[UNCALIBRATED]`** — the 0.30 open-fraction threshold and the median+0.5*stdev "open" derivation are reasoned initial guesses, not fitted to labelled recordings, same honesty standard as Stage 3.
 
 ---
 
@@ -127,7 +130,7 @@ audio_result = {
     "digits_detected": list,
     "transcript": str,
     "voice_authenticity_score": float | None,
-    "av_alignment_score": float | None   # None while Stage 4 is stubbed
+    "av_alignment_score": float | None   # None only when lip/word data is missing or non-overlapping
   }
 }
 ```

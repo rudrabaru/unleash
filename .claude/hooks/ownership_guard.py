@@ -3,14 +3,14 @@ import sys, json
 # Exclusive to another developer's vertical (CLAUDE.md Section C) or requiring
 # team agreement before any edit (CLAUDE.md Section G).
 PROTECTED = [
-    "backend/app/modules/visual/",
-    "backend/app/modules/antispoof/",
-    "backend/app/api/v1/endpoints/eval.py",   # Dev 3 only
     "backend/app/core/",                       # shared — config + HMAC (Section G)
 ]
-# Note: backend/app/api/v1/endpoints/sessions.py is split-owned (Dev 2 creation
-# logic / Dev 3 orchestration). Not hard-blocked here, but Dev 1 should only
-# touch it for an explicitly agreed cross-team change.
+# NOTE (temporary, cross-team authorized): visual/, antispoof/, eval.py and
+# sessions.py were removed from this list because the user explicitly asked
+# Dev 1 to implement all three verticals solo on feature/audio-pipeline (see
+# conversation authorizing this under CLAUDE.md Section C's "explicit
+# cross-team/pairing change" exception). core/ stays guarded since it's a
+# Section G shared-agreement item, not a per-developer ownership boundary.
 
 try:
     data = json.load(sys.stdin)
