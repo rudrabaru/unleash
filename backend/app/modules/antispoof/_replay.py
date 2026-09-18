@@ -168,6 +168,18 @@ def score_replay(frames: List[np.ndarray]) -> Dict[str, Any]:
     the detector contract, but every sub-signal here already degrades to a neutral 0.5
     rather than crashing on edge-case input (single frame, blank frame, etc).
     """
+    # Guard against missing cv2 dependency (DIP violation fix)
+    if not CV2_AVAILABLE:
+        return {
+            "score": 0.5,
+            "passed": False,
+            "moire": {"score": 0.5, "frames_sampled": 0},
+            "temporal_noise": {"score": 0.5, "mean_diff_std": None},
+            "brightness_histogram": {"score": 0.5, "entropy_bits": None, "clip_fraction": None},
+            "frames_analyzed": len(frames),
+            "degraded_reason": "cv2 (OpenCV) not installed",
+        }
+
     gray_frames = _to_gray_frames(frames)
 
     moire = _moire_score(gray_frames)
