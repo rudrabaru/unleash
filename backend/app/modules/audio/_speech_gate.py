@@ -14,9 +14,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.modules.audio._io import read_wav_torch
 from app.schemas.detector import DetectorResult
 
-# Backward compatibility alias
-read_wav_16k = read_wav_torch
-
 logger = logging.getLogger(__name__)
 
 TARGET_SAMPLE_RATE = 16000

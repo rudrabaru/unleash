@@ -18,12 +18,14 @@ from app.schemas.detector import DetectorResult
 logger = logging.getLogger(__name__)
 
 # Digit word dictionaries
+# Removed homophones that appear in normal speech (to/too/for/fore/o) to reduce false matches.
+# Only kept exact digit names and phonetically-distinct alternatives (oh, won, ate).
 SINGLE_DIGITS: Dict[str, int] = {
-    "zero": 0, "oh": 0, "o": 0,
+    "zero": 0, "oh": 0,
     "one": 1, "won": 1,
-    "two": 2, "to": 2, "too": 2,
+    "two": 2,
     "three": 3,
-    "four": 4, "for": 4, "fore": 4,
+    "four": 4,
     "five": 5,
     "six": 6,
     "seven": 7,

@@ -21,7 +21,6 @@ from app.modules.audio._speech_gate import (
     SPEECH_DURATION_THRESHOLD_S,
     TARGET_SAMPLE_RATE,
     _VAD_MODEL,
-    read_wav_16k,
     run_speech_gate,
 )
 from app.schemas.detector import DetectorResult

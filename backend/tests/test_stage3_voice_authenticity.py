@@ -18,7 +18,6 @@ from app.modules.audio._voice_authenticity import (
     compute_hf_rolloff_score,
     compute_noise_floor_score,
     compute_spectral_flux_score,
-    read_audio_for_analysis,
     run_voice_authenticity,
 )
 from app.schemas.detector import DetectorResult

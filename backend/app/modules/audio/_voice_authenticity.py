@@ -33,9 +33,6 @@ import numpy as np
 from app.modules.audio._io import read_wav_numpy
 from app.schemas.detector import DetectorResult
 
-# Backward compatibility alias
-read_audio_for_analysis = read_wav_numpy
-
 logger = logging.getLogger(__name__)
 
 TARGET_SAMPLE_RATE = 16000

@@ -51,7 +51,8 @@ def test_digit_extraction_logic():
     assert extract_digits("um seven... uh... four... two") == [7, 4, 2]
     assert extract_digits("three oh eight") == [3, 0, 8]
     assert extract_digits("three zero eight") == [3, 0, 8]
-    assert extract_digits("seven for two") == [7, 4, 2]
+    # Note: "for" is no longer mapped to "4" to reduce false-accept risk from common English words
+    assert extract_digits("seven for two") == [7, 2]
 
     # Empty & non-digit speech
     assert extract_digits("") == []

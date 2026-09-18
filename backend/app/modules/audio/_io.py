@@ -6,15 +6,12 @@ to tensor (PyTorch) or ndarray (NumPy) representations at 16kHz mono float32.
 """
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Tuple
 
 import numpy as np
 import soundfile as sf
 import torch
-
-logger = logging.getLogger(__name__)
 
 TARGET_SAMPLE_RATE = 16000
 

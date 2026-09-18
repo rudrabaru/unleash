@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from app.core.config import settings
 from app.modules.audio._av_alignment import run_av_alignment
 from app.modules.audio._extraction import (
     check_extraction_completeness,
@@ -146,9 +147,8 @@ async def process_audio_pipeline(
                 details={"speech_detected": False, "speech_duration_seconds": 0.0},
             )
 
-        # 2. Setup output WAV path in backend/temp_uploads/ with session/media prefix
-        backend_dir = Path(__file__).resolve().parent.parent.parent.parent
-        temp_uploads_dir = backend_dir / "temp_uploads"
+        # 2. Setup output WAV path in temp_uploads/ (configured via settings.UPLOAD_TEMP_DIR)
+        temp_uploads_dir = Path(settings.UPLOAD_TEMP_DIR)
         temp_uploads_dir.mkdir(parents=True, exist_ok=True)
 
         stem = src_path.stem
