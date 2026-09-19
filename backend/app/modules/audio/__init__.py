@@ -1,7 +1,9 @@
 """
 Audio Pipeline Module (Owned by Dev 1)
 - Stage 1: Speech Gate (silero-vad) [REAL]
-- Stage 2: Phrase Compliance (faster-whisper tiny) [REAL]
+- Stage 2: Phrase Compliance (faster-whisper tiny word matching) [REAL]
+  Matches 5-word phrase challenges using word-level fuzzy matching + confidence thresholding.
+  Threshold: 4 of 5 words must match (Levenshtein distance-based).
 - Stage 3: Voice Authenticity (librosa spectral heuristics) [REAL]
 - Stage 4: AV Temporal Alignment (Whisper word timestamps x MediaPipe lip series) [REAL]
 """

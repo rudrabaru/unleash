@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Uploa
 from app import db, orchestrator
 from app.core.config import settings
 from app.core.security import generate_challenge_token, verify_challenge_token
+from app.modules.audio.vocabulary_builder import CHALLENGE_VOCABULARY
 from app.schemas.session import (
     ChallengePayload,
     SessionCreateResponse,
@@ -24,13 +25,14 @@ router = APIRouter()
 async def create_session():
     """
     Create a new human verification session.
-    Generates random visual & verbal challenges and signs an HMAC token.
+    Generates a random visual challenge (5 types: head turns, blinks) and a 5-word
+    verbal challenge (from curated, phonetically-distinct vocabulary). Signs HMAC token.
     (Owned by Dev 2 in integration)
     """
     session_id = str(uuid.uuid4())
 
     visual_choice = random.choice(list(VisualChallengeType))
-    verbal_choice = str(random.randint(100, 999))
+    verbal_choice = " ".join(random.sample(CHALLENGE_VOCABULARY, 5))
 
     token, expires_at = generate_challenge_token(
         session_id=session_id,

@@ -40,15 +40,17 @@ def test_session_lifecycle_with_real_audio_verification():
     token = create_data["token"]
     assert create_data["challenge"]["verbal"] is not None
 
-    # Override verbal challenge to match fixture "742"
-    db.set_challenge(session_id, verbal_challenge="742")
+    # Override verbal challenge to a 5-word phrase (fixture speaks "seven four two")
+    # Use a phrase containing these words so fuzzy matching can succeed
+    challenge_phrase = "seven four two apple bridge"
+    db.set_challenge(session_id, verbal_challenge=challenge_phrase)
     # Regenerate token with matching verbal challenge
     from app.core.config import settings
     session = db.get_session(session_id)
     valid_token, _ = generate_challenge_token(
         session_id=session_id,
         visual_challenge=session["visual_challenge"],
-        verbal_challenge="742",
+        verbal_challenge=challenge_phrase,
         secret_key=settings.SECRET_KEY,
         expiry_seconds=60
     )
@@ -93,14 +95,16 @@ def test_session_lifecycle_with_wrong_challenge_fails():
     create_data = create_resp.json()
     session_id = create_data["session_id"]
 
-    # Challenge is "981" while audio says "742"
-    db.set_challenge(session_id, verbal_challenge="981")
+    # Challenge is a 5-word phrase that won't match the audio ("apple bridge cloud dark eagle")
+    # while audio says "seven four two"
+    challenge_phrase = "apple bridge cloud dark eagle"
+    db.set_challenge(session_id, verbal_challenge=challenge_phrase)
     from app.core.config import settings
     session = db.get_session(session_id)
     valid_token, _ = generate_challenge_token(
         session_id=session_id,
         visual_challenge=session["visual_challenge"],
-        verbal_challenge="981",
+        verbal_challenge=challenge_phrase,
         secret_key=settings.SECRET_KEY,
         expiry_seconds=60
     )

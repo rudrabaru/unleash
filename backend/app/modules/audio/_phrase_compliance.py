@@ -1,61 +1,20 @@
 """
-Stage 2: Phrase Compliance (STT + Matching) Implementation.
+Stage 2: Phrase Compliance (STT + Word Matching) Implementation.
 
 Transcribes audio using faster-whisper (tiny model) on CPU, extracts word-level
-timestamps, extracts spoken digits, and verifies compliance against the 3-digit
-server challenge with a 2-of-3 match threshold.
+timestamps and confidences, and verifies compliance against a 5-word phrase
+challenge using weighted edit distance + minimum-average-confidence.
 """
 from __future__ import annotations
 
 import logging
-import re
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from app.schemas.detector import DetectorResult
 
 logger = logging.getLogger(__name__)
-
-# Digit word dictionaries
-# Removed homophones that appear in normal speech (to/too/for/fore/o) to reduce false matches.
-# Only kept exact digit names and phonetically-distinct alternatives (oh, won, ate).
-SINGLE_DIGITS: Dict[str, int] = {
-    "zero": 0, "oh": 0,
-    "one": 1, "won": 1,
-    "two": 2,
-    "three": 3,
-    "four": 4,
-    "five": 5,
-    "six": 6,
-    "seven": 7,
-    "eight": 8, "ate": 8,
-    "nine": 9,
-}
-
-TEENS: Dict[str, int] = {
-    "ten": 10,
-    "eleven": 11,
-    "twelve": 12,
-    "thirteen": 13,
-    "fourteen": 14,
-    "fifteen": 15,
-    "sixteen": 16,
-    "seventeen": 17,
-    "eighteen": 18,
-    "nineteen": 19,
-}
-
-TENS: Dict[str, int] = {
-    "twenty": 20,
-    "thirty": 30,
-    "forty": 40, "fourty": 40,
-    "fifty": 50,
-    "sixty": 60,
-    "seventy": 70,
-    "eighty": 80,
-    "ninety": 90,
-}
 
 # faster-whisper tiny loaded ONCE at module init (known-tricky-spots #1, #4)
 _WHISPER_MODEL: Optional[Any] = None
@@ -76,169 +35,115 @@ except Exception as _e:  # noqa: BLE001
     logger.error(f"Failed to load faster-whisper model at module init: {_WHISPER_LOAD_ERROR}")
 
 
-def normalize_token(token: str) -> str:
-    """Strip surrounding punctuation from a token."""
-    return re.sub(r"^[^\w]+|[^\w]+$", "", token).lower()
-
-
-def extract_digits(transcript: str) -> List[int]:
+def levenshtein_distance(s1: str, s2: str) -> int:
     """
-    Extract a sequential list of individual integer digits (0-9) from a transcript string.
-    Handles numeric characters, single-word digits, compound numbers ('forty-two', 'seven hundred'),
-    and colloquial expressions.
+    Compute Levenshtein (edit) distance between two strings.
+    Used for word-level fuzzy matching against the challenge phrase vocabulary.
     """
-    if not transcript or not transcript.strip():
-        return []
-
-    # Replace hyphens/dashes with spaces for compound words (e.g. "forty-two" -> "forty two")
-    text = transcript.replace("-", " ").replace("–", " ").replace("—", " ")
-
-    # Pre-clean punctuation attached to numbers/words
-    raw_tokens = text.split()
-    tokens = [normalize_token(t) for t in raw_tokens if normalize_token(t)]
-
-    extracted_digits: List[int] = []
-    i = 0
-    n = len(tokens)
-
-    while i < n:
-        token = tokens[i]
-
-        # 1. Direct integer string (e.g. "742" or "7")
-        if token.isdigit():
-            for char in token:
-                extracted_digits.append(int(char))
-            i += 1
-            continue
-
-        # 2. Check for "hundred" construct: e.g. "seven hundred (and) forty two" or "seven hundred"
-        if token in SINGLE_DIGITS and i + 1 < n and tokens[i + 1] == "hundred":
-            extracted_digits.append(SINGLE_DIGITS[token])
-
-            # Check if followed by "and" + tens/units or just tens/units
-            offset = 2
-            if i + offset < n and tokens[i + offset] == "and":
-                offset += 1
-
-            if i + offset < n and tokens[i + offset] in TENS:
-                tens_val = TENS[tokens[i + offset]]
-                tens_digit = tens_val // 10
-                extracted_digits.append(tens_digit)
-                offset += 1
-                if i + offset < n and tokens[i + offset] in SINGLE_DIGITS:
-                    extracted_digits.append(SINGLE_DIGITS[tokens[i + offset]])
-                    offset += 1
-                else:
-                    extracted_digits.append(0)
-            elif i + offset < n and tokens[i + offset] in TEENS:
-                teen_val = TEENS[tokens[i + offset]]
-                extracted_digits.extend([int(d) for d in str(teen_val)])
-                offset += 1
-            elif i + offset < n and tokens[i + offset] in SINGLE_DIGITS:
-                extracted_digits.extend([0, SINGLE_DIGITS[tokens[i + offset]]])
-                offset += 1
-            else:
-                # E.g. "seven hundred" -> [7, 0, 0]
-                extracted_digits.extend([0, 0])
-
-            i += offset
-            continue
-
-        # 3. Check for tens + units: e.g. "forty two" -> 42 -> [4, 2]
-        if token in TENS:
-            tens_digit = TENS[token] // 10
-            extracted_digits.append(tens_digit)
-            if i + 1 < n and tokens[i + 1] in SINGLE_DIGITS:
-                extracted_digits.append(SINGLE_DIGITS[tokens[i + 1]])
-                i += 2
-            else:
-                # E.g. "forty" -> [4, 0]
-                extracted_digits.append(0)
-                i += 1
-            continue
-
-        # 4. Check for teens: e.g. "fourteen" -> [1, 4]
-        if token in TEENS:
-            val = TEENS[token]
-            extracted_digits.extend([int(d) for d in str(val)])
-            i += 1
-            continue
-
-        # 5. Check for single digit word: e.g. "seven" -> 7
-        if token in SINGLE_DIGITS:
-            extracted_digits.append(SINGLE_DIGITS[token])
-            i += 1
-            continue
-
-        # 6. Embedded digits in token (e.g. "7th" -> 7, or "x742y" -> [7, 4, 2])
-        digits_in_token = re.findall(r"\d", token)
-        if digits_in_token:
-            extracted_digits.extend(int(d) for d in digits_in_token)
-
-        i += 1
-
-    return extracted_digits
-
-
-def longest_common_subsequence(seq1: List[int], seq2: List[int]) -> int:
-    """Dynamic programming longest common subsequence length."""
-    m, n = len(seq1), len(seq2)
+    m, n = len(s1), len(s2)
     dp = [[0] * (n + 1) for _ in range(m + 1)]
+
+    for i in range(m + 1):
+        dp[i][0] = i
+    for j in range(n + 1):
+        dp[0][j] = j
 
     for i in range(1, m + 1):
         for j in range(1, n + 1):
-            if seq1[i - 1] == seq2[j - 1]:
-                dp[i][j] = dp[i - 1][j - 1] + 1
+            if s1[i - 1] == s2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1]
             else:
-                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
 
     return dp[m][n]
 
 
-def positional_window_match(extracted: List[int], target: List[int]) -> int:
+def word_similarity_score(recognized: str, target: str) -> float:
     """
-    Find best match count via sliding window positional comparison or LCS.
-    Handles extra leading/trailing numbers, background noise, and filler utterances.
+    Compute word-level similarity (0.0-1.0) using Levenshtein distance.
+    Maximum distance for penalizing errors is 2x the longer word length (very lenient).
     """
-    if not extracted or not target:
-        return 0
+    distance = levenshtein_distance(recognized.lower(), target.lower())
+    max_distance = max(len(recognized), len(target)) * 2
+    if max_distance == 0:
+        return 1.0
+    return max(0.0, 1.0 - (distance / max_distance))
 
-    t_len = len(target)
-    e_len = len(extracted)
 
-    # 1. Direct positional matching if same length
-    if e_len == t_len:
-        pos_match = sum(1 for a, b in zip(extracted, target) if a == b)
-    else:
-        # Sliding window positional match
-        pos_match = 0
-        if e_len >= t_len:
-            for start in range(e_len - t_len + 1):
-                window = extracted[start:start + t_len]
-                match = sum(1 for a, b in zip(window, target) if a == b)
-                if match > pos_match:
-                    pos_match = match
-        else:
-            pos_match = sum(1 for a, b in zip(extracted, target[:e_len]) if a == b)
+def match_words_fuzzy(
+    recognized_words: List[Tuple[str, float]],
+    target_words: List[str],
+    min_avg_confidence: float = 0.5,
+    min_word_similarity: float = 0.6,
+) -> Tuple[int, List[str], float]:
+    """
+    Perform fuzzy word matching between recognized and target phrase.
 
-    # 2. LCS match (handles inserted noise / filler tokens)
-    lcs_match = longest_common_subsequence(extracted, target)
+    Args:
+        recognized_words: list of (word, confidence) tuples from Whisper
+        target_words: list of target words from challenge phrase
+        min_avg_confidence: minimum average confidence across matched words
+        min_word_similarity: minimum per-word fuzzy-match score (0.0-1.0)
 
-    return max(pos_match, lcs_match)
+    Returns:
+        (match_count, matched_word_pairs, avg_confidence)
+            match_count: number of matched words (0 to len(target_words))
+            matched_word_pairs: list of "recognized -> target" strings for logging
+            avg_confidence: average confidence of matched words
+    """
+    if not recognized_words or not target_words:
+        return 0, [], 0.0
+
+    n_target = len(target_words)
+    matched = 0
+    matched_pairs = []
+    confidence_sum = 0.0
+
+    # Greedy matching: try to match each target word to best-available recognized word
+    used_indices = set()
+
+    for target_word in target_words:
+        best_idx = -1
+        best_sim = min_word_similarity
+
+        for i, (rec_word, confidence) in enumerate(recognized_words):
+            if i in used_indices:
+                continue
+
+            # Only consider words with sufficient confidence
+            if confidence < min_avg_confidence:
+                continue
+
+            similarity = word_similarity_score(rec_word, target_word)
+            if similarity > best_sim:
+                best_idx = i
+                best_sim = similarity
+
+        if best_idx >= 0:
+            rec_word, confidence = recognized_words[best_idx]
+            matched += 1
+            used_indices.add(best_idx)
+            matched_pairs.append(f"{rec_word} -> {target_word}")
+            confidence_sum += confidence
+
+    avg_confidence = confidence_sum / matched if matched > 0 else 0.0
+    return matched, matched_pairs, avg_confidence
 
 
 def run_phrase_compliance(
     wav_path: Path | str,
     challenge_phrase: str,
-    threshold: int = 2
+    threshold: int = 4,
+    min_avg_confidence: float = 0.5,
 ) -> DetectorResult:
     """
     Execute Stage 2 Phrase Compliance on a 16kHz mono WAV file.
-    
+
     Hard gate requirements:
-      - At least 2 of 3 challenge digits must match the recognized transcript.
+      - At least 4 of 5 challenge words must match (with fuzzy edit distance).
+      - Each matched word must have >= min_avg_confidence (0.0-1.0).
       - Extracts and retains word-level timestamps in details for Stage 4 AV alignment.
-      
+
     Guarantees:
       - Never raises an uncaught exception (4-key contract).
       - Returns a fully compliant DetectorResult.
@@ -256,26 +161,26 @@ def run_phrase_compliance(
             error=err_msg,
             details={
                 "phrase_matched": False,
-                "digits_detected": [],
-                "target_digits": [],
+                "words_detected": [],
+                "target_words": [],
                 "match_count": 0,
                 "transcript": "",
                 "word_timestamps": []
             }
         )
 
-    # 2. Validate challenge phrase
-    target_digits = [int(d) for d in challenge_phrase if d.isdigit()]
-    if len(target_digits) != 3:
+    # 2. Validate and parse challenge phrase (space-separated words)
+    target_words = challenge_phrase.lower().strip().split()
+    if len(target_words) != 5:
         return DetectorResult(
             score=None,
             passed=False,
-            reason=f"Invalid challenge phrase '{challenge_phrase}': Expected exactly 3 digits.",
+            reason=f"Invalid challenge phrase '{challenge_phrase}': Expected exactly 5 words.",
             error="Invalid challenge phrase format",
             details={
                 "phrase_matched": False,
-                "digits_detected": [],
-                "target_digits": target_digits,
+                "words_detected": [],
+                "target_words": target_words,
                 "match_count": 0,
                 "transcript": "",
                 "word_timestamps": []
@@ -291,8 +196,8 @@ def run_phrase_compliance(
             error="Audio file does not exist",
             details={
                 "phrase_matched": False,
-                "digits_detected": [],
-                "target_digits": target_digits,
+                "words_detected": [],
+                "target_words": target_words,
                 "match_count": 0,
                 "transcript": "",
                 "word_timestamps": []
@@ -302,7 +207,7 @@ def run_phrase_compliance(
     try:
         t_infer_start = time.perf_counter()
 
-        # Run transcription with word-level timestamps
+        # Run transcription with word-level timestamps and per-word confidence
         segments, info = _WHISPER_MODEL.transcribe(
             str(path_obj),
             beam_size=5,
@@ -317,8 +222,10 @@ def run_phrase_compliance(
 
         transcript = " ".join(s.text.strip() for s in segments_list).strip()
 
-        # Extract word timestamps (critical for Stage 4 AV alignment)
+        # Extract word timestamps and confidence (critical for Stage 4 AV alignment)
         word_timestamps: List[Dict[str, Any]] = []
+        recognized_words: List[Tuple[str, float]] = []
+
         for seg in segments_list:
             if seg.words:
                 for w in seg.words:
@@ -330,29 +237,38 @@ def run_phrase_compliance(
                             "end": round(w.end, 3),
                             "probability": round(w.probability, 3)
                         })
+                        recognized_words.append((clean_w, w.probability))
 
-        # Extract digits & compute matching
-        extracted_digits = extract_digits(transcript)
-        match_count = positional_window_match(extracted_digits, target_digits)
+        # Perform fuzzy phrase matching
+        match_count, matched_pairs, avg_confidence = match_words_fuzzy(
+            recognized_words=recognized_words,
+            target_words=target_words,
+            min_avg_confidence=min_avg_confidence,
+            min_word_similarity=0.6
+        )
+
         passed = match_count >= threshold
-        score = round(match_count / 3.0, 2)
+        score = round(match_count / 5.0, 2)
 
         if passed:
             reason = (
-                f"Phrase compliance verified: {match_count}/3 digits matched "
-                f"(expected {target_digits}, detected {extracted_digits}). "
+                f"Phrase compliance verified: {match_count}/5 words matched "
+                f"(challenge: {' '.join(target_words)}). "
+                f"Matched pairs: {', '.join(matched_pairs)}. "
+                f"Average confidence: {avg_confidence:.3f}. "
                 f"Transcript: '{transcript}'."
             )
         else:
-            if not extracted_digits:
+            if not recognized_words:
                 reason = (
-                    f"Phrase compliance failed: No digit words detected in transcript "
-                    f"(expected {target_digits}). Transcript: '{transcript}'."
+                    f"Phrase compliance failed: No words detected in transcript "
+                    f"(expected {' '.join(target_words)}). Transcript: '{transcript}'."
                 )
             else:
                 reason = (
-                    f"Phrase compliance failed: Only {match_count}/3 digits matched "
-                    f"(expected {target_digits}, detected {extracted_digits}). "
+                    f"Phrase compliance failed: Only {match_count}/5 words matched "
+                    f"(challenge: {' '.join(target_words)}). "
+                    f"Matched pairs: {', '.join(matched_pairs) if matched_pairs else 'none'}. "
                     f"Transcript: '{transcript}'."
                 )
 
@@ -363,9 +279,11 @@ def run_phrase_compliance(
             error=None,
             details={
                 "phrase_matched": passed,
-                "digits_detected": extracted_digits,
-                "target_digits": target_digits,
+                "words_detected": [w for w, _ in recognized_words],
+                "target_words": target_words,
                 "match_count": match_count,
+                "matched_pairs": matched_pairs,
+                "average_confidence": round(avg_confidence, 3),
                 "transcript": transcript,
                 "word_timestamps": word_timestamps,
                 "inference_duration_seconds": infer_duration,
@@ -384,8 +302,8 @@ def run_phrase_compliance(
             error=f"{type(e).__name__}: {e}",
             details={
                 "phrase_matched": False,
-                "digits_detected": [],
-                "target_digits": target_digits,
+                "words_detected": [],
+                "target_words": target_words,
                 "match_count": 0,
                 "transcript": "",
                 "word_timestamps": []

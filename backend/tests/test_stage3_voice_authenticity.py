@@ -159,7 +159,8 @@ def test_pipeline_integration_with_stage3():
     if not real_fixture.exists():
         pytest.skip(f"Fixture {real_fixture} not found")
 
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), "742"))
+    challenge_phrase = "seven four two apple bridge"
+    res = asyncio.run(process_audio_pipeline(str(real_fixture), challenge_phrase))
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True
@@ -283,7 +284,9 @@ def test_pipeline_stage1_failure_does_not_run_stage3():
     if not silence_fixture.exists():
         pytest.skip(f"Fixture {silence_fixture} not found")
 
-    res = asyncio.run(process_audio_pipeline(str(silence_fixture), "742"))
+    challenge_phrase = "seven four two apple bridge"
+    res = asyncio.run(process_audio_pipeline(str(silence_fixture), challenge_phrase))
 
     assert res.passed is False
     assert "voice_authenticity_score" not in (res.details or {})
+

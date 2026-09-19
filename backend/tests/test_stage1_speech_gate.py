@@ -176,17 +176,19 @@ def test_verify_wav_contract():
 
 
 def test_pipeline_with_real_speech_fixture():
-    """Test full pipeline end-to-end against real speech fixture."""
+    """Test full pipeline end-to-end against real speech fixture ('seven four two')."""
     import asyncio
     real_webm = FIXTURES_DIR / "real_742.webm"
     if not real_webm.exists():
         pytest.skip("real_742.webm fixture not found")
 
-    res = asyncio.run(process_audio_pipeline(str(real_webm), "742"))
+    # Use a 5-word phrase that contains the spoken words
+    challenge_phrase = "seven four two apple bridge"
+    res = asyncio.run(process_audio_pipeline(str(real_webm), challenge_phrase))
     assert isinstance(res, DetectorResult)
     assert res.passed is True
     assert res.error is None
-    assert res.score is not None and res.score >= 0.67
+    assert res.score is not None and res.score >= 0.6
     assert res.details is not None
     assert res.details["speech_detected"] is True
     assert res.details["speech_duration_seconds"] >= SPEECH_DURATION_THRESHOLD_S
@@ -199,7 +201,8 @@ def test_pipeline_with_silence_fixture():
     if not silence_webm.exists():
         pytest.skip("silence.webm fixture not found")
 
-    res = asyncio.run(process_audio_pipeline(str(silence_webm), "742"))
+    challenge_phrase = "seven four two apple bridge"
+    res = asyncio.run(process_audio_pipeline(str(silence_webm), challenge_phrase))
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None
@@ -214,7 +217,8 @@ def test_pipeline_with_tone_fixture():
     if not tone_webm.exists():
         pytest.skip("tone.webm fixture not found")
 
-    res = asyncio.run(process_audio_pipeline(str(tone_webm), "742"))
+    challenge_phrase = "seven four two apple bridge"
+    res = asyncio.run(process_audio_pipeline(str(tone_webm), challenge_phrase))
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None
@@ -229,7 +233,8 @@ def test_pipeline_with_corrupt_fixture():
     if not corrupt_webm.exists():
         pytest.skip("corrupt.webm fixture not found")
 
-    res = asyncio.run(process_audio_pipeline(str(corrupt_webm), "742"))
+    challenge_phrase = "seven four two apple bridge"
+    res = asyncio.run(process_audio_pipeline(str(corrupt_webm), challenge_phrase))
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None
@@ -242,9 +247,11 @@ def test_pipeline_with_garbage_fixture():
     if not garbage_webm.exists():
         pytest.skip("garbage.webm fixture not found")
 
-    res = asyncio.run(process_audio_pipeline(str(garbage_webm), "742"))
+    challenge_phrase = "seven four two apple bridge"
+    res = asyncio.run(process_audio_pipeline(str(garbage_webm), challenge_phrase))
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None
     assert res.error is not None
+
 

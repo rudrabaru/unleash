@@ -104,7 +104,8 @@ def test_stage4_pipeline_integration_without_lip_data_still_passes():
     if not real_fixture.exists():
         pytest.skip(f"Fixture {real_fixture} not found")
 
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), "742"))
+    challenge_phrase = "seven four two apple bridge"
+    res = asyncio.run(process_audio_pipeline(str(real_fixture), challenge_phrase))
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True
@@ -114,3 +115,4 @@ def test_stage4_pipeline_integration_without_lip_data_still_passes():
     # real_742.webm's video track has no face (see test_visual_module.py), so no lip
     # series is available here -> Stage 4 degrades honestly rather than faking a score.
     assert res.details.get("av_alignment_score") is None
+

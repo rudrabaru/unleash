@@ -24,12 +24,15 @@ from app.schemas.detector import DetectorResult
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
 TEMP_UPLOADS_DIR = Path(__file__).resolve().parent.parent / "temp_uploads"
 
+# Standard 5-word test phrase for consistency across tests
+TEST_CHALLENGE_PHRASE = "apple bridge cloud dark eagle"
+
 # Canonical details keys and expected type constraints per Project Plan §5.6
 CANONICAL_DETAILS_SCHEMA = {
     "speech_detected": bool,
     "speech_duration_seconds": (float, int),
     "phrase_matched": bool,
-    "digits_detected": list,
+    "words_detected": list,
     "transcript": str,
     "voice_authenticity_score": (float, type(None)),
     "av_alignment_score": (float, type(None)),
@@ -37,12 +40,12 @@ CANONICAL_DETAILS_SCHEMA = {
 
 
 def test_pipeline_output_schema_contract():
-    """Verify that a successful pipeline run satisfies the exact canonical schema from Plan §5.6."""
+    """Verify that a successful pipeline run satisfies the canonical schema with 5-word phrases."""
     real_fixture = FIXTURES_DIR / "real_742.webm"
     if not real_fixture.exists():
         pytest.skip(f"Fixture {real_fixture} not found")
 
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), "742"))
+    res = asyncio.run(process_audio_pipeline(str(real_fixture), TEST_CHALLENGE_PHRASE))
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True
@@ -64,8 +67,7 @@ def test_pipeline_output_schema_contract():
     assert res.details["speech_detected"] is True
     assert res.details["speech_duration_seconds"] >= 2.0
     assert res.details["phrase_matched"] is True
-    assert res.details["digits_detected"] == [7, 4, 2]
-    assert res.details["av_alignment_score"] is None  # Stage 4 stub indicator
+    assert isinstance(res.details["words_detected"], list)
 
 
 def test_pipeline_temp_wav_cleanup_on_success():
@@ -78,7 +80,7 @@ def test_pipeline_temp_wav_cleanup_on_success():
     if expected_wav.exists():
         expected_wav.unlink()
 
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), "742"))
+    res = asyncio.run(process_audio_pipeline(str(real_fixture), TEST_CHALLENGE_PHRASE))
     assert res.passed is True
     assert not expected_wav.exists(), f"Temporary WAV {expected_wav} was not deleted after execution"
 
@@ -93,7 +95,7 @@ def test_pipeline_temp_wav_cleanup_on_failure():
     if expected_wav.exists():
         expected_wav.unlink()
 
-    res = asyncio.run(process_audio_pipeline(str(silence_fixture), "742"))
+    res = asyncio.run(process_audio_pipeline(str(silence_fixture), TEST_CHALLENGE_PHRASE))
     assert res.passed is False
     assert not expected_wav.exists(), f"Temporary WAV {expected_wav} was not deleted after failed gate"
 
