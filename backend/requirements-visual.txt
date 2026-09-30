@@ -1,0 +1,8 @@
+# Visual liveness + challenge-compliance dependencies (backend/app/modules/visual/).
+# Installed alongside requirements.txt:
+#   pip install -r requirements-visual.txt
+mediapipe>=0.10.0
+numpy>=1.26.0,<3.0.0
+# opencv-python-headless is already pinned in requirements.txt (shared with
+# frame_extraction + antispoof) — do not add plain opencv-python here, it
+# conflicts with the headless build.
