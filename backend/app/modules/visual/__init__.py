@@ -44,6 +44,9 @@ async def detect_visual_liveness(frames: list, features: Optional[Dict[str, Any]
             error=None,
             details={
                 "blink_detected": result["blink_detected"],
+                "natural_movement_detected": result["natural_movement_detected"],
+                "ear_std": round(result["ear_std"], 5),
+                "ear_mean": round(result["ear_mean"], 4),
                 "movement_mean": result["movement_mean"],
                 "movement_std": result["movement_std"],
                 "face_consistency_ratio": result["face_consistency_ratio"],
