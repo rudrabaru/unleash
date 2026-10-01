@@ -87,6 +87,14 @@ def _weighted_score(signals: Dict[str, DetectorResult]) -> Optional[float]:
             if va_score is not None:
                 present["voice_authenticity"] = SIGNAL_WEIGHTS["voice_authenticity"]
 
+    av = signals.get("av_alignment")
+    if av is None:
+        audio = signals.get("audio_pipeline")
+        if audio is not None and audio.details:
+            av_score = audio.details.get("av_alignment_score")
+            if av_score is not None:
+                present["av_alignment"] = SIGNAL_WEIGHTS["av_alignment"]
+
     if not present:
         return None
 
@@ -95,6 +103,8 @@ def _weighted_score(signals: Dict[str, DetectorResult]) -> Optional[float]:
     for key in present:
         if key == "voice_authenticity" and signals.get("voice_authenticity") is None:
             score = signals["audio_pipeline"].details["voice_authenticity_score"]
+        elif key == "av_alignment" and signals.get("av_alignment") is None:
+            score = signals["audio_pipeline"].details["av_alignment_score"]
         else:
             score = signals[key].score
         numerator += score * present[key]

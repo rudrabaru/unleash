@@ -45,7 +45,7 @@ This folder is the "mission briefing" Claude Code reads specifically when workin
 **Ownership:** This folder, `backend/app/modules/antispoof/`, and the backend-core modules (`orchestrator.py`, `fusion.py`, `db.py`) belong to Dev 3. The API endpoints are split-owned (sessions creation is Dev 2, submit/orchestration is Dev 3). Claude Code should not modify Dev 1's or Dev 2's module folders from here.
 
 **Known Open Issue (Tracked):**
-- `fusion.py:82-88` — Missing fallback for `av_alignment_score` from audio details (voice_authenticity_score fallback exists, but av_alignment is silently dropped). Flagged for P0-3 fix.
+- `fusion.py:82-88` — Missing fallback for `av_alignment_score` from audio details (voice_authenticity_score fallback exists, but av_alignment was silently dropped). RESOLVED: Added av_alignment fallback from audio_pipeline.details mirroring voice_authenticity pattern.
 
 **Living documents:** When a threshold changes based on evaluation evidence (Phase 4), update the relevant specs in this folder and the root `CLAUDE.md` (if the change touches fusion weights or hard gates) in the same commit.
 
