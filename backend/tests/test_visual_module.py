@@ -6,10 +6,7 @@ useful edge case for confirming graceful "no face detected" handling.
 import asyncio
 from pathlib import Path
 
-<<<<<<< HEAD
 import numpy as np
-=======
->>>>>>> origin/feature/deepfake-detection
 import pytest
 
 from app.modules.frame_extraction import extract_frames
@@ -38,15 +35,11 @@ def test_liveness_empty_frames_returns_contract_compliant_error():
 
 
 def test_liveness_no_face_scores_low_not_crash():
-<<<<<<< HEAD
     path = FIXTURES_DIR / "real_742.webm"
     if path.exists():
         frames = extract_frames(str(path)).frames
     else:
         frames = [np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(10)]
-=======
-    frames = _frames("real_742.webm")
->>>>>>> origin/feature/deepfake-detection
     result = asyncio.run(detect_visual_liveness(frames))
     assert result.error is None
     assert result.score is not None
@@ -55,22 +48,17 @@ def test_liveness_no_face_scores_low_not_crash():
 
 
 def test_challenge_compliance_no_face_fails_hard_gate():
-<<<<<<< HEAD
     path = FIXTURES_DIR / "real_742.webm"
     if path.exists():
         frames = extract_frames(str(path)).frames
     else:
         frames = [np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(10)]
-=======
-    frames = _frames("real_742.webm")
->>>>>>> origin/feature/deepfake-detection
     result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value))
     assert result.error is None
     assert result.passed is False
 
 
 def test_challenge_compliance_unknown_challenge_errors_gracefully():
-<<<<<<< HEAD
     result = asyncio.run(verify_challenge_compliance([], "NOT_A_REAL_CHALLENGE"))
     assert result.score is None
     assert result.passed is False
@@ -136,10 +124,3 @@ def test_lip_series_generation_real_video():
     assert len(lip_data["series"]) > 0
     assert "lip_openness_ratio" in lip_data["series"][0]
     assert 0.0 <= lip_data["series"][0]["lip_openness_ratio"] <= 1.0
-=======
-    frames = _frames("real_742.webm")
-    result = asyncio.run(verify_challenge_compliance(frames, "NOT_A_REAL_CHALLENGE"))
-    assert result.score is None
-    assert result.passed is False
-    assert result.error is not None
->>>>>>> origin/feature/deepfake-detection

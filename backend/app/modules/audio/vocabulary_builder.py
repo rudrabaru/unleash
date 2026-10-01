@@ -1,239 +1,173 @@
 """
-Audio challenge vocabulary builder.
+Audio challenge vocabulary and its offline builder.
 
-Constructs a curated list of ~150-200 words for random-word-phrase challenges,
-using CMU Pronouncing Dictionary phoneme distances to eliminate homophones and
-phonetically-confusable pairs. Run once; output is embedded as a constant.
+`CHALLENGE_VOCABULARY` is the word pool the 5-word verbal challenge is drawn from
+(`POST /sessions`). It is generated once by `build_vocabulary()` and committed as a
+constant; the runtime never imports the builder's dev-only dependency.
 
-Reference: PGP word list methodology (Zimmermann/Juola 1995), adapted for
-faster-whisper-tiny's best-case accuracy on small, ASR-friendly vocabularies.
+Why a curated pool: challenge entropy is what resists replay and scripted attacks, and a
+small vocabulary of acoustically distinct words keeps faster-whisper tiny near its best
+accuracy. A word is only admitted if it
+  * has a CMU Pronouncing Dictionary entry and no homophone anywhere in that dictionary
+    (so "by"/"buy"/"bye"-style collisions cannot occur),
+  * has at least two syllables (one-syllable words are the most confusable for tiny),
+  * is not blocklisted (number words, which Whisper may transcribe as digits, and words
+    unsuitable to show a user), and
+  * differs from every already-selected word by at least MIN_PHONEME_DISTANCE phonemes and
+    is spelled differently enough (similarity < MAX_SPELLING_SIMILARITY) that the Stage 2
+    matcher can never confuse two pool words.
+
+Regenerate (dev only): `pip install cmudict`, run
+`python -m app.modules.audio.vocabulary_builder`, and paste the printed list over
+`CHALLENGE_VOCABULARY`. Selection is deterministic for a given BUILD_SEED.
 """
+from __future__ import annotations
 
-def build_vocabulary_from_cmu(
-    min_phoneme_distance: int = 2,
-    max_vocab_size: int = 200,
-    include_only_common: bool = True,
-):
-    """
-    Build a phonetically-distinct vocabulary using CMU Pronouncing Dictionary.
+import random
+from typing import Dict, List, Sequence, Tuple
 
-    Args:
-        min_phoneme_distance: minimum Levenshtein distance (in phoneme sequence)
-                              between any two words in the final list.
-        max_vocab_size: cap on final vocabulary size (best-effort; may be smaller
-                       if filtering is strict).
-        include_only_common: if True, prefer high-frequency English words (CMU
-                            dict frequency scores where available).
+BUILD_SEED = 7
+MIN_PHONEME_DISTANCE = 2
+# Must stay below Stage 2's MIN_WORD_SIMILARITY so one spoken word can never satisfy two pool words.
+MAX_SPELLING_SIMILARITY = 0.7
+MAX_VOCAB_SIZE = 200
 
-    Returns:
-        list of words sorted alphabetically.
+# Hand-picked concrete, common, easy-to-say English words spread across a-z.
+SEED_WORDS: Tuple[str, ...] = tuple((
+    "anchor apple arrow autumn anvil acorn alley amber ankle apron artist attic album "
+    "bakery balloon banana basket beaver bicycle blanket bridge bucket butter button branch breeze bottle "
+    "cabin camera candle canyon carpet castle cherry copper cotton cradle crystal curtain cactus "
+    "daisy desert diamond dinner dolphin donkey dragon drawer doctor dozen "
+    "eagle echo elbow engine envelope ember elephant emerald "
+    "falcon feather fiddle finger flower forest fountain freckle fabric ferry "
+    "galaxy garden garlic ginger glacier goblet gravel guitar giraffe gadget "
+    "hammer harbor hazel helmet honey horizon hotel hammock harvest "
+    "igloo island ivory insect indigo inkwell "
+    "jacket jaguar jasmine jelly jigsaw jungle jewel journey "
+    "kettle kitten kingdom kayak kernel knight koala kitchen "
+    "ladder lantern lemon lizard locket lumber lagoon lavender library "
+    "magnet marble meadow mirror monkey mountain muffin mustard maple melon "
+    "napkin needle nectar nickel noodle nutmeg narrow nephew "
+    "oasis ocean olive onion orange orchid otter oyster outfit "
+    "paddle parrot pebble pencil penguin pepper piano pillow planet pumpkin puzzle pocket "
+    "quartz quiver quilt quarry quail "
+    "rabbit radish rainbow ribbon river rocket rooster ruby "
+    "saddle salmon shadow silver spider spoon squirrel sunset sweater sailor sandal "
+    "table teapot thunder ticket tiger tomato tractor trumpet turtle tunnel "
+    "umbrella unicorn uniform utensil upstairs "
+    "valley velvet village violin volcano vinegar vessel vanilla "
+    "wagon walnut whistle window winter wizard wallet willow waffle walrus "
+    "yellow yogurt yacht yarn "
+    "zebra zipper zigzag zucchini zenith"
+).split())
 
-    Note: This is a prototype. For production, integrate with actual CMU dict
-    lookup (see `install_cmu_pronouncing` below for dependency).
-    """
-    try:
-        import pronouncing
-    except ImportError:
-        raise ImportError(
-            "CMU Pronouncing Dictionary not installed. "
-            "Install: pip install pronouncing"
-        )
+# Number words (Whisper may emit digits) and words unsuitable to show a user.
+BLOCKED_WORDS = frozenset(
+    "one two three four five six seven eight nine ten eleven twelve zero dozen hundred thousand "
+    "dagger bomb gun knife blood death".split()
+)
 
-    # Start with a manually-curated list of ~250 common, phonetically-simple
-    # English words that tend to be recognized well by Whisper tiny. This seed
-    # is then filtered by phoneme distance.
-    seed_words = [
-        "able", "about", "above", "accept", "account", "across", "act", "action",
-        "activity", "actually", "add", "address", "adjust", "admit", "adult",
-        "advance", "advice", "advise", "affair", "afford", "afraid", "after",
-        "again", "against", "age", "agency", "agenda", "agent", "agree", "ahead",
-        "aim", "air", "alarm", "album", "alcohol", "alert", "alien", "align",
-        "alike", "alive", "all", "allow", "almost", "alone", "along", "alter",
-        "always", "am", "amateur", "amazing", "ambassador", "ambition", "ambulance",
-        "amid", "among", "amount", "amp", "ample", "amuse", "anchor", "ancient",
-        "and", "angel", "anger", "angle", "angry", "animal", "ankle", "announce",
-        "annoy", "annual", "answer", "ant", "antenna", "anticipate", "anxiety",
-        "any", "anybody", "anyone", "anything", "anyway", "anywhere", "apart",
-        "apartment", "apologize", "app", "appeal", "appear", "apple", "application",
-        "apply", "appoint", "appreciate", "approach", "appropriate", "approve",
-        "april", "arch", "architect", "arctic", "area", "arena", "argue",
-        "argument", "arise", "arm", "armed", "armor", "army", "around", "arrange",
-        "array", "arrest", "arrival", "arrive", "arrow", "art", "article",
-        "artificial", "artist", "as", "ash", "asian", "aside", "ask", "aspect",
-        "aspire", "asset", "assist", "associate", "association", "assume",
-        "assurance", "assure", "astonish", "astronaut", "astronomy", "at", "ate",
-        "atheist", "athlete", "athletic", "atlantic", "atlas", "atmosphere",
-        "atom", "atomic", "attach", "attack", "attain", "attempt", "attend",
-        "attention", "attic", "attitude", "attorney", "attract", "attraction",
-        "attractive", "attribute", "auction", "audit", "august", "aunt", "aura",
-        "australia", "austria", "authentic", "author", "authority", "authorize",
-        "auto", "automatic", "automobile", "autumn", "auxiliary", "avenue",
-        "average", "aversion", "avert", "avid", "avoid", "await", "awake",
-        "award", "aware", "awareness", "away", "awesome", "awful", "awhile",
-        "awkward", "ax", "axe", "axiom", "axis", "axle", "axon", "aye",
-        "baby", "bachelor", "back", "backbone", "background", "backup", "bad",
-        "badge", "badly", "baggage", "bail", "bait", "balance", "balcony",
-        "bald", "ball", "balloon", "ballot", "bamboo", "ban", "banana", "band",
-        "bandage", "bandana", "bang", "bank", "banner", "bar", "barbarian",
-        "barbecue", "barber", "bare", "barely", "bargain", "barge", "bark",
-        "barley", "barn", "barrel", "barrier", "base", "baseball", "basement",
-        "basic", "basin", "basis", "basket", "basketball", "bass", "bat",
-        "batch", "bath", "bathe", "bathroom", "battery", "battle", "bay",
-        "beach", "bead", "beam", "bean", "bear", "beard", "beast", "beat",
-        "beauty", "became", "because", "beck", "become", "bed", "bedroom",
-        "beef", "been", "beer", "bees", "beetle", "before", "beg", "begin",
-        "behalf", "behave", "behavior", "behind", "behold", "being", "belief",
-        "believe", "bell", "belly", "belong", "below", "belt", "bench", "bend",
-        "beneficial", "benefit", "benevolent", "bent", "bequeath", "berry",
-        "berth", "beseech", "beside", "besides", "best", "bestow", "bet",
-        "betray", "better", "between", "beverage", "bevy", "beware", "beyond",
-        "bias", "bible", "bicycle", "bid", "bike", "bilingual", "bill",
-        "billion", "binary", "bind", "biology", "bird", "birth", "biscuit",
-        "bishop", "bit", "bite", "bitter", "bizarre", "black", "blade",
-        "blade", "blame", "blank", "blanket", "blare", "blast", "blaze",
-        "bleak", "bleed", "bleep", "blend", "bless", "blessing", "blew",
-        "blind", "blink", "bliss", "blister", "blitz", "blob", "block",
-        "blonde", "blood", "bloom", "blossom", "blow", "blouse", "blowfish",
-        "blue", "bluff", "blunder", "blunt", "blur", "blush", "board",
-        "boast", "boat", "bobsled", "body", "bog", "boil", "bold", "bolt",
-        "bomb", "bombard", "bond", "bone", "bonus", "book", "boom", "boost",
-        "booth", "booze", "border", "bore", "born", "borne", "boron", "borough",
-        "borrow", "bosom", "boss", "botany", "both", "bottle", "bottom",
-        "bough", "bought", "bounce", "bound", "bounty", "bourgeois", "bout",
-        "bovine", "bow", "bowl", "box", "boy", "boycott", "brace", "bracelet",
-        "bracket", "brad", "braid", "brain", "brake", "bramble", "bran",
-        "branch", "brand", "brandon", "brass", "brave", "bravery", "bravo",
-        "brawl", "brawn", "brawn", "brazen", "brazil", "breach", "bread",
-        "break", "breakage", "breakfast", "breast", "breath", "breathe",
-        "breeze", "brevity", "brew", "brewery", "briar", "bribe", "brick",
-        "bride", "bridge", "brief", "briefcase", "brier", "brig", "brigade",
-        "brigand", "bright", "brightness", "brighter", "brighten", "brilliance",
-        "brilliant", "brim", "brimstone", "brine", "bring", "brink", "brisk",
-        "bristle", "britain", "british", "brittle", "broach", "broad",
-        "broadcast", "broke", "broken", "broker", "bronze", "brooch", "brood",
-        "brook", "broom", "brother", "brought", "brow", "brown", "brownie",
-        "browse", "bruise", "brunt", "brush", "brutal", "brutality", "brute",
-        "bubble", "bubonic", "buckle", "bud", "buddy", "budge", "budget",
-        "buffalo", "buffer", "buffet", "bug", "buggy", "bugle", "build",
-        "builder", "building", "built", "bulb", "bulge", "bulk", "bulky",
-        "bull", "bullet", "bullion", "bullock", "bully", "bulwark", "bum",
-        "bumble", "bump", "bumper", "bumpy", "bun", "bunch", "bundle",
-        "bungle", "bunion", "bunk", "bunker", "bunny", "buoy", "buoyant",
-        "burden", "bureau", "bureaucracy", "bureaucrat", "burger", "burglar",
-        "burglary", "burial", "buried", "burke", "burn", "burner", "burning",
-        "burnish", "burp", "burr", "burro", "burrow", "bursar", "burst",
-        "bury", "bus", "bush", "bushel", "bushy", "busied", "business",
-        "busily", "bust", "bustle", "busy", "but", "butane", "butcher",
-        "butler", "butt", "butter", "butterfly", "buttocks", "button",
-        "buttress", "buxom", "buy", "buyer", "buzz", "buzzard", "bye",
-        "byline", "bypath", "byplay", "byproduct", "bystander", "byway",
-        "byword", "byte", "byword", "byzantine",
-    ]
 
-    # Deduplicate and filter to words with CMU pronunciations
-    valid_words = []
-    phoneme_map = {}
+def _strip_stress(phones: Sequence[str]) -> Tuple[str, ...]:
+    return tuple("".join(ch for ch in p if not ch.isdigit()) for p in phones)
 
-    for word in set(seed_words):
-        pronunciations = pronouncing.search(f"^{word}$")
-        if pronunciations:
-            # Take the first pronunciation (most common)
-            phoneme_seq = pronunciations[0]
-            phoneme_map[word] = phoneme_seq
-            valid_words.append(word)
 
-    # Compute pairwise phoneme distances; greedily select words to maximize
-    # minimum distance (simplified version of PGP word list's genetic algorithm)
-    def phoneme_distance(p1: str, p2: str) -> int:
-        """Levenshtein distance over phoneme sequences (ARPABET tokens)."""
-        p1_tokens = p1.split()
-        p2_tokens = p2.split()
-        if not p1_tokens or not p2_tokens:
-            return 0
-        # Simple edit distance on phoneme tokens
-        m, n = len(p1_tokens), len(p2_tokens)
-        dp = [[0] * (n + 1) for _ in range(m + 1)]
-        for i in range(m + 1):
-            dp[i][0] = i
-        for j in range(n + 1):
-            dp[0][j] = j
-        for i in range(1, m + 1):
-            for j in range(1, n + 1):
-                if p1_tokens[i - 1] == p2_tokens[j - 1]:
-                    dp[i][j] = dp[i - 1][j - 1]
-                else:
-                    dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
-        return dp[m][n]
+def _syllables(phones: Sequence[str]) -> int:
+    return sum(1 for p in phones if p[-1].isdigit())
 
-    selected = []
-    for word in sorted(valid_words):
-        # Greedily add if it's far enough from all selected words
-        if not selected or all(
-            phoneme_distance(phoneme_map[word], phoneme_map[s]) >= min_phoneme_distance
+
+def _edit_distance(a: Sequence[str], b: Sequence[str]) -> int:
+    prev = list(range(len(b) + 1))
+    for i, x in enumerate(a, 1):
+        cur = [i]
+        for j, y in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (x != y)))
+        prev = cur
+    return prev[-1]
+
+
+def _spelling_similarity(a: str, b: str) -> float:
+    return 1.0 - _edit_distance(a, b) / max(len(a), len(b))
+
+
+def _homophone_index(cmu: Dict[str, List[List[str]]]) -> Dict[Tuple[str, ...], set]:
+    index: Dict[Tuple[str, ...], set] = {}
+    for word, prons in cmu.items():
+        for pron in prons:
+            index.setdefault(_strip_stress(pron), set()).add(word)
+    return index
+
+
+def build_vocabulary(
+    min_phoneme_distance: int = MIN_PHONEME_DISTANCE,
+    max_vocab_size: int = MAX_VOCAB_SIZE,
+    seed: int = BUILD_SEED,
+) -> List[str]:
+    """Return the filtered, alphabetically sorted vocabulary. Deterministic for a given seed."""
+    import cmudict  # dev-only dependency; see module docstring
+
+    cmu = cmudict.dict()
+    homophones = _homophone_index(cmu)
+
+    admissible: Dict[str, Tuple[str, ...]] = {}
+    for word in sorted(set(SEED_WORDS)):
+        prons = cmu.get(word)
+        if not prons or word in BLOCKED_WORDS or not 4 <= len(word) <= 9:
+            continue
+        if _syllables(prons[0]) < 2:
+            continue
+        if any(homophones[_strip_stress(p)] - {word} for p in prons):
+            continue
+        admissible[word] = _strip_stress(prons[0])
+
+    order = sorted(admissible)
+    random.Random(seed).shuffle(order)  # a-z coverage: never alphabetical-greedy
+
+    selected: List[str] = []
+    for word in order:
+        if all(
+            _edit_distance(admissible[word], admissible[s]) >= min_phoneme_distance
+            and _spelling_similarity(word, s) < MAX_SPELLING_SIMILARITY
             for s in selected
         ):
             selected.append(word)
             if len(selected) >= max_vocab_size:
                 break
-
     return sorted(selected)
 
 
-# Pre-computed vocabulary: ~150 words, phonetically distinct, ASR-friendly.
-# Generated via build_vocabulary_from_cmu() with min_phoneme_distance=2.
-# This is a fallback; in production, regenerate if CMU dict updates.
-CHALLENGE_VOCABULARY = [
-    "able", "above", "accept", "across", "action", "activity", "add", "adjust",
-    "admit", "adult", "advance", "advice", "agree", "ahead", "aim", "alarm",
-    "album", "alien", "align", "alike", "alive", "allow", "almost", "alone",
-    "alter", "always", "amateur", "amuse", "ancient", "angel", "anger", "angle",
-    "angry", "animal", "announce", "annoy", "answer", "apartment", "appeal",
-    "appear", "apple", "apply", "appoint", "approve", "april", "architect",
-    "area", "argue", "arm", "army", "around", "arrange", "arrest", "arrival",
-    "arrive", "arrow", "art", "artist", "asian", "aside", "ask", "aspect",
-    "asset", "assist", "assume", "assure", "athlete", "attach", "attack",
-    "attain", "attempt", "attend", "attitude", "attorney", "attract", "auction",
-    "audit", "august", "aunt", "australia", "author", "authority", "auto",
-    "autumn", "avenue", "average", "avoid", "awake", "award", "aware", "away",
-    "awful", "awkward", "baby", "back", "background", "backup", "bad", "badge",
-    "balance", "ball", "ballot", "band", "bank", "banner", "bar", "barbecue",
-    "barely", "bargain", "bark", "barn", "barrel", "base", "baseball",
-    "basement", "basic", "basketball", "bath", "battery", "battle", "beach",
-    "bean", "bear", "beard", "beat", "beauty", "because", "become", "bedroom",
-    "beef", "been", "beer", "before", "begin", "behalf", "behave", "behind",
-    "being", "belief", "believe", "bell", "belong", "below", "belt", "bend",
-    "benefit", "bent", "berry", "beside", "besides", "best", "better",
-    "between", "beverage", "beyond", "bias", "bible", "bicycle", "bid", "bike",
-    "bill", "billion", "bind", "biology", "bird", "birth", "bit", "bite",
-    "bitter", "black", "blade", "blame", "blank", "blast", "blaze", "bleak",
-    "blend", "bless", "blind", "blink", "bliss", "block", "blonde", "blood",
-    "bloom", "blow", "blue", "bluff", "board", "boast", "boat", "body", "boil",
-    "bold", "bolt", "bomb", "bond", "bone", "bonus", "book", "boom", "boost",
-    "booth", "border", "bore", "born", "borrow", "boss", "both", "bottle",
-    "bottom", "bounce", "bound", "boutique", "bow", "bowl", "box", "boy",
-    "brace", "bracket", "braid", "brain", "brake", "branch", "brand", "brass",
-    "brave", "brazil", "breach", "bread", "break", "breakfast", "breast",
-    "breath", "breeze", "brew", "brick", "bride", "bridge", "brief", "brigade",
-    "bright", "bring", "brink", "brisk", "britain", "broad", "broadcast",
-    "broke", "broker", "bronze", "brook", "brother", "brought", "brown", "browse",
-    "bruise", "brush", "bubble", "buckle", "budget", "buffalo", "buffer",
-    "build", "building", "built", "bulge", "bulk", "bullet", "bully", "bump",
-    "bunch", "bundle", "bungle", "bunny", "burden", "bureau", "burger",
-    "burial", "burn", "burst", "bury", "bus", "bush", "business", "bust",
-    "busy", "but", "butter", "button", "buy", "buzz", "by"
+# Generated by build_vocabulary() (seed 7, min phoneme distance 2): 136 words, 25 letters.
+CHALLENGE_VOCABULARY: List[str] = [
+    "acorn", "album", "ankle", "anvil", "apron", "artist",
+    "attic", "autumn", "bakery", "balloon", "banana", "basket",
+    "bicycle", "bucket", "butter", "button", "cabin", "cactus",
+    "carpet", "cradle", "dinner", "dolphin", "dragon", "eagle",
+    "elbow", "elephant", "ember", "emerald", "engine", "envelope",
+    "fabric", "falcon", "feather", "fiddle", "freckle", "gadget",
+    "galaxy", "garden", "ginger", "giraffe", "glacier", "goblet",
+    "guitar", "harvest", "honey", "horizon", "hotel", "igloo",
+    "indigo", "insect", "jaguar", "jigsaw", "jungle", "kayak",
+    "kingdom", "kitchen", "koala", "ladder", "lagoon", "lantern",
+    "lavender", "library", "lizard", "lumber", "maple", "marble",
+    "meadow", "mirror", "monkey", "mountain", "muffin", "napkin",
+    "narrow", "nectar", "nephew", "noodle", "nutmeg", "oasis",
+    "ocean", "olive", "onion", "orange", "orchid", "otter",
+    "outfit", "oyster", "paddle", "pebble", "pencil", "penguin",
+    "pillow", "planet", "pocket", "pumpkin", "puzzle", "quarry",
+    "quiver", "radish", "rainbow", "ribbon", "river", "sandal",
+    "shadow", "silver", "spider", "squirrel", "sunset", "sweater",
+    "table", "teapot", "thunder", "ticket", "tractor", "trumpet",
+    "turtle", "umbrella", "unicorn", "upstairs", "utensil", "vanilla",
+    "velvet", "village", "vinegar", "violin", "volcano", "waffle",
+    "wagon", "walnut", "walrus", "window", "yellow", "yogurt",
+    "zebra", "zenith", "zipper", "zucchini",
 ]
 
+
 if __name__ == "__main__":
-    # Standalone: print computed vocabulary for embedding
-    try:
-        vocab = build_vocabulary_from_cmu(min_phoneme_distance=2, max_vocab_size=150)
-        print("# Computed vocabulary:")
-        print("CHALLENGE_VOCABULARY = [")
-        for i, word in enumerate(vocab):
-            if (i + 1) % 10 == 0:
-                print(f'    "{word}",')
-            else:
-                print(f'    "{word}", ', end="")
-        print("\n]")
-    except ImportError:
-        print("CMU Pronouncing Dictionary not installed; using pre-computed fallback.")
+    words = build_vocabulary()
+    print(f"# {len(words)} words, first letters: {''.join(sorted({w[0] for w in words}))}")
+    print("CHALLENGE_VOCABULARY = [")
+    for i in range(0, len(words), 6):
+        print("    " + ", ".join(f'"{w}"' for w in words[i:i + 6]) + ",")
+    print("]")

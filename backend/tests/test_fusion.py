@@ -7,13 +7,8 @@ from app.schemas.detector import DetectorResult
 from app.schemas.session import VerificationStatus
 
 
-<<<<<<< HEAD
-def _result(score, passed=True, reason="ok"):
-    return DetectorResult(score=score, passed=passed, reason=reason, error=None)
-=======
 def _result(score, passed=True, reason="ok", details=None):
     return DetectorResult(score=score, passed=passed, reason=reason, error=None, details=details)
->>>>>>> origin/feature/deepfake-detection
 
 
 def test_visual_challenge_hard_gate_fails_regardless_of_score():
@@ -100,8 +95,6 @@ def test_no_usable_signals_fails_gracefully():
     result = fusion.evaluate(signals)
     assert result.status == VerificationStatus.FAILED
     assert result.confidence is None
-<<<<<<< HEAD
-=======
 
 
 def test_av_alignment_fallback_from_audio_pipeline_details():
@@ -228,4 +221,3 @@ def test_av_alignment_fallback_handles_zero_score_correctly():
     assert result.confidence == round(0.35 / 0.45, 4)
 
 
->>>>>>> origin/feature/deepfake-detection
