@@ -68,4 +68,5 @@ def test_replay_detector_single_frame_does_not_crash():
     frames = _frames("real_742.webm")[:1]
     result = asyncio.run(detect_replay_attack(frames))
     assert result.error is None
-    assert result.details["noise_score"] == 0.5
+    assert result.details["noise_score"] is None  # unmeasurable -> null, never a 0.5 placeholder
+    assert result.score is not None  # combined from the sub-signals that did measure

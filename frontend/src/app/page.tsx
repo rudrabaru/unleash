@@ -57,19 +57,8 @@ export default function AudioCapturePrototype() {
       const data: SessionChallenge = await res.json();
       setSession(data);
     } catch (err: any) {
-      // Fallback local challenge if backend is not currently running
-      console.warn("Backend not reached, using local challenge fallback:", err.message);
-      const fallbackDigits = String(Math.floor(100 + Math.random() * 900));
-      setSession({
-        session_id: "local-proto-" + Math.random().toString(36).substring(2, 9),
-        challenge: {
-          visual: "TURN_HEAD_LEFT",
-          verbal: fallbackDigits,
-        },
-        token: "mock-token-for-ui-prototype",
-        expires_at: Math.floor(Date.now() / 1000) + 120,
-      });
-      setSessionError("Connected in standalone UI mode (Backend offline)");
+      setSession(null);
+      setSessionError(`Backend unreachable: ${err.message}. Start the API on port 8000 and click New Challenge.`);
     } finally {
       setLoadingSession(false);
     }
@@ -244,7 +233,7 @@ export default function AudioCapturePrototype() {
   };
 
   // Format verbal challenge digits with spacing
-  const verbalDigits = session?.challenge.verbal ? session.challenge.verbal.split("").join(" - ") : "• - • - •";
+  const verbalWords: string[] = session?.challenge.verbal ? session.challenge.verbal.split(/\s+/).filter(Boolean) : [];
 
   return (
     <main className="container" style={{ maxWidth: "800px", minHeight: "90vh", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -263,6 +252,12 @@ export default function AudioCapturePrototype() {
         </button>
       </header>
 
+      {sessionError && (
+        <section className="card" role="alert" style={{ color: "#fca5a5", borderColor: "#7f1d1d" }}>
+          {sessionError}
+        </section>
+      )}
+
       {/* Verbal Challenge Display Section */}
       <section className="card" style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem" }}>
         <div>
@@ -270,20 +265,25 @@ export default function AudioCapturePrototype() {
             Verbal Challenge Phrase
           </span>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginTop: "0.25rem" }}>
-            Read the 3-digit number aloud clearly during the recording window
+            Say these 5 words clearly, in order, during the recording window
           </p>
         </div>
 
-        <div className="challenge-digit-box">
-          {verbalDigits}
+        <div
+          className="challenge-digit-box"
+          style={{ letterSpacing: "normal", fontSize: "1.9rem", flexWrap: "wrap", gap: "0.5rem 1.25rem", textTransform: "lowercase" }}
+        >
+          {verbalWords.length > 0
+            ? verbalWords.map((word, i) => <span key={`${word}-${i}`}>{word}</span>)
+            : "• • • • •"}
         </div>
 
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" }}>
           <span className="badge" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", fontSize: "0.75rem" }}>
-            Pronunciation: "digit-by-digit" or "number word"
+            Speak naturally: say the words, do not spell them
           </span>
           <span className="badge" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", fontSize: "0.75rem" }}>
-            Gate: ≥ 2 of 3 digits match
+            Gate: ≥ 4 of 5 words match
           </span>
         </div>
       </section>
