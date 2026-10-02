@@ -3,6 +3,7 @@
 Welcome to the Unleash codebase.
 
 ## 1. Project Specifications
+- The verbal challenge is a **5-word phrase** (Stage 2 gate: ≥ 4 of 5 words, per-word similarity ≥ 0.8). Any text that still says "3-digit" or "2 of 3" is stale — fix it or flag it.
 - The authoritative project reference is defined in [CLAUDE.md](file:///d:/Projects/Unleash/CLAUDE.md). Adhere strictly to the **4-Key Contract** (`DetectorResult`), CPU-only inference, and team ownership boundaries (Dev 1 = Audio).
 
 ## 2. Permanent Session Rules (Mandatory — No Exceptions)
@@ -20,7 +21,8 @@ Welcome to the Unleash codebase.
 
 ## 4. Audio Pipeline Domain Context
 - For all audio pipeline implementation, testing, and debugging, refer to [`.claude/context/audio-pipeline/`](file:///d:/Projects/Unleash/.claude/context/audio-pipeline/).
-- Context files: `README.md`, `stage-specifications.md`, `automation-workflow.md`, `known-tricky-spots.md`, `test-scenarios.md`, `integration-checklist.md`, `av-alignment-interface.md`
+- Context files: `README.md`, `stage-specifications.md`, `automation-workflow.md`, `known-tricky-spots.md`, `test-scenarios.md`, `integration-checklist.md`, `av-alignment-interface.md`, `decisions.md` (team decision log — read before changing any gate, threshold, schema or scope)
+- Release roadmap: [ROADMAP.md](ROADMAP.md) (long-term, to the final deliverable) and [V1_RELEASE_PLAN.md](V1_RELEASE_PLAN.md) (the one-day v1). CLAUDE.md Section K is the summary.
 
 ## 5. Claude Code Hooks & Subagents
 - **Hooks** (fire automatically in every Claude Code session): [`.claude/hooks/ownership_guard.py`](file:///d:/Projects/Unleash/.claude/hooks/ownership_guard.py) blocks edits to Dev 2/3 module paths and `backend/app/core/` · [`.claude/hooks/schema_guard.py`](file:///d:/Projects/Unleash/.claude/hooks/schema_guard.py) blocks edits to `backend/app/schemas/` · [`.claude/hooks/syntax_check.py`](file:///d:/Projects/Unleash/.claude/hooks/syntax_check.py) runs `py_compile` after every `.py` save (Edit/Write/MultiEdit). Wired in [`.claude/settings.json`](file:///d:/Projects/Unleash/.claude/settings.json). For Antigravity IDE sessions, the equivalent text rules are in [`.agents/rules/ownership_and_schema_guard.md`](file:///d:/Projects/Unleash/.agents/rules/ownership_and_schema_guard.md).

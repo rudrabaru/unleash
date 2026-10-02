@@ -48,7 +48,7 @@ def _evaluate_speech_gate(speech_detected: bool, total_speech_s: float, segment_
     if total_speech_s < SPEECH_DURATION_THRESHOLD_S:
         return False, (
             f"Speech duration ({total_speech_s:.2f}s) is below required minimum threshold "
-            f"({SPEECH_DURATION_THRESHOLD_S:.1f}s) for a 3-digit challenge response."
+            f"({SPEECH_DURATION_THRESHOLD_S:.1f}s) for a 5-word challenge response."
         )
     
     return True, (

@@ -9,7 +9,8 @@ This folder is the "mission briefing" Claude Code reads specifically when workin
 4. `integration-checklist.md` — what "done" means before handing a stage to Dev 3's orchestrator
 5. `test-scenarios.md` — the scenarios every stage must be validated against
 6. `automation-workflow.md` — the layered automation model (CI vs. slash commands vs. hooks vs. human approval), the phase-gate commit/push/PR workflow, and how to prompt Claude Code so the right slash command gets invoked reliably
-7. `av-alignment-interface.md` — currently a blank placeholder; do not implement Stage 4 beyond a stub until this is filled in after the Day 19 design session with Dev 2
+7. `av-alignment-interface.md` — the finalized lip-series and word-timestamp interface (written solo by Dev 1 with user authorization; one pending change: per-sample `time_seconds`, see decision log B4)
+8. `decisions.md` (one folder up) — the team decision log. Read it before changing a gate, threshold, schema or scope.
 
 **Available slash commands:** the canonical list lives in `AGENTS.md` §3 (single source of truth — 12 commands). The audio-pipeline ones are `/schema-check`, `/stage-done`, `/stub-interface-check`, `/latency-benchmark`, `/graceful-failure-audit`, `/scenario-runner`, `/threshold-sweep`; plus the general `/session-worklog`, `/commit-message`, `/dead-code-audit`, `/solid-audit`, `/start-feature`. See `automation-workflow.md` for when to use each.
 

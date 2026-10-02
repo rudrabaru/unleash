@@ -93,3 +93,22 @@ sets `passed=False`, regardless of the score.
 | `word_timestamps` is `None` or empty | `score=None`, `passed=True`, `details["degraded_reason"]` set |
 | Every word has zero overlapping frames (e.g. fps mismatch, all sampled frames landed elsewhere) | `score=None`, `passed=True`, `details["degraded_reason"]` set |
 | Normal case | real fraction in `[0.0, 1.0]`, `passed=True` always |
+
+---
+
+## 4. Pending change (B4, decision log) — per-sample `time_seconds`
+
+**Status: agreed, not yet implemented.** Do not treat the shapes above as final for browser recordings until this lands.
+
+**Problem (measured):** OpenCV reports MediaRecorder `.webm` as 1000 fps, and `frame_index` counts the 30 *subsampled* frames, not native frames. `frame_index / fps` therefore places every lip sample near t = 0.03 s, Stage 4 finds no overlapping frames and degrades to `score=None` on every browser recording.
+
+**Agreed fix:** each lip-series entry carries a real timestamp:
+
+```json
+{"frame_index": 27, "time_seconds": 4.31, "lip_openness_ratio": 0.212}
+```
+
+- `time_seconds` = the frame's real presentation timestamp, read with **PyAV** (decision D-19; fallback only if PyAV is unavailable: original frame index ÷ true fps, true fps = decoded frames ÷ ffprobe duration). Produced by `frame_extraction.py` (Dev 3) and carried through `_lip_series.py` (Dev 2).
+- `fps` stays in the series for reference but Stage 4 stops using it to convert times; it matches word windows against `time_seconds` directly.
+- Stage 4 (Dev 1) consumes `time_seconds`; if absent it falls back to the old behaviour and reports a `degraded_reason` rather than a score.
+- **Same commit must update:** this file, `stage-specifications.md` (Stage 4), CLAUDE.md §E (the pending row), and add a Stage 4 test with realistic timings (a ~15 s clip, hundreds of frames, brief open windows — see `known-tricky-spots.md` #7).

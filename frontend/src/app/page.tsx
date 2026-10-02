@@ -413,7 +413,25 @@ export default function AudioCapturePrototype() {
             Listen to the playback to confirm audible volume and no clipping before submitting to the backend audio pipeline:
           </p>
 
-          <audio src={recordedBlobUrl} controls style={{ width: "100%", borderRadius: "8px" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <audio src={recordedBlobUrl} controls style={{ width: "100%", borderRadius: "8px" }} />
+            <button
+              className="btn-primary"
+              onClick={() => {
+                if (recordedBlobUrl) {
+                  const link = document.createElement("a");
+                  link.href = recordedBlobUrl;
+                  link.download = `recording-${Date.now()}.webm`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }
+              }}
+              style={{ alignSelf: "flex-start" }}
+            >
+              ⬇ Download Recording
+            </button>
+          </div>
 
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", gap: "1rem" }}>
             <span>MIME: {recordingBlobInfo?.type}</span>

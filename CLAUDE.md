@@ -3,6 +3,7 @@
 > Read this file before doing anything else in this repository. It applies to all three developers.
 > Companion documents (project scope, not checked into git): the project plan, team companion guide, and pipeline visualization doc live in `docs/` locally on each developer's machine (that folder is gitignored — private working docs, not shared history).
 > Dev 1's deep audio-pipeline spec lives in `.claude/context/audio-pipeline/` (see Section E). Dev 2 and Dev 3 will add equivalent folders for their verticals when they set up their own Claude Code workflow. (Note: this lives under `.claude/context/`, not `.claude/agents/` — that path is reserved for real Claude Code subagent definitions, to avoid a naming collision.)
+> **Team decisions and the roadmap live in git:** `.claude/context/decisions.md` is the decision log (one line per agreed decision — read it before changing a gate, threshold, schema or scope), and Section K below summarises the release roadmap. `docs/` is local-only and can drift; the decision log cannot.
 > Active project rules and documentation standards are shared in `.agents/rules/`. Claude Code hooks (ownership guard, schema guard, syntax check) live in `.claude/hooks/` and are wired in `.claude/settings.json`. Claude Code subagents live in `.claude/agents/`. Slash commands live in `.claude/commands/`. For Antigravity IDE sessions, `AGENTS.md` at the repo root is the primary discovery file and mirrors all rules.
 
 ---
@@ -11,14 +12,14 @@
 
 **Unleash** is a multimodal, active challenge-response human verification system. It determines whether a live human is genuinely present in front of a camera and microphone, by issuing a randomized visual + verbal challenge and checking whether the response corroborates across visual, audio, and cross-modal signals.
 
-**It defends against:** replay attacks (pre-recorded video), real-time deepfakes (live face-swap), static photo/printout attacks, bot-scripted interactions, and TTS/audio injection.
+**It targets:** replay attacks (pre-recorded video), real-time deepfakes (live face-swap), static photo/printout attacks, bot-scripted interactions, and TTS/audio injection. "Targets" is deliberate (decision D-08): until measured, none of these is a proven defence. As of v1, the hard gates demonstrably stop silence, wrong/replayed phrases, wrong head direction and static photos in small-sample tests; TTS injection and real-time face-swap are **not** yet demonstrated to be stopped (Stage 3 and the replay detector are uncalibrated, and Stage 3 showed no genuine-vs-TTS separation). Never describe the system as defending against them without recorded evidence.
 
 **It is explicitly NOT:**
 - An identity verification system (does not check *who* someone is)
 - A biometric system (no face embeddings or voice prints are stored)
 - A continuous monitoring system (point-in-time sessions only, ~15-second challenge window)
 
-**Architecture:** A monolith — FastAPI backend (Railway) + Next.js 14 frontend (Vercel). No microservices. Background work runs via FastAPI `BackgroundTasks`, not Celery/Redis. All ML inference is local, pre-trained, CPU-only — no LLM APIs, no GPU dependencies.
+**Architecture:** A monolith — FastAPI backend (Railway) + Next.js 14 frontend (Vercel). No microservices. Background work runs via FastAPI `BackgroundTasks`, not Celery/Redis. All ML inference is local and CPU-only — no LLM APIs, no GPU dependencies. Models are pre-trained (silero-vad, faster-whisper tiny, MediaPipe) except the deepfake classifier, a self-trained Xception (team decision; trained on GPU offline, inference forced to CPU, checkpoint distributed outside git). **v1 is a local demo** (decision D-05): Railway/Vercel deployment is a v1.1 task. Models must be present locally at build time (baked into the image) — no runtime model downloads — and Docker uses CPU-only torch wheels (D-20). The Stage 2 model is chosen by bake-off (D-18): `tiny` is the current default, `tiny.en`/`base.en` are candidates; update this file when it changes.
 
 ---
 
@@ -64,10 +65,10 @@ Defined in `backend/app/schemas/detector.py` as the Pydantic model `DetectorResu
 |---|---|---|---|---|---|
 | 1 | Visual Liveness | Dev 2 | MediaPipe EAR + blink + micro-movement variance | Soft (weighted) | 20% |
 | 2 | Visual Challenge Compliance | Dev 2 | MediaPipe yaw/pitch vs. randomized challenge direction | **HARD GATE** | 25% (score portion) |
-| 3 | Deepfake Detection | Dev 3 | HuggingFace FaceForensics++-trained classifier | Soft (joint veto*) | 20% |
+| 3 | Deepfake Detection | Dev 3 | Self-trained Xception classifier (FaceForensics++-style data), CPU inference | Soft (joint veto*) | 20% |
 | 4 | Replay Detection | Dev 3 | OpenCV FFT moiré + temporal noise + brightness | Soft (joint veto*) | 15% |
 | 5 | Audio Speech Gate (Stage 1) | Dev 1 | silero-vad | **HARD GATE** (internal to audio module) | — |
-| 5 | Audio Phrase Compliance (Stage 2) | Dev 1 | faster-whisper tiny + digit matching | **HARD GATE** | — |
+| 5 | Audio Phrase Compliance (Stage 2) | Dev 1 | faster-whisper (tiny today; model chosen by bake-off, D-18) + fuzzy 5-word matching (≥ 4 of 5 words, per-word similarity ≥ 0.8) | **HARD GATE** | — |
 | 5 | Voice Authenticity (Stage 3) | Dev 1 | librosa spectral heuristics | Soft (advisory) | 10% |
 | 6 | AV Temporal Alignment (Stage 4) | Dev 1 + Dev 2 | Whisper word timestamps × MediaPipe lip openness | Soft (advisory) | 10% |
 
@@ -86,6 +87,7 @@ Two data exchanges cross developer boundaries. The intended process was a Day 19
 | Data Exchange | Producer | Consumer | Contents |
 |---|---|---|---|
 | Lip openness series | Dev 2 (MediaPipe) | Dev 1 (Stage 4) | `{"fps": float, "series": [{"frame_index": int, "lip_openness_ratio": float}, ...]}` — face-height-normalized, omits frames with no detected face |
+| Lip openness series — **pending change (B4, decision log)** | Dev 2 + Dev 3 | Dev 1 (Stage 4) | Browser `.webm` reports a bogus 1000 fps, so `frame_index / fps` is wrong. Each sample must carry real `time_seconds` (original frame index ÷ true fps, true fps = decoded frames ÷ ffprobe duration). Not yet implemented; Stage 4 degrades to `score=None` until it is. When it lands, update this row and `av-alignment-interface.md` in the same commit. |
 | Word timestamps | Dev 1 (faster-whisper) | Dev 1's own Stage 4 | List of `{"word": str, "start": float, "end": float, "probability": float}` dicts (not the plan's originally-sketched tuple shape) |
 
 Dev 1's deep audio-pipeline spec — including the stage-by-stage design, the 10 audio test scenarios, known implementation gotchas, the stage-level integration checklist, the automation/prompting workflow, and the finalized AV-alignment interface — lives in **`.claude/context/audio-pipeline/`**. Read that folder in full before writing or modifying anything under `backend/app/modules/audio/`.
@@ -173,5 +175,18 @@ Before attempting any integration test, confirm both servers are actually runnin
 **J6 — SOLID Audio Architecture:** Keep `backend/app/modules/audio/` strictly modular — one responsibility per file (`_io.py` decoding only, `_extraction.py` ffmpeg/probing, `_speech_gate.py`/`_phrase_compliance.py`/`_voice_authenticity.py`/`_av_alignment.py` one stage each, `__init__.py` orchestration only). Runner functions stay under ~40 lines via helpers; all WAV decoding goes through `_io.py`; score arithmetic is isolated in helpers; heavy libs are imported at module level with a graceful fallback flag. Use `/solid-audit` to check. Full procedure: `.agents/rules/solid_audio_pipeline.md`.
 
 **Always-on rule files (not numbered, but apply every session):** `.agents/rules/document_observations.md` (record findings in `docs/audio_pipeline_observations.md` + `docs/worklog.md` after every milestone) and `.agents/rules/commit_message_generation.md` (conventional-commit format, diff-grounded, no "Stage N"/"WIP" labels).
+
+---
+## K. Release Roadmap (Summary — full detail in `ROADMAP.md`; this release in `V1_RELEASE_PLAN.md`)
+
+The final deliverable is an **evaluator-ready, deployed, measured** Unleash: the 5-screen flow working end to end, all hard gates verified on real recordings, TAR/FAR/FRR reported per attack species (ISO/IEC 30107-3 style) from a proper sample, and honest documentation of limits. It is reached in three releases; each has an exit gate and nothing starts on a red build.
+
+| Release | Scope | Exit criteria |
+|---|---|---|
+| **v1.0 — local demo (one day)** | Build green; 5-screen browser flow with camera+mic in one `.webm`; Stage 2 fixed and measured; true-fps lip timing; `/eval` page; VERIFIED end-to-end test; 28-session reduced evaluation. | Hard-gate attacks 0 reach `VERIFIED`/`SUSPICIOUS`; genuine users 6/6 `VERIFIED`; latency < 20 s; CI green with fixtures; tagged `v1.0.0`. Smile/parallax and deployment are **not** in v1 (D-05, D-06). |
+| **v1.1 — hardening** | Common-word phrase + word-level alignment (after a bake-off); two-step head-turn sequence; speak-while-turning binding; capture-quality gate; retry limits; smile and parallax as advisory signals; full evaluation (8–10 recordings per scenario, ≥ 3 speakers); replay and Stage 3 calibration; Docker + Railway + Vercel; branch protection. | Measured TAR > 85%, FAR < 5%, FRR < 15%, Stage 2 accuracy > 90% on the full set; public deployment passes the same smoke test. |
+| **v2.0 — final long-term deliverable** | Screen-flash reflection challenge (new hard-gate candidate, needs Section G sign-off); pretrained audio spoof detector evaluated offline and adopted only if it separates genuine from TTS; final ISO-style report, technical summary and demo. | Evaluator-ready package: deployed system, results table by attack species, documented limits. |
+
+Every change to a gate, threshold, schema or scope inside this roadmap must be logged in `.claude/context/decisions.md` in the same commit (Section G still applies).
 
 ---
