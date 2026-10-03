@@ -52,7 +52,6 @@ yarn-error.log*
 
 # Temporary Media & Uploads
 temp_uploads/
-*.webm
 *.wav
 *.mp4
 *.avi
