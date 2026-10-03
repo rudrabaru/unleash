@@ -59,8 +59,8 @@ def _head_turn(frames, direction: str) -> Dict[str, Any]:
     baseline = _baseline(frames, "yaw")
     if baseline is None:
         return {"detected": False, "max_displacement": 0.0, "longest_run": 0, "valid_frames": 0, "total_frames": len(frames)}
-    # physical LEFT -> positive yaw (see _landmarks._rotation_matrix_to_euler)
-    return _check_axis(frames, "yaw", baseline, YAW_THRESHOLD, positive_qualifies=(direction == "LEFT"))
+    # Camera perspective: turning physical RIGHT -> positive yaw displacement, LEFT -> negative
+    return _check_axis(frames, "yaw", baseline, YAW_THRESHOLD, positive_qualifies=(direction == "RIGHT"))
 
 
 def _vertical_turn(frames, direction: str) -> Dict[str, Any]:
@@ -99,10 +99,10 @@ def evaluate_challenge(features: Dict[str, Any], challenge: VisualChallengeType)
 
     if challenge == VisualChallengeType.TURN_HEAD_LEFT:
         result = _head_turn(frames, "LEFT")
-        threshold_desc = f"yaw >= {YAW_THRESHOLD} deg held {HOLD_FRAMES} frames"
+        threshold_desc = f"yaw <= -{YAW_THRESHOLD} deg held {HOLD_FRAMES} frames"
     elif challenge == VisualChallengeType.TURN_HEAD_RIGHT:
         result = _head_turn(frames, "RIGHT")
-        threshold_desc = f"yaw <= -{YAW_THRESHOLD} deg held {HOLD_FRAMES} frames"
+        threshold_desc = f"yaw >= {YAW_THRESHOLD} deg held {HOLD_FRAMES} frames"
     elif challenge == VisualChallengeType.LOOK_UP:
         result = _vertical_turn(frames, "UP")
         threshold_desc = f"pitch <= -{PITCH_THRESHOLD} deg held {HOLD_FRAMES} frames"
