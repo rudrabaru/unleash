@@ -24,6 +24,7 @@ from app.modules.audio._speech_gate import (
     run_speech_gate,
 )
 from app.schemas.detector import DetectorResult
+from _audio_fixtures import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
 
@@ -176,15 +177,13 @@ def test_verify_wav_contract():
 
 
 def test_pipeline_with_real_speech_fixture():
-    """Test full pipeline end-to-end against real speech fixture ('seven four two')."""
+    """Test full pipeline end-to-end against a genuine take of the 5-word challenge."""
     import asyncio
-    real_webm = FIXTURES_DIR / "real_742.webm"
+    real_webm = GENUINE_5WORD_WEBM
     if not real_webm.exists():
-        pytest.skip("real_742.webm fixture not found")
+        pytest.skip(f"{real_webm.name} fixture not found")
 
-    # Use a 5-word phrase that contains the spoken words
-    challenge_phrase = "seven four two apple bridge"
-    res = asyncio.run(process_audio_pipeline(str(real_webm), challenge_phrase))
+    res = asyncio.run(process_audio_pipeline(str(real_webm), GENUINE_5WORD_PHRASE))
     assert isinstance(res, DetectorResult)
     assert res.passed is True
     assert res.error is None

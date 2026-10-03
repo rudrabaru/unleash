@@ -19,7 +19,7 @@
 - A biometric system (no face embeddings or voice prints are stored)
 - A continuous monitoring system (point-in-time sessions only, ~15-second challenge window)
 
-**Architecture:** A monolith — FastAPI backend (Railway) + Next.js 14 frontend (Vercel). No microservices. Background work runs via FastAPI `BackgroundTasks`, not Celery/Redis. All ML inference is local and CPU-only — no LLM APIs, no GPU dependencies. Models are pre-trained (silero-vad, faster-whisper tiny, MediaPipe) except the deepfake classifier, a self-trained Xception (team decision; trained on GPU offline, inference forced to CPU, checkpoint distributed outside git). **v1 is a local demo** (decision D-05): Railway/Vercel deployment is a v1.1 task. Models must be present locally at build time (baked into the image) — no runtime model downloads — and Docker uses CPU-only torch wheels (D-20). The Stage 2 model is chosen by bake-off (D-18): `tiny` is the current default, `tiny.en`/`base.en` are candidates; update this file when it changes.
+**Architecture:** A monolith — FastAPI backend (Railway) + Next.js 14 frontend (Vercel). No microservices. Background work runs via FastAPI `BackgroundTasks`, not Celery/Redis. All ML inference is local and CPU-only — no LLM APIs, no GPU dependencies. Models are pre-trained (silero-vad, faster-whisper tiny, MediaPipe) except the deepfake classifier, a self-trained Xception (team decision; trained on GPU offline, inference forced to CPU, checkpoint distributed outside git). **v1 is a local demo** (decision D-05): Railway/Vercel deployment is a v1.1 task. Models must be present locally at build time (baked into the image) — no runtime model downloads — and Docker uses CPU-only torch wheels (D-20). The Stage 2 model was chosen by bake-off (D-18, D-23): faster-whisper `base.en`, plain (no vocabulary prompt), per-word confidence floor 0.5; update this file when it changes.
 
 ---
 
@@ -68,7 +68,7 @@ Defined in `backend/app/schemas/detector.py` as the Pydantic model `DetectorResu
 | 3 | Deepfake Detection | Dev 3 | Self-trained Xception classifier (FaceForensics++-style data), CPU inference | Soft (joint veto*) | 20% |
 | 4 | Replay Detection | Dev 3 | OpenCV FFT moiré + temporal noise + brightness | Soft (joint veto*) | 15% |
 | 5 | Audio Speech Gate (Stage 1) | Dev 1 | silero-vad | **HARD GATE** (internal to audio module) | — |
-| 5 | Audio Phrase Compliance (Stage 2) | Dev 1 | faster-whisper (tiny today; model chosen by bake-off, D-18) + fuzzy 5-word matching (≥ 4 of 5 words, per-word similarity ≥ 0.8) | **HARD GATE** | — |
+| 5 | Audio Phrase Compliance (Stage 2) | Dev 1 | faster-whisper `base.en` (chosen by bake-off, D-18/D-23) + fuzzy 5-word matching (≥ 4 of 5 words, per-word similarity ≥ 0.8, per-word confidence ≥ 0.5) | **HARD GATE** | — |
 | 5 | Voice Authenticity (Stage 3) | Dev 1 | librosa spectral heuristics | Soft (advisory) | 10% |
 | 6 | AV Temporal Alignment (Stage 4) | Dev 1 + Dev 2 | Whisper word timestamps × MediaPipe lip openness | Soft (advisory) | 10% |
 
@@ -86,8 +86,8 @@ Two data exchanges cross developer boundaries. The intended process was a Day 19
 
 | Data Exchange | Producer | Consumer | Contents |
 |---|---|---|---|
-| Lip openness series | Dev 2 (MediaPipe) | Dev 1 (Stage 4) | `{"fps": float, "series": [{"frame_index": int, "lip_openness_ratio": float}, ...]}` — face-height-normalized, omits frames with no detected face |
-| Lip openness series — **pending change (B4, decision log)** | Dev 2 + Dev 3 | Dev 1 (Stage 4) | Browser `.webm` reports a bogus 1000 fps, so `frame_index / fps` is wrong. Each sample must carry real `time_seconds` (original frame index ÷ true fps, true fps = decoded frames ÷ ffprobe duration). Not yet implemented; Stage 4 degrades to `score=None` until it is. When it lands, update this row and `av-alignment-interface.md` in the same commit. |
+| Lip openness series | Dev 2 (MediaPipe) | Dev 1 (Stage 4) | `{"fps": float, "series": [{"frame_index": int, "time_seconds": float, "lip_openness_ratio": float}, ...]}` — face-height-normalized, omits frames with no detected face. `time_seconds` is the real presentation timestamp of the sampled frame (seconds from clip start, same t=0 as the audio). |
+| Lip series `time_seconds` (B4, D-19) | Dev 2 (`visual/_frames.py` reads real PyAV timestamps; `_lip_series.py` carries them) | Dev 1 (Stage 4) | **Implemented end to end 2026-10-02** (orchestrator feeds the visual consumers 120 timestamped frames). Verified on a face-less clip only: Stage 4 returns a real score once a session has a detected face. Stage 4 never uses `frame_index / fps` and the lip series never invents a time; no valid `time_seconds` -> `score=None`. Details: `av-alignment-interface.md` §5. |
 | Word timestamps | Dev 1 (faster-whisper) | Dev 1's own Stage 4 | List of `{"word": str, "start": float, "end": float, "probability": float}` dicts (not the plan's originally-sketched tuple shape) |
 
 Dev 1's deep audio-pipeline spec — including the stage-by-stage design, the 10 audio test scenarios, known implementation gotchas, the stage-level integration checklist, the automation/prompting workflow, and the finalized AV-alignment interface — lives in **`.claude/context/audio-pipeline/`**. Read that folder in full before writing or modifying anything under `backend/app/modules/audio/`.

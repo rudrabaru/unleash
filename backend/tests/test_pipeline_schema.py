@@ -20,6 +20,7 @@ from app.modules.audio import (
     process_audio_pipeline,
 )
 from app.schemas.detector import DetectorResult
+from _audio_fixtures import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
 TEMP_UPLOADS_DIR = Path(__file__).resolve().parent.parent / "temp_uploads"
@@ -41,11 +42,11 @@ CANONICAL_DETAILS_SCHEMA = {
 
 def test_pipeline_output_schema_contract():
     """Verify that a successful pipeline run satisfies the canonical schema with 5-word phrases."""
-    real_fixture = FIXTURES_DIR / "real_742.webm"
+    real_fixture = GENUINE_5WORD_WEBM
     if not real_fixture.exists():
         pytest.skip(f"Fixture {real_fixture} not found")
 
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), TEST_CHALLENGE_PHRASE))
+    res = asyncio.run(process_audio_pipeline(str(real_fixture), GENUINE_5WORD_PHRASE))
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True
@@ -72,15 +73,15 @@ def test_pipeline_output_schema_contract():
 
 def test_pipeline_temp_wav_cleanup_on_success():
     """Verify Privacy NFR §10: temporary extracted WAV is deleted after successful pipeline execution."""
-    real_fixture = FIXTURES_DIR / "real_742.webm"
+    real_fixture = GENUINE_5WORD_WEBM
     if not real_fixture.exists():
         pytest.skip(f"Fixture {real_fixture} not found")
 
-    expected_wav = TEMP_UPLOADS_DIR / "real_742_16k.wav"
+    expected_wav = TEMP_UPLOADS_DIR / f"{real_fixture.stem}_16k.wav"
     if expected_wav.exists():
         expected_wav.unlink()
 
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), TEST_CHALLENGE_PHRASE))
+    res = asyncio.run(process_audio_pipeline(str(real_fixture), GENUINE_5WORD_PHRASE))
     assert res.passed is True
     assert not expected_wav.exists(), f"Temporary WAV {expected_wav} was not deleted after execution"
 

@@ -1,9 +1,13 @@
 """
 Stage 2: Phrase Compliance (STT + Word Matching) Implementation.
 
-Transcribes audio using faster-whisper (tiny model) on CPU, extracts word-level
-timestamps and confidences, and verifies compliance against a 5-word phrase
-challenge using weighted edit distance + minimum-average-confidence.
+Transcribes audio using faster-whisper (base.en model, decision D-18) on CPU, extracts
+word-level timestamps and confidences, and verifies compliance against a 5-word phrase
+challenge using 1x-normalized edit distance + a per-word confidence floor.
+
+No vocabulary `initial_prompt` is used: it lifted genuine recall but made Whisper emit
+vocabulary words on noise and tones ("zucchini" x6 on noise), which is a false-accept
+channel for a hard gate (bake-off: backend/prototypes/stage2_bakeoff.py, decision D-23).
 """
 from __future__ import annotations
 
@@ -17,7 +21,17 @@ from app.schemas.detector import DetectorResult
 
 logger = logging.getLogger(__name__)
 
-# faster-whisper tiny loaded ONCE at module init (known-tricky-spots #1, #4)
+# Chosen by the Stage 2 bake-off (D-18/D-23): English-only, so isolated uncommon nouns are
+# decoded as English words instead of the multilingual tiny model's "Lenton"/"Nappal".
+WHISPER_MODEL_NAME: str = "base.en"
+WHISPER_COMPUTE_TYPE: str = "int8"
+
+# Per-word Whisper probability a recognized word needs before it can satisfy a challenge word.
+# Kept at 0.5 (D-18: base.en passes the real take without lowering it). Lowering it is a hard-gate
+# threshold change (D-04) and waits for >= 10 genuine takes from >= 3 speakers.
+MIN_WORD_CONFIDENCE: float = 0.5
+
+# faster-whisper loaded ONCE at module init (known-tricky-spots #1, #4)
 _WHISPER_MODEL: Optional[Any] = None
 _WHISPER_LOAD_ERROR: Optional[str] = None
 _WHISPER_LOAD_TIME_S: float = 0.0
@@ -26,10 +40,13 @@ try:
     _t0 = time.perf_counter()
     from faster_whisper import WhisperModel
 
-    # Load tiny model with int8 quantization for optimal CPU inference speed
-    _WHISPER_MODEL = WhisperModel("tiny", device="cpu", compute_type="int8")
+    # int8 quantization for CPU inference speed
+    _WHISPER_MODEL = WhisperModel(WHISPER_MODEL_NAME, device="cpu", compute_type=WHISPER_COMPUTE_TYPE)
     _WHISPER_LOAD_TIME_S = time.perf_counter() - _t0
-    logger.info(f"faster-whisper (tiny/int8) loaded successfully in {_WHISPER_LOAD_TIME_S:.3f}s")
+    logger.info(
+        f"faster-whisper ({WHISPER_MODEL_NAME}/{WHISPER_COMPUTE_TYPE}) loaded successfully "
+        f"in {_WHISPER_LOAD_TIME_S:.3f}s"
+    )
 except Exception as _e:  # noqa: BLE001
     _WHISPER_LOAD_ERROR = f"{type(_e).__name__}: {_e}"
     _WHISPER_MODEL = None
@@ -143,11 +160,107 @@ def match_words_fuzzy(
     return matched, matched_pairs, avg_confidence
 
 
+CHALLENGE_WORD_COUNT: int = 5
+
+
+def _failure_result(reason: str, error: str, target_words: List[str]) -> DetectorResult:
+    """4-key failure result (score=None, passed=False) with the empty-details shape later stages expect."""
+    return DetectorResult(
+        score=None,
+        passed=False,
+        reason=reason,
+        error=error,
+        details={
+            "phrase_matched": False,
+            "words_detected": [],
+            "target_words": target_words,
+            "match_count": 0,
+            "transcript": "",
+            "word_timestamps": [],
+        },
+    )
+
+
+def _precheck_failure(path_obj: Path, challenge_phrase: str, target_words: List[str]) -> Optional[DetectorResult]:
+    """Return a failure result if the model, phrase or file is unusable; None when Stage 2 can run."""
+    if _WHISPER_MODEL is None:
+        return _failure_result(
+            "Phrase compliance check unavailable due to Whisper model initialization error.",
+            f"Whisper backend not initialized: {_WHISPER_LOAD_ERROR or 'Unknown init error'}",
+            [],
+        )
+    if len(target_words) != CHALLENGE_WORD_COUNT:
+        return _failure_result(
+            f"Invalid challenge phrase '{challenge_phrase}': Expected exactly {CHALLENGE_WORD_COUNT} words.",
+            "Invalid challenge phrase format",
+            target_words,
+        )
+    if not path_obj.exists():
+        return _failure_result(f"Audio file not found: {path_obj}", "Audio file does not exist", target_words)
+    return None
+
+
+def _transcribe(path_obj: Path) -> Tuple[List[Any], Any, float]:
+    """Run Whisper with word-level timestamps and per-word confidence. Returns (segments, info, seconds)."""
+    t0 = time.perf_counter()
+    segments, info = _WHISPER_MODEL.transcribe(
+        str(path_obj),
+        beam_size=5,
+        language="en",
+        word_timestamps=True,
+        vad_filter=False,  # Stage 1 already filtered via silero-vad
+        temperature=0.0,
+    )
+    segments_list = list(segments)
+    return segments_list, info, round(time.perf_counter() - t0, 3)
+
+
+def _collect_words(segments: List[Any]) -> Tuple[List[Dict[str, Any]], List[Tuple[str, float]]]:
+    """Word timestamps (critical for Stage 4 AV alignment) and (word, probability) pairs."""
+    word_timestamps: List[Dict[str, Any]] = []
+    recognized_words: List[Tuple[str, float]] = []
+    for seg in segments:
+        for w in seg.words or []:
+            clean_w = w.word.strip()
+            if clean_w:
+                word_timestamps.append({
+                    "word": clean_w,
+                    "start": round(w.start, 3),
+                    "end": round(w.end, 3),
+                    "probability": round(w.probability, 3),
+                })
+                recognized_words.append((clean_w, w.probability))
+    return word_timestamps, recognized_words
+
+
+def _build_reason(
+    passed: bool, match_count: int, target_words: List[str], matched_pairs: List[str],
+    avg_confidence: float, transcript: str, heard_any_word: bool,
+) -> str:
+    challenge = " ".join(target_words)
+    if passed:
+        return (
+            f"Phrase compliance verified: {match_count}/{CHALLENGE_WORD_COUNT} words matched "
+            f"(challenge: {challenge}). Matched pairs: {', '.join(matched_pairs)}. "
+            f"Average confidence: {avg_confidence:.3f}. Transcript: '{transcript}'."
+        )
+    if not heard_any_word:
+        return (
+            f"Phrase compliance failed: No words detected in transcript "
+            f"(expected {challenge}). Transcript: '{transcript}'."
+        )
+    return (
+        f"Phrase compliance failed: Only {match_count}/{CHALLENGE_WORD_COUNT} words matched "
+        f"(challenge: {challenge}). Matched pairs: {', '.join(matched_pairs) if matched_pairs else 'none'}. "
+        f"Transcript: '{transcript}'."
+    )
+
+
 def run_phrase_compliance(
     wav_path: Path | str,
     challenge_phrase: str,
     threshold: int = 4,
-    min_avg_confidence: float = 0.5,
+    min_avg_confidence: float = MIN_WORD_CONFIDENCE,
 ) -> DetectorResult:
     """
     Execute Stage 2 Phrase Compliance on a 16kHz mono WAV file.
@@ -163,132 +276,32 @@ def run_phrase_compliance(
       - Always populates word-level timestamps in details on successful transcription.
     """
     path_obj = Path(wav_path)
-
-    # 1. Check model initialization
-    if _WHISPER_MODEL is None:
-        err_msg = f"Whisper backend not initialized: {_WHISPER_LOAD_ERROR or 'Unknown init error'}"
-        return DetectorResult(
-            score=None,
-            passed=False,
-            reason="Phrase compliance check unavailable due to Whisper model initialization error.",
-            error=err_msg,
-            details={
-                "phrase_matched": False,
-                "words_detected": [],
-                "target_words": [],
-                "match_count": 0,
-                "transcript": "",
-                "word_timestamps": []
-            }
-        )
-
-    # 2. Validate and parse challenge phrase (space-separated words)
     target_words = challenge_phrase.lower().strip().split()
-    if len(target_words) != 5:
-        return DetectorResult(
-            score=None,
-            passed=False,
-            reason=f"Invalid challenge phrase '{challenge_phrase}': Expected exactly 5 words.",
-            error="Invalid challenge phrase format",
-            details={
-                "phrase_matched": False,
-                "words_detected": [],
-                "target_words": target_words,
-                "match_count": 0,
-                "transcript": "",
-                "word_timestamps": []
-            }
-        )
 
-    # 3. Check audio file existence
-    if not path_obj.exists():
-        return DetectorResult(
-            score=None,
-            passed=False,
-            reason=f"Audio file not found: {path_obj}",
-            error="Audio file does not exist",
-            details={
-                "phrase_matched": False,
-                "words_detected": [],
-                "target_words": target_words,
-                "match_count": 0,
-                "transcript": "",
-                "word_timestamps": []
-            }
-        )
+    failure = _precheck_failure(path_obj, challenge_phrase, target_words)
+    if failure is not None:
+        return failure
 
     try:
-        t_infer_start = time.perf_counter()
+        segments, info, infer_duration = _transcribe(path_obj)
+        transcript = " ".join(s.text.strip() for s in segments).strip()
+        word_timestamps, recognized_words = _collect_words(segments)
 
-        # Run transcription with word-level timestamps and per-word confidence
-        segments, info = _WHISPER_MODEL.transcribe(
-            str(path_obj),
-            beam_size=5,
-            language="en",
-            word_timestamps=True,
-            vad_filter=False,  # Stage 1 already filtered via silero-vad
-            temperature=0.0
-        )
-
-        segments_list = list(segments)
-        infer_duration = round(time.perf_counter() - t_infer_start, 3)
-
-        transcript = " ".join(s.text.strip() for s in segments_list).strip()
-
-        # Extract word timestamps and confidence (critical for Stage 4 AV alignment)
-        word_timestamps: List[Dict[str, Any]] = []
-        recognized_words: List[Tuple[str, float]] = []
-
-        for seg in segments_list:
-            if seg.words:
-                for w in seg.words:
-                    clean_w = w.word.strip()
-                    if clean_w:
-                        word_timestamps.append({
-                            "word": clean_w,
-                            "start": round(w.start, 3),
-                            "end": round(w.end, 3),
-                            "probability": round(w.probability, 3)
-                        })
-                        recognized_words.append((clean_w, w.probability))
-
-        # Perform fuzzy phrase matching
         match_count, matched_pairs, avg_confidence = match_words_fuzzy(
             recognized_words=recognized_words,
             target_words=target_words,
             min_avg_confidence=min_avg_confidence,
-            min_word_similarity=MIN_WORD_SIMILARITY
+            min_word_similarity=MIN_WORD_SIMILARITY,
         )
-
         passed = match_count >= threshold
-        score = round(match_count / 5.0, 2)
-
-        if passed:
-            reason = (
-                f"Phrase compliance verified: {match_count}/5 words matched "
-                f"(challenge: {' '.join(target_words)}). "
-                f"Matched pairs: {', '.join(matched_pairs)}. "
-                f"Average confidence: {avg_confidence:.3f}. "
-                f"Transcript: '{transcript}'."
-            )
-        else:
-            if not recognized_words:
-                reason = (
-                    f"Phrase compliance failed: No words detected in transcript "
-                    f"(expected {' '.join(target_words)}). Transcript: '{transcript}'."
-                )
-            else:
-                reason = (
-                    f"Phrase compliance failed: Only {match_count}/5 words matched "
-                    f"(challenge: {' '.join(target_words)}). "
-                    f"Matched pairs: {', '.join(matched_pairs) if matched_pairs else 'none'}. "
-                    f"Transcript: '{transcript}'."
-                )
 
         return DetectorResult(
-            score=score,
+            score=round(match_count / CHALLENGE_WORD_COUNT, 2),
             passed=passed,
-            reason=reason,
+            reason=_build_reason(
+                passed, match_count, target_words, matched_pairs, avg_confidence,
+                transcript, bool(recognized_words),
+            ),
             error=None,
             details={
                 "phrase_matched": passed,
@@ -301,24 +314,15 @@ def run_phrase_compliance(
                 "word_timestamps": word_timestamps,
                 "inference_duration_seconds": infer_duration,
                 "language": getattr(info, "language", "en"),
-                "whisper_model": "tiny",
-                "compute_type": "int8"
-            }
+                "whisper_model": WHISPER_MODEL_NAME,
+                "compute_type": WHISPER_COMPUTE_TYPE,
+                "min_word_confidence": min_avg_confidence,
+            },
         )
-
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - a detector must never raise
         logger.exception("Unexpected error in run_phrase_compliance")
-        return DetectorResult(
-            score=None,
-            passed=False,
-            reason=f"Stage 2 Phrase Compliance failed unexpectedly: {type(e).__name__}: {e}",
-            error=f"{type(e).__name__}: {e}",
-            details={
-                "phrase_matched": False,
-                "words_detected": [],
-                "target_words": target_words,
-                "match_count": 0,
-                "transcript": "",
-                "word_timestamps": []
-            }
+        return _failure_result(
+            f"Stage 2 Phrase Compliance failed unexpectedly: {type(e).__name__}: {e}",
+            f"{type(e).__name__}: {e}",
+            target_words,
         )

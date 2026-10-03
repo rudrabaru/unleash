@@ -13,6 +13,7 @@ from app import db
 from app.core.security import generate_challenge_token
 from app.main import app
 from app.schemas.session import VerificationStatus
+from _audio_fixtures import GENUINE_5WORD_NOFACE_VIDEO_WEBM, GENUINE_5WORD_PHRASE
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
 client = TestClient(app)
@@ -20,17 +21,16 @@ client = TestClient(app)
 
 def test_session_lifecycle_with_real_audio_verification():
     """
-    Test full session creation, submit, and background verification with the real
-    speech fixture. `real_742.webm` has genuine speech but no face in its video
-    track (it's an audio-scenario fixture, not a face recording), so with the
-    real visual challenge-compliance module wired in (Phase 2), the session
-    correctly comes back FAILED via the visual hard gate even though every
-    audio-side assertion passes. A true end-to-end VERIFIED case needs a fixture
-    with an actual compliant face recording (Phase 4 evaluation scenarios).
+    Test full session creation, submit, and background verification with a genuine
+    take of the 5-word challenge. `genuine_5word_noface_video.webm` pairs that audio with
+    a video track containing no face, so with the real visual challenge-compliance module wired in, the session correctly
+    comes back FAILED via the visual hard gate even though every audio-side assertion
+    passes. A true end-to-end VERIFIED case needs a fixture with an actual compliant
+    face recording (Phase 4 evaluation scenarios).
     """
-    real_webm = FIXTURES_DIR / "real_742.webm"
+    real_webm = GENUINE_5WORD_NOFACE_VIDEO_WEBM
     if not real_webm.exists():
-        pytest.skip("Fixture real_742.webm not found")
+        pytest.skip(f"Fixture {real_webm.name} not found")
 
     # 1. Create session
     create_resp = client.post("/api/v1/sessions")
@@ -40,9 +40,8 @@ def test_session_lifecycle_with_real_audio_verification():
     token = create_data["token"]
     assert create_data["challenge"]["verbal"] is not None
 
-    # Override verbal challenge to a 5-word phrase (fixture speaks "seven four two")
-    # Use a phrase containing these words so fuzzy matching can succeed
-    challenge_phrase = "seven four two apple bridge"
+    # Override the random verbal challenge with the phrase the fixture actually speaks
+    challenge_phrase = GENUINE_5WORD_PHRASE
     db.set_challenge(session_id, verbal_challenge=challenge_phrase)
     # Regenerate token with matching verbal challenge
     from app.core.config import settings

@@ -8,7 +8,10 @@ from pathlib import Path
 
 import pytest
 
+from app.modules.audio import _phrase_compliance as _pc
 from app.modules.audio import process_audio_pipeline
+from app.modules.audio._extraction import extract_wav
+from app.modules.audio.vocabulary_builder import CHALLENGE_VOCABULARY
 from app.modules.audio._phrase_compliance import (
     _WHISPER_MODEL,
     levenshtein_distance,
@@ -117,6 +120,43 @@ def test_match_does_not_reuse_one_spoken_word():
     """Saying one challenge word five times must not match five target words."""
     count, _, _ = match_words_fuzzy(_tokens(["apple"] * 5), ["apple", "apple", "cloud", "dark", "eagle"])
     assert count == 2
+
+
+def test_recognizer_settings_are_the_agreed_ones():
+    """D-18/D-23: base.en, no vocabulary prompt, 0.5 floor. Changing the floor needs team sign-off."""
+    assert _pc.WHISPER_MODEL_NAME == "base.en"
+    assert _pc.MIN_WORD_CONFIDENCE == 0.5
+    assert _pc.MIN_WORD_SIMILARITY == 0.8
+
+
+@pytest.mark.parametrize("fixture", ["tone.webm", "silence.webm"])
+def test_non_speech_never_produces_challenge_words(fixture, tmp_path):
+    """The rejected `initial_prompt` approach made Whisper emit vocabulary words on tones/noise."""
+    src = FIXTURES_DIR / fixture
+    if not src.exists():
+        pytest.skip(f"Fixture {src} not found")
+    wav = tmp_path / "clip_16k.wav"
+    ok, err, _ = extract_wav(src, wav)
+    assert ok, err
+    res = run_phrase_compliance(wav, "walnut lantern bicycle maple trumpet")
+    assert res.error is None
+    assert not set(w.lower().strip(".,?!") for w in res.details["words_detected"]) & set(CHALLENGE_VOCABULARY)
+    assert res.passed is False
+
+
+def test_genuine_take_passes_the_5_word_gate(tmp_path):
+    """B10 regression: a real genuine take that Whisper tiny failed (3/5: 'Lenton', 'Nappal')."""
+    src = FIXTURES_DIR / "my_take1.webm"
+    if not src.exists():
+        pytest.skip(f"Fixture {src} not found")
+    wav = tmp_path / "take_16k.wav"
+    ok, err, _ = extract_wav(src, wav)
+    assert ok, err
+    res = run_phrase_compliance(wav, "walnut lantern bicycle maple trumpet")
+    assert res.error is None
+    assert res.details["match_count"] >= 4, res.reason
+    assert res.passed is True
+    assert res.details["whisper_model"] == "base.en"
 
 
 def test_invalid_challenge_phrase():

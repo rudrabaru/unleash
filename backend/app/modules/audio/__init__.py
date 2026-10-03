@@ -1,7 +1,7 @@
 """
 Audio Pipeline Module (Owned by Dev 1)
 - Stage 1: Speech Gate (silero-vad) [REAL]
-- Stage 2: Phrase Compliance (faster-whisper tiny word matching) [REAL]
+- Stage 2: Phrase Compliance (faster-whisper base.en word matching) [REAL]
   Matches 5-word phrase challenges using word-level fuzzy matching + confidence thresholding.
   Threshold: 4 of 5 words must match (Levenshtein distance-based).
 - Stage 3: Voice Authenticity (librosa spectral heuristics) [REAL]
@@ -109,7 +109,7 @@ async def process_audio_pipeline(
     1. Extract audio track from media container to 16kHz mono WAV in temp_uploads/
     2. Verify extraction completeness and audio format contract
     3. Stage 1 (Speech Gate - silero-vad): Hard gate on speech presence & duration >= 2.0s
-    4. Stage 2 (Phrase Compliance - faster-whisper tiny): Hard gate on >=4-of-5 challenge words match
+    4. Stage 2 (Phrase Compliance - faster-whisper base.en): Hard gate on >=4-of-5 challenge words match
     5. Stage 3 (Voice Authenticity - librosa spectral heuristics): Advisory score (noise floor, flux, hf rolloff)
     6. Stage 4 (AV Alignment): advisory; score is None when lip timing or word timestamps are unusable.
     

@@ -64,6 +64,7 @@ checkpoints/
 *.pth
 *.pt
 backend/app/modules/antispoof/training/data/
+frontend\tsconfig.tsbuildinfo
 
 # IDE & OS
 .vscode/

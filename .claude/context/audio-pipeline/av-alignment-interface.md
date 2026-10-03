@@ -1,6 +1,6 @@
 # AV Alignment Interface Agreement — FINALIZED
 
-**Status: agreed and implemented.** The original plan required a Day 19 design session
+**Status: agreed and implemented (the per-sample `time_seconds` clock, §5, is implemented on the Stage 4 side; the producers still have to emit it).** The original plan required a Day 19 design session
 between Dev 1 and Dev 2 to settle this. That session never happened, and Dev 2 is not
 available. Per explicit user authorization (see `implement-all-three-pillars.md`), Dev 1
 wrote this agreement solo, based on the shapes the project plan had already specified plus
@@ -16,13 +16,13 @@ where `features` comes from `backend/app/modules/visual/_landmarks.py::extract_l
 
 ```python
 {
-  "fps": 29.97,              # float — video frame rate, used to convert timestamps <-> frame indices
+  "fps": 29.97,              # float — informational only; Stage 4 does NOT use it (see §5)
   "series": [
-    {"frame_index": 0, "lip_openness_ratio": 0.041},
-    {"frame_index": 1, "lip_openness_ratio": 0.038},
+    {"frame_index": 0, "time_seconds": 0.00, "lip_openness_ratio": 0.041},
+    {"frame_index": 1, "time_seconds": 0.51, "lip_openness_ratio": 0.038},
     # ... one entry per sampled frame where a face was detected (frames with no
     # detected face are omitted, not zero-filled)
-    {"frame_index": 27, "lip_openness_ratio": 0.212},
+    {"frame_index": 27, "time_seconds": 13.79, "lip_openness_ratio": 0.212},
   ]
 }
 ```
@@ -35,8 +35,9 @@ where `features` comes from `backend/app/modules/visual/_landmarks.py::extract_l
   §3 below), since lip geometry and camera distance vary per user.
 - `frame_index` is the index into the **same sampled frame list** produced by
   `app/modules/frame_extraction.py::extract_frames` (up to 30 frames, evenly subsampled
-  across the full decoded clip) — not the original video's raw frame count. Convert to a
-  timestamp with `frame_index / fps`.
+  across the full decoded clip) — not the original video's raw frame count. It is a label only:
+  **never convert it to a time with `/ fps`** (browser `.webm` reports a bogus 1000 fps). The
+  real clock is `time_seconds` (§4).
 - An empty `series` (no frames had a detected face) is valid input, not an error — Stage 4
   must degrade to `score=None` in that case, never crash or fabricate a score.
 
@@ -68,9 +69,9 @@ renegotiated here.
 
 For each word `{start, end}`:
 1. Widen the window by the tolerance: `[start - 0.3, end + 0.3]`.
-2. Convert to a frame-index range using the lip series' `fps`:
-   `[floor(window_start * fps), ceil(window_end * fps)]`.
-3. Collect all `lip_openness_ratio` values whose `frame_index` falls in that range.
+2. Collect all `lip_openness_ratio` values whose `time_seconds` falls inside
+   `[window_start, window_end]` (no fps involved).
+3. (Samples without a finite, non-negative `time_seconds` are ignored.)
 4. A word's mouth movement is confirmed if the **fraction of those frames above the
    session's dynamic "open" threshold** is ≥ 0.30 (`WORD_OPEN_FRACTION_THRESHOLD` in
    `_av_alignment.py`).
@@ -91,24 +92,26 @@ sets `passed=False`, regardless of the score.
 |---|---|
 | `lip_openness_data` is `None` or has an empty `series` | `score=None`, `passed=True`, `details["degraded_reason"]` set |
 | `word_timestamps` is `None` or empty | `score=None`, `passed=True`, `details["degraded_reason"]` set |
-| Every word has zero overlapping frames (e.g. fps mismatch, all sampled frames landed elsewhere) | `score=None`, `passed=True`, `details["degraded_reason"]` set |
+| No sample carries a usable `time_seconds` (old `frame_index`-only shape, NaN, negative, non-numeric) | `score=None`, `passed=True`, `details["degraded_reason"]` mentions `time_seconds` |
+| Every word has zero overlapping samples (e.g. all sampled frames landed elsewhere) | `score=None`, `passed=True`, `details["degraded_reason"]` set |
 | Normal case | real fraction in `[0.0, 1.0]`, `passed=True` always |
 
 ---
 
-## 4. Pending change (B4, decision log) — per-sample `time_seconds`
+## 5. Per-sample `time_seconds` (B4, decision log D-19)
 
-**Status: agreed, not yet implemented.** Do not treat the shapes above as final for browser recordings until this lands.
+**Status: IMPLEMENTED end to end (2026-10-02).** Consumer: Dev 1 (Stage 4). Producers: `visual/_frames.py` reads real PyAV presentation timestamps (decision D-19) for up to 120 frames, `extract_landmark_features` attaches them, `_lip_series.py` emits them, and `orchestrator.py` wires it. Verified on a face-less clip (timestamps equal the container's, frame for frame); a session with a detected face is still needed to see a non-null Stage 4 score.
 
-**Problem (measured):** OpenCV reports MediaRecorder `.webm` as 1000 fps, and `frame_index` counts the 30 *subsampled* frames, not native frames. `frame_index / fps` therefore places every lip sample near t = 0.03 s, Stage 4 finds no overlapping frames and degrades to `score=None` on every browser recording.
+**Problem (measured):** OpenCV reports MediaRecorder `.webm` as 1000 fps, and `frame_index` counts the 30 *subsampled* frames, not native frames. `frame_index / fps` therefore placed every lip sample near t = 0.03 s.
 
-**Agreed fix:** each lip-series entry carries a real timestamp:
+**Contract:** each lip-series entry carries a real timestamp:
 
 ```json
 {"frame_index": 27, "time_seconds": 4.31, "lip_openness_ratio": 0.212}
 ```
 
-- `time_seconds` = the frame's real presentation timestamp, read with **PyAV** (decision D-19; fallback only if PyAV is unavailable: original frame index ÷ true fps, true fps = decoded frames ÷ ffprobe duration). Produced by `frame_extraction.py` (Dev 3) and carried through `_lip_series.py` (Dev 2).
-- `fps` stays in the series for reference but Stage 4 stops using it to convert times; it matches word windows against `time_seconds` directly.
-- Stage 4 (Dev 1) consumes `time_seconds`; if absent it falls back to the old behaviour and reports a `degraded_reason` rather than a score.
-- **Same commit must update:** this file, `stage-specifications.md` (Stage 4), CLAUDE.md §E (the pending row), and add a Stage 4 test with realistic timings (a ~15 s clip, hundreds of frames, brief open windows — see `known-tricky-spots.md` #7).
+- `time_seconds` = the frame's real presentation timestamp in seconds from the start of the clip (same t=0 as the audio), read with **PyAV** (D-19; fallback only if PyAV is unavailable: original frame index ÷ true fps, true fps = decoded frames ÷ ffprobe duration). Produced by `visual/_frames.py` and carried through `_lip_series.py` (Dev 2); a frame with no real timestamp gets no `time_seconds` field (never `frame_index / fps`). Must be finite and ≥ 0.
+- `fps` stays in the series for reference only. Stage 4 matches word windows against `time_seconds` directly and ignores `fps`.
+- **Stage 4 (Dev 1, done):** uses only entries with a valid `time_seconds`; if none are valid it returns `score=None` with a `degraded_reason` naming `time_seconds`. It deliberately does **not** fall back to `frame_index / fps`: with subsampled indices that gave plausible-looking but wrong scores (J5).
+- Sampling density: Stage 4 works with any spacing (tests cover 30 frames over 15 s, ~10 fps, and variable frame rate). Denser sampling (B6) simply gives it more evidence per word.
+- Tests: `backend/tests/test_stage4_av_alignment.py` (realistic 15 s clips, bogus 1000 fps, irregular timing, mismatch, invalid timestamps).

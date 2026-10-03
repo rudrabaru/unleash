@@ -21,6 +21,7 @@ from app.modules.audio._voice_authenticity import (
     run_voice_authenticity,
 )
 from app.schemas.detector import DetectorResult
+from _audio_fixtures import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
 
@@ -155,12 +156,11 @@ def test_stage3_latency_budget(tmp_path: Path):
 
 def test_pipeline_integration_with_stage3():
     """Verify full pipeline execution on genuine recording integrates Stage 3 results."""
-    real_fixture = FIXTURES_DIR / "real_742.webm"
+    real_fixture = GENUINE_5WORD_WEBM
     if not real_fixture.exists():
         pytest.skip(f"Fixture {real_fixture} not found")
 
-    challenge_phrase = "seven four two apple bridge"
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), challenge_phrase))
+    res = asyncio.run(process_audio_pipeline(str(real_fixture), GENUINE_5WORD_PHRASE))
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True

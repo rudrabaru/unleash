@@ -1,4 +1,4 @@
-import random
+import secrets
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -20,6 +20,9 @@ from app.schemas.session import (
 
 router = APIRouter()
 
+# Challenges must be unpredictable (B3): use the OS CSPRNG, not the Mersenne Twister `random`.
+_rng = secrets.SystemRandom()
+
 
 @router.post("", response_model=SessionCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_session():
@@ -31,8 +34,8 @@ async def create_session():
     """
     session_id = str(uuid.uuid4())
 
-    visual_choice = random.choice(list(VisualChallengeType))
-    verbal_choice = " ".join(random.sample(CHALLENGE_VOCABULARY, 5))
+    visual_choice = _rng.choice(list(VisualChallengeType))
+    verbal_choice = " ".join(_rng.sample(CHALLENGE_VOCABULARY, 5))
 
     token, expires_at = generate_challenge_token(
         session_id=session_id,

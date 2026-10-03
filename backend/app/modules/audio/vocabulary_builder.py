@@ -6,11 +6,11 @@ Audio challenge vocabulary and its offline builder.
 constant; the runtime never imports the builder's dev-only dependency.
 
 Why a curated pool: challenge entropy is what resists replay and scripted attacks, and a
-small vocabulary of acoustically distinct words keeps faster-whisper tiny near its best
-accuracy. A word is only admitted if it
+small vocabulary of acoustically distinct words keeps the small Stage 2 Whisper model
+near its best accuracy. A word is only admitted if it
   * has a CMU Pronouncing Dictionary entry and no homophone anywhere in that dictionary
     (so "by"/"buy"/"bye"-style collisions cannot occur),
-  * has at least two syllables (one-syllable words are the most confusable for tiny),
+  * has at least two syllables (one-syllable words are the most confusable for small Whisper models),
   * is not blocklisted (number words, which Whisper may transcribe as digits, and words
     unsuitable to show a user), and
   * differs from every already-selected word by at least MIN_PHONEME_DISTANCE phonemes and

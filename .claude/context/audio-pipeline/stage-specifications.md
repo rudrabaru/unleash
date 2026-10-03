@@ -4,7 +4,7 @@ Source of truth: Project Plan v2.1 Section 5. This document restates it in a for
 
 **Integration contract:** The audio module exposes one async entrypoint in `backend/app/modules/audio/__init__.py`: `process_audio_pipeline(media_path: str, challenge_phrase: str) -> DetectorResult`. Internally it runs Stages 1–4 in sequence and folds the result into a single `DetectorResult` (the 4-key contract, see root `CLAUDE.md` Section B). Dev 3's orchestrator calls only this one function — it does not call individual stages directly.
 
-**Current implementation status:** Stages 1-4 are all `[REAL]` code. Stage 2 is a 5-word phrase gate (decisions D-01..D-04). Stage 4 is code-complete but receives no usable lip timing from browser recordings until the per-sample `time_seconds` change (B4) lands, so on real sessions it currently degrades to `score=None`. Stage 4's interface was originally blocked on a Day 19 design session with Dev 2 that never happened; since Dev 2 was unavailable, Dev 1 wrote the agreed format solo (with explicit user authorization) — see `av-alignment-interface.md` for the finalized schema — and implemented the real alignment logic against it. Stage 4 remains advisory (`score` can be `None` when lip/word data is missing; `passed` is always `True`). The module is wired into `backend/app/orchestrator.py`, which extracts frame landmarks once and passes the lip openness series through.
+**Current implementation status:** Stages 1-4 are all `[REAL]` code. Stage 2 is a 5-word phrase gate (decisions D-01..D-04). Stage 4 is code-complete and consumes per-sample `time_seconds` (B4, implemented 2026-10-02 on the Stage 4 side); the producers (Dev 3 frame timing, Dev 2 lip series) do not emit it yet, so on real sessions it still degrades to `score=None`. Stage 4's interface was originally blocked on a Day 19 design session with Dev 2 that never happened; since Dev 2 was unavailable, Dev 1 wrote the agreed format solo (with explicit user authorization) — see `av-alignment-interface.md` for the finalized schema — and implemented the real alignment logic against it. Stage 4 remains advisory (`score` can be `None` when lip/word data is missing; `passed` is always `True`). The module is wired into `backend/app/orchestrator.py`, which extracts frame landmarks once and passes the lip openness series through.
 
 ---
 
@@ -51,7 +51,7 @@ Stage 1 and Stage 2 gate the pipeline: if either fails, stop immediately and ret
 
 **Purpose:** The core audio security control — verify the user said the server-issued 5-word challenge phrase.
 
-**Tool:** `faster-whisper`, `tiny` model (~39MB). **Must be loaded once at process/module init, never per-request** (this is the #1 known gotcha — see `known-tricky-spots.md`). Always extract word-level timestamps; faster-whisper returns them natively — never discard them, Stage 4 needs them.
+**Tool:** `faster-whisper`, `base.en` model, int8, CPU (chosen by bake-off, decisions D-18/D-23; was `tiny`, which failed a genuine take). Plain transcription — **no vocabulary `initial_prompt`** (it makes Whisper emit vocabulary words on noise/tones). **Must be loaded once at process/module init, never per-request** (this is the #1 known gotcha — see `known-tricky-spots.md`). Always extract word-level timestamps; faster-whisper returns them natively — never discard them, Stage 4 needs them.
 
 **Matching logic — do not use exact transcript matching:**
 1. Take Whisper's word list with per-word probabilities. Lowercase each word and strip everything but letters (Whisper emits tokens like `Apple,`).
@@ -59,7 +59,7 @@ Stage 1 and Stage 2 gate the pipeline: if either fails, stop immediately and ret
 3. A recognized word counts only if similarity ≥ `MIN_WORD_SIMILARITY` (0.8) **and** its Whisper probability ≥ the per-word confidence floor (`min_avg_confidence`, currently 0.5). Each spoken word can satisfy at most one target.
 4. **Match threshold: at least 4 of 5 target words matched → `passed = True`.** 3 or fewer → `passed = False` (hard gate).
 5. Exact string matching would produce unacceptable false-reject rates due to ASR noise/accents — a deliberate design decision, not a shortcut. Equally, do not loosen the similarity metric.
-6. **Pending (decisions D-04/D-18, choice pending evidence):** candidates on the one genuine take — `base.en` plain (4/5 at the existing 0.5 floor); `tiny.en` or `base.en` with the vocabulary as `initial_prompt` + `condition_on_previous_text=False` (5/5 at floor 0.1). Do not use `hotwords` with the full vocabulary (errors in faster-whisper 1.2.1). Reason: Whisper tiny mishears isolated uncommon words; the vocabulary hint fixes the transcript but lowers per-word confidence. The final floor is set from the false-accept/false-reject probes, then recorded here and in the decision log.
+6. **Recognizer chosen (decisions D-18/D-23):** `base.en` plain, per-word confidence floor stays **0.5**. It passes the one real genuine take (4/5, no margin) that `tiny` failed (3/5: `Lenton`, `Nappal`), without lowering a gate threshold and without a vocabulary-hallucination channel. The vocabulary `initial_prompt` was rejected (noise → `zucchini` x6, tone → `beep` x13) and `hotwords` with the full vocabulary errors in faster-whisper 1.2.1. Evidence on a 60-clip synthetic TTS proxy (not human speech): `base.en` plain passes 51/60 at floor 0.5, 56/60 at 0.3, 58/60 at 0.2; the current `tiny` setup passed 32/60. **Still pending (D-04):** lowering the floor (candidate 0.3) needs >= 10 genuine human takes from >= 3 speakers; re-run `backend/prototypes/stage2_bakeoff.py` on them. Known gap: extra spoken words are not penalised (vocabulary-dump attack, see decision log open items).
 7. **Pending (decision D-10, after a bake-off):** v1.1 may replace the fixed 5 rare words with 4–6 common words and word-level alignment scoring.
 
 **Output:** full transcript, word-level timestamps (`{word, start, end, probability}` dicts), `phrase_matched: bool`, `match_count`, `matched_pairs`, `words_detected`, `target_words`.
@@ -107,10 +107,10 @@ with an `error` and `passed=True` (advisory), and fusion drops it and redistribu
 **Purpose:** Verify speech occurred at the same time the lips were moving — defeats replay-with-background-audio and TTS-injection-while-video-shows-a-real-person attacks.
 
 **Implementation (`_av_alignment.py`):**
-1. For each spoken word's `[start, end]` window (from Stage 2's Whisper timestamps), widened by the ±300ms tolerance, find the corresponding sampled video frames by converting seconds to frame indices via the lip series' `fps`.
+1. For each spoken word's `[start, end]` window (from Stage 2's Whisper timestamps), widened by the ±300ms tolerance, collect the lip samples whose own `time_seconds` falls in that window. **No fps conversion**: browser `.webm` reports a bogus 1000 fps (B4/D-19), so the clock is the per-sample `time_seconds` the producers attach. Samples without a valid `time_seconds` are ignored; if none is valid the stage returns `score=None`.
 2. Derive a per-session "open" threshold from the lip series' own median + half its stdev (lip geometry/camera distance vary per user, so a fixed global threshold doesn't generalize).
-3. A word counts as aligned if ≥30% of its overlapping frames exceed that threshold.
-4. Score = fraction of words (with ≥1 overlapping frame) that count as aligned.
+3. A word counts as aligned if ≥30% of its overlapping samples exceed that threshold.
+4. Score = fraction of words (with ≥1 overlapping sample) that count as aligned.
 5. **Tolerance: ±300ms misalignment window** (human speech and lip movement naturally lag up to ~150ms).
 
 Degenerate inputs (no lip data, no word timestamps, or zero frame overlap for every word) return `score=None` with a `degraded_reason` in `details` — never a fabricated fraction (J5).

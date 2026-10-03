@@ -8,6 +8,7 @@ files without raising.
 from dataclasses import dataclass
 from typing import List
 
+import av
 import cv2
 import numpy as np
 
@@ -21,7 +22,18 @@ class FrameExtractionResult:
     error: str | None = None
 
 
+def _has_video_stream(video_path: str) -> bool:
+    """OpenCV's `cap.read()` blocks forever on an audio-only container, so check first."""
+    try:
+        with av.open(video_path) as container:
+            return bool(container.streams.video)
+    except Exception:  # noqa: BLE001 - let the OpenCV path report the open failure as before
+        return True
+
+
 def extract_frames(video_path: str, max_frames: int = MAX_FRAMES) -> FrameExtractionResult:
+    if not _has_video_stream(video_path):
+        return FrameExtractionResult(frames=[], fps=0.0, error="No video stream in media file.")
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         cap.release()
