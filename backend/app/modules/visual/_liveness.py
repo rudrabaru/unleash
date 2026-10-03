@@ -72,8 +72,6 @@ def score_liveness(features: Dict[str, Any]) -> Dict[str, Any]:
     ear = _ear_metrics(frames)
     consistency = _consistency(frames)
 
-    blink_score = 1.0 if ear["detected"] else 0.0
-
     # Natural micro-movement:
     # 1. Landmark Euclidean displacement scaled linearly (mean ~0.001 - 0.005)
     movement_score = min(1.0, movement["mean"] * 200.0) if movement["samples"] else 0.0
@@ -81,7 +79,15 @@ def score_liveness(features: Dict[str, Any]) -> Dict[str, Any]:
     if ear["natural_movement_detected"]:
         movement_score = max(movement_score, 0.85)
 
-    score = 0.4 * blink_score + 0.4 * movement_score + 0.2 * consistency
+    # Adaptive liveness scoring:
+    # In short 3-5s clips, a real person may not blink unless specifically asked.
+    # If a blink is detected: 35% blink + 45% natural movement + 20% consistency
+    # If no blink detected: adaptively evaluate living micro-movements (70%) and tracking consistency (30%)
+    if ear["detected"]:
+        score = 0.35 * 1.0 + 0.45 * movement_score + 0.20 * consistency
+    else:
+        score = 0.70 * movement_score + 0.30 * consistency
+
     score = max(0.0, min(1.0, score))
 
     return {
