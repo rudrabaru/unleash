@@ -31,6 +31,18 @@ source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+pip install -r requirements-visual.txt
+pip install -r requirements-antispoof.txt --extra-index-url https://download.pytorch.org/whl/cpu
+
+# Optional: Deepfake Model Checkpoint (Dev 3)
+# Target path: checkpoints/xception_deepfake_best.pth (relative to process working directory)
+# Or specify an alternate path using environment variable UNLEASH_XCEPTION_CHECKPOINT.
+# If absent, the deepfake detector gracefully handles missing weights and returns score=None.
+# Download placeholder:
+# curl -L -o checkpoints/xception_deepfake_best.pth <RELEASE_URL_PLACEHOLDER>
+# Expected SHA-256: <SHA256_OF_PUBLISHED_CHECKPOINT>
+# Verify (PowerShell): Get-FileHash checkpoints\xception_deepfake_best.pth -Algorithm SHA256
+# Verify (Linux/bash): sha256sum checkpoints/xception_deepfake_best.pth
 
 # Copy environment variables
 cp .env.example .env
