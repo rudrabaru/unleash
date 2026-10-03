@@ -10,7 +10,11 @@ import numpy as np
 import pytest
 
 from app.modules.frame_extraction import extract_frames
-from app.modules.visual import detect_visual_liveness, verify_challenge_compliance
+from app.modules.visual import (
+    detect_visual_liveness,
+    extract_visual_frames,
+    verify_challenge_compliance,
+)
 from app.schemas.session import VisualChallengeType
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
@@ -20,7 +24,7 @@ def _frames(name: str):
     path = FIXTURES_DIR / name
     if not path.exists():
         pytest.skip(f"Fixture {name} not found")
-    result = extract_frames(str(path))
+    result = extract_visual_frames(str(path))
     if not result.frames:
         pytest.skip(f"No frames decoded from {name}")
     return result.frames
@@ -37,7 +41,7 @@ def test_liveness_empty_frames_returns_contract_compliant_error():
 def test_liveness_no_face_scores_low_not_crash():
     path = FIXTURES_DIR / "real_742.webm"
     if path.exists():
-        frames = extract_frames(str(path)).frames
+        frames = extract_visual_frames(str(path)).frames
     else:
         frames = [np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(10)]
     result = asyncio.run(detect_visual_liveness(frames))
@@ -50,7 +54,7 @@ def test_liveness_no_face_scores_low_not_crash():
 def test_challenge_compliance_no_face_fails_hard_gate():
     path = FIXTURES_DIR / "real_742.webm"
     if path.exists():
-        frames = extract_frames(str(path)).frames
+        frames = extract_visual_frames(str(path)).frames
     else:
         frames = [np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(10)]
     result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value))
@@ -66,7 +70,7 @@ def test_challenge_compliance_unknown_challenge_errors_gracefully():
 
 
 def test_liveness_real_face_detects_blink_and_natural_movement():
-    frames = _frames("blink.mp4")
+    frames = _frames("BLINKING.webm")
     result = asyncio.run(detect_visual_liveness(frames))
     assert result.error is None
     assert result.passed is True
@@ -78,7 +82,7 @@ def test_liveness_real_face_detects_blink_and_natural_movement():
 
 
 def test_challenge_compliance_turn_head_left_real_video():
-    frames = _frames("left.mp4")
+    frames = _frames("TURN_LEFT.webm")
     # Correct challenge must pass
     result_left = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value))
     assert result_left.error is None
@@ -92,7 +96,7 @@ def test_challenge_compliance_turn_head_left_real_video():
 
 
 def test_challenge_compliance_turn_head_right_real_video():
-    frames = _frames("right.mp4")
+    frames = _frames("TURN_RIGHT.webm")
     # Correct challenge must pass
     result_right = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_RIGHT.value))
     assert result_right.error is None
@@ -106,17 +110,31 @@ def test_challenge_compliance_turn_head_right_real_video():
 
 
 def test_challenge_compliance_look_down_real_video():
-    frames = _frames("down.mp4")
+    frames = _frames("DOWN.webm")
     result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.LOOK_DOWN.value))
     assert result.error is None
     assert result.passed is True
+
+
+def test_challenge_compliance_look_up_real_video():
+    frames = _frames("UP.webm")
+    result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.LOOK_UP.value))
+    assert result.error is None
+    assert result.passed is True
+
+
+def test_look_down_does_not_pass_blink_twice():
+    frames = _frames("DOWN.webm")
+    result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.BLINK_TWICE.value))
+    assert result.error is None
+    assert result.passed is False, "Looking down should not trigger blink-twice challenge"
 
 
 def test_lip_series_generation_real_video():
     from app.modules.visual import extract_landmark_features
     from app.modules.visual._lip_series import build_lip_series
 
-    frames = _frames("blink.mp4")
+    frames = _frames("BLINKING.webm")
     features = extract_landmark_features(frames)
     lip_data = build_lip_series(features, fps=30.0)
 

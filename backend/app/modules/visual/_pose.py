@@ -72,18 +72,40 @@ def _vertical_turn(frames, direction: str) -> Dict[str, Any]:
 
 
 def _blink_twice(frames) -> Dict[str, Any]:
-    ear_values = [f.get("ear") for f in frames]
     events = 0
     below = False
     valid_frames = 0
-    for value in ear_values:
+
+    pitch_baseline = _baseline(frames, "pitch")
+    yaw_baseline = _baseline(frames, "yaw")
+
+    for frame in frames:
+        value = frame.get("ear")
         if value is None:
             continue
         valid_frames += 1
-        if value < BLINK_EAR_THRESHOLD and not below:
-            events += 1
-            below = True
-        elif value >= BLINK_EAR_THRESHOLD:
+
+        # Check pose orientation: pitch down or extreme yaw causes eyelid occlusion artifacts
+        pitch = frame.get("pitch")
+        yaw = frame.get("yaw")
+        looking_down = (
+            pitch is not None
+            and pitch_baseline is not None
+            and (pitch - pitch_baseline) >= 7.0
+        )
+        extreme_yaw = (
+            yaw is not None
+            and yaw_baseline is not None
+            and abs(yaw - yaw_baseline) >= 25.0
+        )
+        pose_corrupted = looking_down or extreme_yaw
+
+        if value < BLINK_EAR_THRESHOLD:
+            if not below:
+                if not pose_corrupted:
+                    events += 1
+                below = True
+        else:
             below = False
 
     return {
