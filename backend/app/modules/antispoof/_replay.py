@@ -28,7 +28,7 @@ authenticity (see .claude/context/audio-pipeline/stage-specifications.md). Do no
 score from this module as a tuned/validated number until scenario recordings exist to
 calibrate against.
 """
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -79,7 +79,7 @@ def _sample_for_fft(frames: List[np.ndarray], max_frames: int) -> List[np.ndarra
     return [frames[int(i * step)] for i in range(max_frames)]
 
 
-def _moire_score_for_frame(gray: np.ndarray) -> float:
+def _moire_score_for_frame(gray: np.ndarray) -> Optional[float]:
     spectrum = np.fft.fftshift(np.fft.fft2(gray.astype(np.float32)))
     magnitude = np.abs(spectrum)
 
@@ -87,7 +87,7 @@ def _moire_score_for_frame(gray: np.ndarray) -> float:
     center_y, center_x = height // 2, width // 2
     max_radius = float(min(center_y, center_x))
     if max_radius <= 0:
-        return 1.0
+        return None
 
     y_indices, x_indices = np.ogrid[:height, :width]
     radius = np.sqrt((y_indices - center_y) ** 2 + (x_indices - center_x) ** 2)
@@ -98,7 +98,7 @@ def _moire_score_for_frame(gray: np.ndarray) -> float:
     ring_values = magnitude[ring_mask]
     ring_mean = float(ring_values.mean()) if ring_values.size else 0.0
     if ring_mean < 1e-6:
-        return 1.0
+        return None
 
     peakiness = float(ring_values.max()) / ring_mean
     normalized = (peakiness - MOIRE_PEAKINESS_FLOOR) / (MOIRE_PEAKINESS_CEIL - MOIRE_PEAKINESS_FLOOR)
@@ -107,15 +107,14 @@ def _moire_score_for_frame(gray: np.ndarray) -> float:
 
 def _moire_score(gray_frames: List[np.ndarray]) -> Dict[str, Any]:
     sampled = _sample_for_fft(gray_frames, MOIRE_MAX_FRAMES_SAMPLED)
-    per_frame_scores = [_moire_score_for_frame(frame) for frame in sampled]
-    score = float(np.mean(per_frame_scores)) if per_frame_scores else 0.5
-    return {"score": score, "frames_sampled": len(sampled)}
+    per_frame_scores = [s for s in (_moire_score_for_frame(frame) for frame in sampled) if s is not None]
+    score = float(np.mean(per_frame_scores)) if per_frame_scores else None
+    return {"score": score, "frames_sampled": len(per_frame_scores)}
 
 
 def _temporal_noise_score(gray_frames: List[np.ndarray]) -> Dict[str, Any]:
     if len(gray_frames) < 2:
-        # Not enough frames to measure frame-to-frame noise: neither confirm nor deny.
-        return {"score": 0.5, "mean_diff_std": None, "degraded_reason": "fewer than 2 frames"}
+        return {"score": None, "mean_diff_std": None, "degraded_reason": "fewer than 2 frames"}
 
     diff_stds = [
         float(cv2.absdiff(gray_frames[i], gray_frames[i - 1]).std())
@@ -142,7 +141,7 @@ def _brightness_histogram_score(gray_frames: List[np.ndarray]) -> Dict[str, Any]
 
     total = histogram.sum()
     if total <= 0:
-        return {"score": 0.5, "entropy_bits": None, "clip_fraction": None}
+        return {"score": None, "entropy_bits": None, "clip_fraction": None}
 
     probabilities = histogram / total
     nonzero = probabilities[probabilities > 0]
@@ -160,22 +159,30 @@ def _brightness_histogram_score(gray_frames: List[np.ndarray]) -> Dict[str, Any]
     }
 
 
+def _combine_measured(parts: List[Any]) -> Optional[float]:
+    """Weighted mean over the sub-signals that measured (weights renormalized); None if none did."""
+    measured = [(score, weight) for score, weight in parts if score is not None]
+    if not measured:
+        return None
+    return sum(score * weight for score, weight in measured) / sum(weight for _, weight in measured)
+
+
 def score_replay(frames: List[np.ndarray]) -> Dict[str, Any]:
     """
     Compute the combined replay-detection score for a list of RGB frames.
 
     Never raises: callers (the antispoof `__init__.py` wrapper) still catch exceptions per
-    the detector contract, but every sub-signal here already degrades to a neutral 0.5
-    rather than crashing on edge-case input (single frame, blank frame, etc).
+    the detector contract, but every sub-signal here already degrades to None
+    rather than crashing on edge-case input (single frame, blank frame, etc); an unmeasurable sub-signal is None and is excluded from the combined score.
     """
     # Guard against missing cv2 dependency (DIP violation fix)
     if not CV2_AVAILABLE:
         return {
-            "score": 0.5,
+            "score": None,
             "passed": False,
-            "moire": {"score": 0.5, "frames_sampled": 0},
-            "temporal_noise": {"score": 0.5, "mean_diff_std": None},
-            "brightness_histogram": {"score": 0.5, "entropy_bits": None, "clip_fraction": None},
+            "moire": {"score": None, "frames_sampled": 0},
+            "temporal_noise": {"score": None, "mean_diff_std": None},
+            "brightness_histogram": {"score": None, "entropy_bits": None, "clip_fraction": None},
             "frames_analyzed": len(frames),
             "degraded_reason": "cv2 (OpenCV) not installed",
         }
@@ -191,11 +198,19 @@ def score_replay(frames: List[np.ndarray]) -> Dict[str, Any]:
     noise = _temporal_noise_score(gray_frames)
     brightness = _brightness_histogram_score(gray_frames)
 
-    combined = (
-        moire["score"] * MOIRE_WEIGHT
-        + noise["score"] * NOISE_WEIGHT
-        + brightness["score"] * BRIGHTNESS_WEIGHT
+    combined = _combine_measured(
+        [(moire["score"], MOIRE_WEIGHT), (noise["score"], NOISE_WEIGHT), (brightness["score"], BRIGHTNESS_WEIGHT)]
     )
+    if combined is None:
+        return {
+            "score": None,
+            "passed": False,
+            "moire": moire,
+            "temporal_noise": noise,
+            "brightness_histogram": brightness,
+            "frames_analyzed": len(frames),
+            "degraded_reason": "no replay sub-signal could be measured",
+        }
 
     return {
         "score": round(float(combined), 4),

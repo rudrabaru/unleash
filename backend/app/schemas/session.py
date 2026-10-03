@@ -24,7 +24,7 @@ class VerificationStatus(str, Enum):
 
 class ChallengePayload(BaseModel):
     visual: VisualChallengeType = Field(..., description="Visual action requested from user")
-    verbal: str = Field(..., description="3-digit phrase the user must speak (e.g., '742')")
+    verbal: str = Field(..., description="5 space-separated words the user must speak in order")
 
 
 class SessionCreateResponse(BaseModel):

@@ -8,6 +8,7 @@ challenge using weighted edit distance + minimum-average-confidence.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -58,23 +59,35 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return dp[m][n]
 
 
+# Minimum per-word similarity for a recognized word to count as a challenge word.
+# 0.8 on a 1x-length-normalized edit distance tolerates one slip in a 5+ letter word
+# (e.g. "bridget" -> "bridge" = 0.86) but rejects unrelated words. The previous 2x
+# normalization floored any two words at 0.5 and let ~90% of filler speech through.
+MIN_WORD_SIMILARITY: float = 0.8
+
+
+def normalize_word(word: str) -> str:
+    """Lowercase and strip everything but letters (Whisper emits tokens like 'Apple,')."""
+    return re.sub(r"[^a-z]", "", word.lower())
+
+
 def word_similarity_score(recognized: str, target: str) -> float:
     """
-    Compute word-level similarity (0.0-1.0) using Levenshtein distance.
-    Maximum distance for penalizing errors is 2x the longer word length (very lenient).
+    Compute word-level similarity (0.0-1.0): 1 - edit_distance / longer_word_length.
+    Both words are normalized first, so case and punctuation never affect the score.
     """
-    distance = levenshtein_distance(recognized.lower(), target.lower())
-    max_distance = max(len(recognized), len(target)) * 2
-    if max_distance == 0:
+    a, b = normalize_word(recognized), normalize_word(target)
+    longest = max(len(a), len(b))
+    if longest == 0:
         return 1.0
-    return max(0.0, 1.0 - (distance / max_distance))
+    return max(0.0, 1.0 - levenshtein_distance(a, b) / longest)
 
 
 def match_words_fuzzy(
     recognized_words: List[Tuple[str, float]],
     target_words: List[str],
     min_avg_confidence: float = 0.5,
-    min_word_similarity: float = 0.6,
+    min_word_similarity: float = MIN_WORD_SIMILARITY,
 ) -> Tuple[int, List[str], float]:
     """
     Perform fuzzy word matching between recognized and target phrase.
@@ -104,7 +117,7 @@ def match_words_fuzzy(
 
     for target_word in target_words:
         best_idx = -1
-        best_sim = min_word_similarity
+        best_sim = -1.0
 
         for i, (rec_word, confidence) in enumerate(recognized_words):
             if i in used_indices:
@@ -115,7 +128,7 @@ def match_words_fuzzy(
                 continue
 
             similarity = word_similarity_score(rec_word, target_word)
-            if similarity > best_sim:
+            if similarity >= min_word_similarity and similarity > best_sim:
                 best_idx = i
                 best_sim = similarity
 
@@ -244,7 +257,7 @@ def run_phrase_compliance(
             recognized_words=recognized_words,
             target_words=target_words,
             min_avg_confidence=min_avg_confidence,
-            min_word_similarity=0.6
+            min_word_similarity=MIN_WORD_SIMILARITY
         )
 
         passed = match_count >= threshold

@@ -4,7 +4,7 @@ Source of truth: Project Plan v2.1 Section 5. This document restates it in a for
 
 **Integration contract:** The audio module exposes one async entrypoint in `backend/app/modules/audio/__init__.py`: `process_audio_pipeline(media_path: str, challenge_phrase: str) -> DetectorResult`. Internally it runs Stages 1–4 in sequence and folds the result into a single `DetectorResult` (the 4-key contract, see root `CLAUDE.md` Section B). Dev 3's orchestrator calls only this one function — it does not call individual stages directly.
 
-**Current implementation status:** Stages 1-4 are all `[REAL]`. Stage 4's interface was originally blocked on a Day 19 design session with Dev 2 that never happened; since Dev 2 was unavailable, Dev 1 wrote the agreed format solo (with explicit user authorization) — see `av-alignment-interface.md` for the finalized schema — and implemented the real alignment logic against it. Stage 4 remains advisory (`score` can be `None` when lip/word data is missing; `passed` is always `True`). The module is wired into `backend/app/orchestrator.py`, which extracts frame landmarks once and passes the lip openness series through.
+**Current implementation status:** Stages 1-4 are all `[REAL]` code. Stage 2 is a 5-word phrase gate (decisions D-01..D-04). Stage 4 is code-complete but receives no usable lip timing from browser recordings until the per-sample `time_seconds` change (B4) lands, so on real sessions it currently degrades to `score=None`. Stage 4's interface was originally blocked on a Day 19 design session with Dev 2 that never happened; since Dev 2 was unavailable, Dev 1 wrote the agreed format solo (with explicit user authorization) — see `av-alignment-interface.md` for the finalized schema — and implemented the real alignment logic against it. Stage 4 remains advisory (`score` can be `None` when lip/word data is missing; `passed` is always `True`). The module is wired into `backend/app/orchestrator.py`, which extracts frame landmarks once and passes the lip openness series through.
 
 ---
 
@@ -40,7 +40,7 @@ Stage 1 and Stage 2 gate the pipeline: if either fails, stop immediately and ret
 
 **Hard gate logic:**
 - `speech_detected == False` → `passed = False`, stop. Reason: `"No speech detected"`.
-- `speech_duration < 2.0 seconds` → `passed = False`, stop. Reason should say why (duration too short for a 3-digit challenge).
+- `speech_duration < 2.0 seconds` → `passed = False`, stop. Reason should say why (duration too short for a 5-word challenge).
 - The `2.0` second threshold is a starting point, tunable in Phase 4 based on evaluation evidence — document any change here and in root `CLAUDE.md` if it affects gate behavior broadly.
 
 **Output carried to later stages:** speech segments with start/end timestamps (seconds). Reused conceptually by Stage 4's tolerance window, though Stage 4 primarily uses Whisper's own word-level timestamps.
@@ -49,18 +49,20 @@ Stage 1 and Stage 2 gate the pipeline: if either fails, stop immediately and ret
 
 ## Stage 2 — Phrase Compliance (STT + Matching)
 
-**Purpose:** The core audio security control — verify the user said the server-issued challenge number.
+**Purpose:** The core audio security control — verify the user said the server-issued 5-word challenge phrase.
 
 **Tool:** `faster-whisper`, `tiny` model (~39MB). **Must be loaded once at process/module init, never per-request** (this is the #1 known gotcha — see `known-tricky-spots.md`). Always extract word-level timestamps; faster-whisper returns them natively — never discard them, Stage 4 needs them.
 
 **Matching logic — do not use exact transcript matching:**
-1. Extract digit words from the transcript (handle digit-by-digit: "seven, four, two"; combined: "seven forty-two"; full number: "seven hundred forty-two"; hesitation: "seven... four... two").
-2. Reconstruct a digit sequence from what was recognized.
-3. Compare against the challenge's actual digit sequence.
-4. **Match threshold: at least 2 of 3 digits correct → `passed = True`.** 0 or 1 digits correct → `passed = False` (hard gate).
-5. Exact string matching will produce unacceptable false-reject rates due to ASR noise/accent/hesitation — this is a known, deliberate design decision, not a shortcut to fix later.
+1. Take Whisper's word list with per-word probabilities. Lowercase each word and strip everything but letters (Whisper emits tokens like `Apple,`).
+2. For each target word, pick the best-unused recognized word by edit-distance similarity, **normalised by 1× the longer word's length** (never 2× — that floored any two words at 0.5 and let ~90% of filler sentences pass).
+3. A recognized word counts only if similarity ≥ `MIN_WORD_SIMILARITY` (0.8) **and** its Whisper probability ≥ the per-word confidence floor (`min_avg_confidence`, currently 0.5). Each spoken word can satisfy at most one target.
+4. **Match threshold: at least 4 of 5 target words matched → `passed = True`.** 3 or fewer → `passed = False` (hard gate).
+5. Exact string matching would produce unacceptable false-reject rates due to ASR noise/accents — a deliberate design decision, not a shortcut. Equally, do not loosen the similarity metric.
+6. **Pending (decisions D-04/D-18, choice pending evidence):** candidates on the one genuine take — `base.en` plain (4/5 at the existing 0.5 floor); `tiny.en` or `base.en` with the vocabulary as `initial_prompt` + `condition_on_previous_text=False` (5/5 at floor 0.1). Do not use `hotwords` with the full vocabulary (errors in faster-whisper 1.2.1). Reason: Whisper tiny mishears isolated uncommon words; the vocabulary hint fixes the transcript but lowers per-word confidence. The final floor is set from the false-accept/false-reject probes, then recorded here and in the decision log.
+7. **Pending (decision D-10, after a bake-off):** v1.1 may replace the fixed 5 rare words with 4–6 common words and word-level alignment scoring.
 
-**Output:** full transcript, word-level timestamps list `(word, start_seconds, end_seconds)`, `phrase_matched: bool`, `digits_detected: list`.
+**Output:** full transcript, word-level timestamps (`{word, start, end, probability}` dicts), `phrase_matched: bool`, `match_count`, `matched_pairs`, `words_detected`, `target_words`.
 
 ---
 
@@ -78,7 +80,7 @@ Produces a `0.0–1.0` advisory score. **Timebox implementation to 2 days max** 
 **Calibration status: `[UNCALIBRATED]` (Phase 4).** The heuristics are real computations on real
 audio — nothing here is stubbed — but every threshold, divisor and weight in `_voice_authenticity.py`
 (flux divisor `10.0`, hf_ratio divisor `0.15`, the noise-floor `cov`/`mean_rms` divisors, the
-`0.30/0.45/0.25` weights, the `0.5` neutral fallback, the `0.1/0.2` buckets) is an initial guess
+`0.30/0.45/0.25` weights, the `0.1/0.2` buckets) is an initial guess
 never fitted to a labelled recording set. Measured against the only labelled fixtures available
 (2 genuine, 1 TTS), the composite shows **no separation** between genuine and TTS speech: 0.723 and
 0.769 genuine vs 0.732 TTS. The spectral-flux term saturates to 1.0 on every real recording and the
@@ -87,12 +89,14 @@ HF-rolloff term runs opposite to its documented direction. **No value has been c
 sources — see `docs/audio_pipeline_observations.md` §7 for the evidence and the recording set needed
 to unblock calibration. Do not cite these numbers as tuned.
 
-**Degraded-run honesty:** branches that cannot perform a real measurement (librosa unavailable,
-audio shorter than one 512-sample STFT frame, no inter-speech silence) still return a numeric score
-— Stage 3 is advisory and must not disturb the pipeline — but flag `details["degraded"] = true` with
-a `degraded_reason`, so a placeholder is never mistaken for a measurement in the eval store.
+**Degraded-run honesty (changed 2026-10-02, decision D-15):** a sub-heuristic that cannot perform a real
+measurement (librosa unavailable, audio shorter than one 512-sample STFT frame, no inter-speech
+silence) now returns `None`, never a placeholder `0.5`. The composite is the weighted mean of the
+heuristics that did measure (weights renormalised), and `details["degraded"] = true` with
+`degraded_reasons` records which ones were excluded. If none measured, Stage 3 returns `score=None`
+with an `error` and `passed=True` (advisory), and fusion drops it and redistributes its weight.
 
-**Future upgrade path (out of scope now):** `speechbrain/aasist` (ASVspoof-trained). Design this stage's interface so swapping the heuristic for AASIST later requires no changes to Stage 4 or the orchestrator — i.e., keep the function signature `(audio_segments) -> float` stable regardless of internal implementation.
+**Future upgrade path (v2, decision D-12 — evaluated offline first, adopted only if it separates genuine from TTS on our own recordings):** `speechbrain/aasist` (ASVspoof-trained). Pretrained spoof detectors generalise poorly to unseen TTS engines, so the evidence comes before the dependency. Design this stage's interface so swapping the heuristic for AASIST later requires no changes to Stage 4 or the orchestrator — i.e., keep the function signature `(audio_segments) -> float` stable regardless of internal implementation.
 
 ---
 
@@ -127,7 +131,9 @@ audio_result = {
     "speech_detected": bool,
     "speech_duration_seconds": float,
     "phrase_matched": bool,
-    "digits_detected": list,
+    "match_count": int,
+    "words_detected": list,
+    "target_words": list,
     "transcript": str,
     "voice_authenticity_score": float | None,
     "av_alignment_score": float | None   # None only when lip/word data is missing or non-overlapping

@@ -84,7 +84,7 @@ def _build_pipeline_reason(
     match_count = s2_details.get("match_count", 0)
     return (
         f"Stages 1+2 passed: {speech_dur:.2f}s speech detected, "
-        f"{match_count}/3 challenge digits verified. "
+        f"{match_count}/5 challenge words verified. "
         f"Stage 3 voice authenticity: {s3_str}. Stage 4: {s4_reason}"
     )
 
@@ -109,9 +109,9 @@ async def process_audio_pipeline(
     1. Extract audio track from media container to 16kHz mono WAV in temp_uploads/
     2. Verify extraction completeness and audio format contract
     3. Stage 1 (Speech Gate - silero-vad): Hard gate on speech presence & duration >= 2.0s
-    4. Stage 2 (Phrase Compliance - faster-whisper tiny): Hard gate on 2-of-3 challenge digits match
+    4. Stage 2 (Phrase Compliance - faster-whisper tiny): Hard gate on >=4-of-5 challenge words match
     5. Stage 3 (Voice Authenticity - librosa spectral heuristics): Advisory score (noise floor, flux, hf rolloff)
-    6. Stage 4 (AV Alignment): Currently stub.
+    6. Stage 4 (AV Alignment): advisory; score is None when lip timing or word timestamps are unusable.
     
     Guarantees:
     - Never raises an uncaught exception (complies with 4-key contract).

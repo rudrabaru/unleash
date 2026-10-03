@@ -71,7 +71,11 @@ def _ear(landmarks: np.ndarray, points: tuple) -> Optional[float]:
     return float(vertical / (2.0 * horizontal))
 
 
-def extract_landmark_features(frames: List[np.ndarray]) -> Dict[str, Any]:
+def extract_landmark_features(
+    frames: List[np.ndarray],
+    timestamps: Optional[List[float]] = None,
+    original_indices: Optional[List[int]] = None,
+) -> Dict[str, Any]:
     """
     Run the FaceLandmarker over each already-sampled RGB frame independently
     (IMAGE mode) and return per-frame pose/EAR/mouth metrics.
@@ -84,7 +88,10 @@ def extract_landmark_features(frames: List[np.ndarray]) -> Dict[str, Any]:
     landmarker = _get_landmarker()
     frame_data = []
 
-    for frame_rgb in frames:
+    for i, frame_rgb in enumerate(frames):
+        time_sec = timestamps[i] if timestamps and i < len(timestamps) else None
+        orig_idx = original_indices[i] if original_indices and i < len(original_indices) else i
+
         entry: Dict[str, Any] = {
             "landmarks": None,
             "face_present": False,
@@ -95,6 +102,8 @@ def extract_landmark_features(frames: List[np.ndarray]) -> Dict[str, Any]:
             "ear_right": None,
             "ear": None,
             "mouth_open": None,
+            "time_seconds": time_sec,
+            "original_index": orig_idx,
         }
 
         try:

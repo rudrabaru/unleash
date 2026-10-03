@@ -53,9 +53,12 @@ def test_word_similarity_score():
     sim_cat_bat = word_similarity_score("cat", "bat")
     assert 0.5 < sim_cat_bat < 1.0
 
-    # Phonetically distinct words (still some similarity due to lenient metric)
+    # Unrelated words must score well below the match cut-off
     sim_apple_orange = word_similarity_score("apple", "orange")
-    assert 0.4 < sim_apple_orange <= 0.6
+    assert sim_apple_orange < 0.4
+
+    # Case and punctuation (Whisper emits tokens like "Apple,") never change the score
+    assert word_similarity_score("Apple,", "apple") == 1.0
 
 
 def test_match_words_fuzzy():
@@ -78,6 +81,42 @@ def test_match_words_fuzzy():
     target = ["apple", "bridge", "cloud", "dark", "eagle"]
     match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_avg_confidence=0.5, min_word_similarity=0.6)
     assert match_count == 4  # "wrong" skipped due to low confidence
+
+
+def _tokens(words):
+    return [(w, 0.9) for w in words]
+
+
+def test_match_rejects_filler_speech():
+    """Regression: the old 2x-normalized metric accepted ~90% of unrelated sentences."""
+    filler = "so i think that the best thing to do is just say a bunch of random words".split()
+    count, _, _ = match_words_fuzzy(_tokens(filler), ["apple", "bridge", "cloud", "dark", "eagle"])
+    assert count < 4
+
+
+def test_match_rejects_a_previous_sessions_phrase():
+    """Replay defence: a phrase from another session must not satisfy this session's challenge."""
+    count, _, _ = match_words_fuzzy(_tokens(["above", "banner", "river", "stone", "orange"]),
+                                    ["apple", "bridge", "cloud", "dark", "eagle"])
+    assert count < 4
+
+
+def test_match_rejects_three_of_five():
+    count, _, _ = match_words_fuzzy(_tokens(["apple", "bridge", "cloud", "river", "stone"]),
+                                    ["apple", "bridge", "cloud", "dark", "eagle"])
+    assert count == 3
+
+
+def test_match_accepts_case_punctuation_and_one_slip():
+    recognized = [("Apple,", 0.9), ("Bridge.", 0.9), ("clouds", 0.9), ("dark", 0.9), ("eagle", 0.9)]
+    count, _, _ = match_words_fuzzy(recognized, ["apple", "bridge", "cloud", "dark", "eagle"])
+    assert count == 5
+
+
+def test_match_does_not_reuse_one_spoken_word():
+    """Saying one challenge word five times must not match five target words."""
+    count, _, _ = match_words_fuzzy(_tokens(["apple"] * 5), ["apple", "apple", "cloud", "dark", "eagle"])
+    assert count == 2
 
 
 def test_invalid_challenge_phrase():

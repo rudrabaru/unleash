@@ -59,10 +59,21 @@ async def detect_replay_attack(frames: list) -> DetectorResult:
     except Exception as exc:  # noqa: BLE001 - a detector must never raise
         return DetectorResult(score=None, passed=False, reason="Replay detection failed.", error=str(exc))
 
+    if result["score"] is None:
+        return DetectorResult(
+            score=None,
+            passed=False,
+            reason="Replay detector could not measure any sub-signal.",
+            error=result.get("degraded_reason", "no measurable replay signal"),
+        )
+
+    def _fmt(value):
+        return "n/a" if value is None else f"{value:.2f}"
+
     reason = (
         f"Replay score {result['score']:.2f} "
-        f"(moire={result['moire']['score']:.2f}, noise={result['temporal_noise']['score']:.2f}, "
-        f"brightness={result['brightness_histogram']['score']:.2f}) against pass threshold "
+        f"(moire={_fmt(result['moire']['score'])}, noise={_fmt(result['temporal_noise']['score'])}, "
+        f"brightness={_fmt(result['brightness_histogram']['score'])}) against pass threshold "
         f"{REPLAY_PASS_THRESHOLD:.2f}."
     )
 

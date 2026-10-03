@@ -17,9 +17,9 @@ TTS speech, the spectral-flux term saturates to 1.0 on all of them, and the HF-r
 opposite to its documented direction. Treat this stage's score as unvalidated until the scenario
 1/2/3/7/8/10 recording set exists. Full evidence: docs/audio_pipeline_observations.md.
 
-Branches that cannot perform a real measurement still return a numeric score (Stage 3 must not
-disturb the pipeline) but flag details["degraded"]=True with a reason, so a placeholder is never
-mistaken for a measurement downstream.
+A sub-heuristic that cannot perform a real measurement returns score None and flags
+details["degraded"]=True with a reason; the composite uses only the heuristics that measured
+(weights renormalized). If none measured, Stage 3 returns score None with an error.
 """
 from __future__ import annotations
 
@@ -46,11 +46,6 @@ NOISE_WEIGHT = 0.30
 FLUX_WEIGHT = 0.45
 HF_RATIO_WEIGHT = 0.25
 
-# Score returned by a sub-heuristic when it could not perform a real measurement at all.
-# This is a placeholder, NOT a measurement: every branch that returns it also sets
-# degraded=True in its metrics dict so the eval store can tell the two cases apart.
-NEUTRAL_FALLBACK_SCORE = 0.5
-
 # Minimum samples required for a 512-point STFT frame.
 MIN_STFT_SAMPLES = 512
 
@@ -75,9 +70,9 @@ def _degraded_meta(reason: str, **extra: Any) -> Dict[str, Any]:
     """
     Build a metrics dict for a fallback branch that did NOT perform a real measurement.
 
-    Stage 3 still returns a numeric score on these branches (it is advisory and must not
-    disturb the pipeline), but the score is a placeholder. Flagging it here keeps the
-    persisted telemetry honest about which sub-heuristics actually measured anything.
+    The sub-heuristic's score is None on these branches (never a placeholder number); the
+    composite is computed from the heuristics that did measure, and flagging it here keeps
+    the persisted telemetry honest about which ones did.
     """
     meta: Dict[str, Any] = {"degraded": True, "degraded_reason": reason}
     meta.update(extra)
@@ -106,7 +101,7 @@ def compute_noise_floor_score(
     sr: int,
     speech_segments: List[Dict[str, float]],
     total_duration: float
-) -> Tuple[float, Dict[str, Any]]:
+) -> Tuple[Optional[float], Dict[str, Any]]:
     """
     Heuristic 1: Noise floor consistency.
     Analyzes silence/inter-speech regions for natural sensor noise vs. artificial digital silence.
@@ -115,7 +110,7 @@ def compute_noise_floor_score(
     Pure TTS / synthetic injection often exhibits absolute digital silence or flat zeros between words.
     """
     if len(audio) == 0 or total_duration <= 0:
-        return NEUTRAL_FALLBACK_SCORE, _degraded_meta(
+        return None, _degraded_meta(
             "no audio to measure a noise floor from",
             mean_rms=0.0, cov=0.0, silence_samples=0
         )
@@ -145,14 +140,14 @@ def compute_noise_floor_score(
 
     if not silence_slices:
         # No inter-speech silence to measure: this heuristic has nothing to look at.
-        return NEUTRAL_FALLBACK_SCORE, _degraded_meta(
+        return None, _degraded_meta(
             "no inter-speech silence gaps found (>=50ms) to measure a noise floor",
             mean_rms=0.0, cov=0.0, silence_samples=0
         )
 
     silence_audio = np.concatenate(silence_slices)
     if len(silence_audio) < int(0.05 * sr):  # < 50ms total silence
-        return NEUTRAL_FALLBACK_SCORE, _degraded_meta(
+        return None, _degraded_meta(
             "total inter-speech silence under 50ms; too short to measure a noise floor",
             mean_rms=0.0, cov=0.0, silence_samples=len(silence_audio)
         )
@@ -198,7 +193,7 @@ def compute_noise_floor_score(
 def compute_spectral_flux_score(
     speech_audio: np.ndarray,
     sr: int
-) -> Tuple[float, Dict[str, Any]]:
+) -> Tuple[Optional[float], Dict[str, Any]]:
     """
     Heuristic 2: Spectral flux variance across speech segments.
     Measures frame-to-frame spectral variation. Live human vocal tract dynamics
@@ -206,13 +201,13 @@ def compute_spectral_flux_score(
     overly uniform or rigid spectral transitions.
     """
     if not _LIBROSA_AVAILABLE or librosa is None:
-        return NEUTRAL_FALLBACK_SCORE, _degraded_meta(
+        return None, _degraded_meta(
             f"librosa unavailable, spectral flux not computed ({_LIBROSA_LOAD_ERROR})",
             std_flux=0.0, mean_flux=0.0
         )
 
     if len(speech_audio) < MIN_STFT_SAMPLES:
-        return NEUTRAL_FALLBACK_SCORE, _degraded_meta(
+        return None, _degraded_meta(
             f"speech audio shorter than one {MIN_STFT_SAMPLES}-sample STFT frame",
             std_flux=0.0, mean_flux=0.0
         )
@@ -224,7 +219,7 @@ def compute_spectral_flux_score(
     mag = np.abs(D)
 
     if mag.shape[1] < 2:
-        return NEUTRAL_FALLBACK_SCORE, _degraded_meta(
+        return None, _degraded_meta(
             "fewer than 2 STFT frames; frame-to-frame flux undefined",
             std_flux=0.0, mean_flux=0.0
         )
@@ -252,20 +247,20 @@ def compute_spectral_flux_score(
 def compute_hf_rolloff_score(
     speech_audio: np.ndarray,
     sr: int
-) -> Tuple[float, Dict[str, Any]]:
+) -> Tuple[Optional[float], Dict[str, Any]]:
     """
     Heuristic 3: High-frequency rolloff ratio.
     Compares energy in upper acoustic frequencies (>4kHz) to lower formant frequencies (0-4kHz).
     Physical speaker playback often exhibits steep frequency drop-offs above 4-6kHz.
     """
     if not _LIBROSA_AVAILABLE or librosa is None:
-        return NEUTRAL_FALLBACK_SCORE, _degraded_meta(
+        return None, _degraded_meta(
             f"librosa unavailable, HF rolloff not computed ({_LIBROSA_LOAD_ERROR})",
             hf_ratio=0.0, low_energy=0.0, high_energy=0.0
         )
 
     if len(speech_audio) < MIN_STFT_SAMPLES:
-        return NEUTRAL_FALLBACK_SCORE, _degraded_meta(
+        return None, _degraded_meta(
             f"speech audio shorter than one {MIN_STFT_SAMPLES}-sample STFT frame",
             hf_ratio=0.0, low_energy=0.0, high_energy=0.0
         )
@@ -323,14 +318,25 @@ def _extract_speech_audio(
     return audio
 
 
-def _compute_composite_score(noise_score: float, flux_score: float, hf_score: float) -> float:
-    """Compute weighted composite score across all heuristics."""
-    composite = (
-        noise_score * NOISE_WEIGHT +
-        flux_score * FLUX_WEIGHT +
-        hf_score * HF_RATIO_WEIGHT
-    )
+def _compute_composite_score(
+    noise_score: Optional[float], flux_score: Optional[float], hf_score: Optional[float]
+) -> Optional[float]:
+    """Weighted composite over the heuristics that measured; None if none did."""
+    parts = [
+        (noise_score, NOISE_WEIGHT),
+        (flux_score, FLUX_WEIGHT),
+        (hf_score, HF_RATIO_WEIGHT),
+    ]
+    measured = [(score, weight) for score, weight in parts if score is not None]
+    if not measured:
+        return None
+    total_weight = sum(weight for _, weight in measured)
+    composite = sum(score * weight for score, weight in measured) / total_weight
     return round(min(max(composite, 0.0), 1.0), 3)
+
+
+def _fmt_score(score: Optional[float]) -> str:
+    return "n/a" if score is None else f"{score:.3f}"
 
 
 def _build_advisory_error_result(
@@ -361,9 +367,9 @@ def _build_advisory_error_result(
 
 def _build_advisory_success_result(
     voice_authenticity_score: float,
-    noise_score: float,
-    flux_score: float,
-    hf_score: float,
+    noise_score: Optional[float],
+    flux_score: Optional[float],
+    hf_score: Optional[float],
     segments_count: int,
     elapsed: float,
     noise_meta: Dict[str, Any],
@@ -374,13 +380,13 @@ def _build_advisory_success_result(
     degraded, degraded_reasons = _collect_degradations(noise_meta, flux_meta, hf_meta)
     reason = (
         f"Voice authenticity score: {voice_authenticity_score:.3f} "
-        f"(noise_floor={noise_score:.3f}, spectral_flux={flux_score:.3f}, hf_ratio={hf_score:.3f})."
+        f"(noise_floor={_fmt_score(noise_score)}, spectral_flux={_fmt_score(flux_score)}, hf_ratio={_fmt_score(hf_score)})."
     )
     if degraded:
         # Surface partial measurement in the human-readable field too, not just telemetry.
         reason += (
-            f" DEGRADED - {len(degraded_reasons)} of 3 heuristics used a placeholder"
-            f" instead of a real measurement: {'; '.join(degraded_reasons)}."
+            f" DEGRADED - {len(degraded_reasons)} of 3 heuristics could not measure"
+            f" and was excluded from the composite: {'; '.join(degraded_reasons)}."
         )
     return DetectorResult(
         score=voice_authenticity_score,
@@ -399,8 +405,7 @@ def _build_advisory_success_result(
                 "hf_ratio": HF_RATIO_WEIGHT
             },
             "analysis_duration_seconds": elapsed,
-            # True when at least one sub-heuristic returned NEUTRAL_FALLBACK_SCORE rather
-            # than a real measurement. score/passed are unaffected -- this is telemetry only.
+            # True when at least one sub-heuristic could not measure and was excluded from the composite.
             "degraded": degraded,
             "degraded_reasons": degraded_reasons,
             "metrics": {
@@ -459,6 +464,15 @@ def run_voice_authenticity(
         # 4. Composite Scoring
         voice_authenticity_score = _compute_composite_score(noise_score, flux_score, hf_score)
         elapsed = round(time.perf_counter() - t_start, 3)
+
+        if voice_authenticity_score is None:
+            _, reasons = _collect_degradations(noise_meta, flux_meta, hf_meta)
+            return _build_advisory_error_result(
+                reason="No voice-authenticity heuristic could measure this audio: " + "; ".join(reasons),
+                error="No measurable heuristics",
+                segments_count=len(segments),
+                elapsed=elapsed,
+            )
 
         return _build_advisory_success_result(
             voice_authenticity_score=voice_authenticity_score,
