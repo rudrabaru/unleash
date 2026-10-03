@@ -120,15 +120,19 @@ def extract_landmark_features(
             entry["landmarks"] = landmarks
             entry["face_present"] = True
 
-            ear_left = _ear(landmarks, LEFT_EYE)
-            ear_right = _ear(landmarks, RIGHT_EYE)
+            # Convert to pixel coordinates for aspect-ratio invariant geometry (EAR & mouth)
+            h, w = frame_rgb.shape[:2]
+            px_landmarks = landmarks * np.array([w, h], dtype=np.float32)
+
+            ear_left = _ear(px_landmarks, LEFT_EYE)
+            ear_right = _ear(px_landmarks, RIGHT_EYE)
             entry["ear_left"] = ear_left
             entry["ear_right"] = ear_right
             if ear_left is not None and ear_right is not None:
                 entry["ear"] = (ear_left + ear_right) / 2.0
 
-            face_height = np.linalg.norm(landmarks[FACE_TOP] - landmarks[FACE_CHIN])
-            mouth_gap = np.linalg.norm(landmarks[MOUTH_TOP] - landmarks[MOUTH_BOTTOM])
+            face_height = np.linalg.norm(px_landmarks[FACE_TOP] - px_landmarks[FACE_CHIN])
+            mouth_gap = np.linalg.norm(px_landmarks[MOUTH_TOP] - px_landmarks[MOUTH_BOTTOM])
             if face_height > 1e-6:
                 entry["mouth_open"] = float(mouth_gap / face_height)
 
