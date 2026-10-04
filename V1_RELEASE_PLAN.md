@@ -4,6 +4,12 @@ Oct 1, 2026 · @Dhruv · **Updated Oct 2, 2026** after team sign-off (decisions 
 
 > This is the **short-term** plan: the one-day v1.0 local demo. The long-term plan to the final deliverable is `ROADMAP.md`. If the two ever disagree, `.claude/context/decisions.md` decides, then `CLAUDE.md`.
 
+## Scope change — 2026-10-03 (D-27)
+
+The v1.0 deliverable is now a **modular demo**, not an end-to-end browser flow. A single `app.py` runner demonstrates the audio, visual and anti-spoofing modules separately on recorded input. The full browser flow, the end-to-end `VERIFIED` test, the `/eval` page, the reduced evaluations, the release PR and the `v1.0.0` tag are **halted** (marked `HALTED (D-27)` below). Work that feeds the module demos continues. The per-module checks are reported as counts, not as TAR, FAR or FRR. Full detail is in `.claude/context/decisions.md`, D-27.
+
+The sections below the "Status update" are kept as the record of what was true on 2026-10-02 and 2026-10-03. Where they disagree with D-27, D-27 wins.
+
 ## Status update — 2026-10-02
 
 **What changed since the audit (Oct 1).**
@@ -114,34 +120,37 @@ Every open item belongs to one developer's lane, following CLAUDE.md Section C. 
 - [~] **\[M\]** **B10 / D-04 / D-18** — *model done 2026-10-02 (D-23): `base.en` plain, floor 0.5, no vocabulary prompt; CLAUDE.md and the stage spec updated; `backend/prototypes/stage2_bakeoff.py` is the repeatable probe.* **Still open:** record ≥ 10 genuine takes from ≥ 3 speakers (needs the humans), re-run the bake-off on them, and decide whether the floor drops to ~0.3 (Section G; record in `decisions.md`). The one real take now passes, so Gate 1 is no longer blocked by the recognizer.
 - [~] **\[M\]** Record 5-word fixtures (B5) — *the 6 failing tests are green (2026-10-02): they use `backend/tests/fixtures/genuine_5word.webm` (the real audio-only take) and a composite `genuine_5word_noface_video.webm` (same audio on a face-less video track) via `tests/_audio_fixtures.py`.* **Still open:** 2 face-visible genuine clips, a wrong-phrase clip and a silent clip recorded through the browser, and committing the set (`*.webm` is gitignored, so it needs an exception and the speaker's OK).
 - [x] **\[M\]** *(done 2026-10-02)* Update the verbal-challenge UI: show 5 words, "Read these 5 words aloud", "Gate: 4 of 5 words", and drop the digit fallback.
-- [ ] **\[M\]** Make Stage 4 consume per-sample timestamps once Dev 2 and Dev 3 provide them (B4), and add a test with realistic timings.
-- [ ] **\[S\]** Run a reduced audio evaluation (P4-2), described in the release checklist.
+- [~] **\[M\]** Make Stage 4 consume per-sample timestamps once Dev 2 and Dev 3 provide them (B4), and add a test with realistic timings. *(2026-10-03: producers merged; real lip series from a face clip + the real speech take gives a non-null Stage 4 score, plumbing only, D-26. Still open: a matched face-visible speech recording to judge alignment quality.)*
+- [x] **\[M\]** *(2026-10-03, D-26)* Gate 0: merged Dev 2 and Dev 3 work, fixed two merge regressions, suite 132 passed / 5 skipped / 1 xfailed.
+- [ ] **\[S\] HALTED (D-27)** Run a reduced audio evaluation (P4-2), described in the release checklist.
 - [x] **\[M\]** *(done 2026-10-02 for in-repo files)* B8 documentation sync (CLAUDE.md, AGENTS.md, `.claude/context/*`, `ChallengePayload` description, reason strings). Update again when D-04 and B4 land.
-- [ ] **\[X\]** Use `/threshold-sweep` on the evaluation recordings to justify the 4-of-5 rule and the final confidence floor.
+- [ ] **\[X\] HALTED (D-27)** Use `/threshold-sweep` on the evaluation recordings to justify the 4-of-5 rule and the final confidence floor.
 
 ### Dev 2 — Visual pipeline and user-facing screens
 
 - [ ] **\[M\]** Review the B1 resolution of `_liveness.py` and `visual/__init__.py`, and confirm the P0-4 EAR-std fix is intact.
-- [ ] **\[M\]** Commit the real-face fixtures (`left`, `right`, `down`, `blink`) plus a new `up` clip, confirm the yaw sign, and add the missing LOOK\_UP test (P1-1).
+- [x] **\[M\]** *(done 2026-10-03, Dev 2 PRs #8/#9 + D-28)* Commit the real-face fixtures (`left`, `right`, `down`, `blink`) plus a new `up` clip, confirm the yaw sign, and add the missing LOOK\_UP test (P1-1). The yaw sign is now checked by tests on committed real clips; the BLINK\_TWICE-on-DOWN-clip failure was fixed by Dev 1 (D-28), Dev 2 to review.
 - [x] **\[M\]** *(done 2026-10-02, D-25: PyAV timestamps, 120 dense frames wired through the orchestrator; needs Dev 2 / Dev 3 review and a real-face session)* With Dev 3, sample frames densely enough for blinks (B6). Add a time in seconds to each lip-series entry (B4).
-- [ ] **\[M\]** Build the 5-screen flow from the Figma design (P2-1 to P2-5): one camera-and-mic `.webm`, the visual and verbal instructions, a 15 s auto-stop, `POST /submit`, polling every 2 s, the result screen with per-signal breakdown, and no mock-session fallback.
+- [ ] **\[M\] HALTED (D-27)** Build the 5-screen flow from the Figma design (P2-1 to P2-5): one camera-and-mic `.webm`, the visual and verbal instructions, a 15 s auto-stop, `POST /submit`, polling every 2 s, the result screen with per-signal breakdown, and no mock-session fallback.
 - [x] **\[M\]** *(done 2026-10-02, D-25)* Apply the `secrets` change in `create_session` (B3).
 - [ ] **\[v1.1\]** *(moved out of v1.0, D-06)* Smile / mouth-open challenge — adds a `VisualChallengeType` value in the shared `schemas/` (Section G).
-- [ ] **\[S\]** Run a reduced visual evaluation (P4-3).
+- [ ] **\[S\] HALTED (D-27)** Run a reduced visual evaluation (P4-3).
 - [ ] **\[v1.1\]** *(moved out of v1.0, D-06)* Parallax flatness check as an advisory sub-signal inside liveness `details`, without changing fusion weights.
 
 ### Dev 3 — Anti-spoofing, backend core and infrastructure
 
-- [ ] **\[M\]** Review the `test_fusion.py` union so all 4 `av_alignment` tests run and pass.
-- [ ] **\[M\]** Fix B7: publish the checkpoint with its SHA-256 and a fetch step in the README. Add `requirements-visual.txt` and `requirements-antispoof.txt` to `ci.yml` and the README setup. Point CI at the committed fixtures.
-- [ ] **\[M\]** In `frame_extraction.py`, read real per-frame timestamps with **PyAV** (`av`, already installed via faster-whisper — decision D-19) instead of OpenCV's bogus 1000 fps / "frames ÷ ffprobe duration", return `time_seconds` per sampled frame, and sample densely for the visual consumers while keeping ~30 frames for deepfake inference (B4/B6, with Dev 2).
-- [ ] **\[M\]** Build the `/eval` page against `GET /eval/sessions` (P2-6).
-- [ ] **\[M\]** Add an end-to-end test that reaches `VERIFIED` or `SUSPICIOUS`, using Dev 1's genuine fixture (P4-1).
-- [ ] **\[S\]** Run a reduced antispoof evaluation (P4-4) and add the `attack_species` breakdown (Part 3C).
-- [ ] **\[S\]** Fix the H-1 project-plan wording and the stale deepfake docstrings (B9).
-- [ ] **\[M\]** *(promoted from stretch, D-13)* Open the release PR from `integration` to `main` and tag `v1.0.0` after Gate 2 and the evaluation.
+- [x] **\[M\]** *(verified 2026-10-04 by Dev 1)* Review the `test_fusion.py` union so all 4 `av_alignment` tests run and pass. (17 fusion tests pass; fusion.py 100% covered.)
+- [~] **\[M\]** *(2026-10-04: CI installs both requirement files; README records the checkpoint SHA-256 and the path fix, D-29. Still open for Dev 3: publish the file and fill the download URL.)* Fix B7: publish the checkpoint with its SHA-256 and a fetch step in the README. Add `requirements-visual.txt` and `requirements-antispoof.txt` to `ci.yml` and the README setup. Point CI at the committed fixtures.
+- [x] **\[M\]** *(done 2026-10-03, repaired 2026-10-04: no invented times, faster sampling, D-29)* In `frame_extraction.py`, read real per-frame timestamps with **PyAV** (`av`, already installed via faster-whisper — decision D-19) instead of OpenCV's bogus 1000 fps / "frames ÷ ffprobe duration", return `time_seconds` per sampled frame, and sample densely for the visual consumers while keeping ~30 frames for deepfake inference (B4/B6, with Dev 2).
+- [ ] **\[M\] HALTED (D-27)** Build the `/eval` page against `GET /eval/sessions` (P2-6).
+- [ ] **\[M\] HALTED (D-27)** Add an end-to-end test that reaches `VERIFIED` or `SUSPICIOUS`, using Dev 1's genuine fixture (P4-1).
+- [ ] **\[S\] HALTED (D-27)** Run a reduced antispoof evaluation (P4-4) and add the `attack_species` breakdown (Part 3C).
+- [x] **\[S\]** *(done 2026-10-04: H-1 wording amended in local docs, deepfake docstring corrected, `temp_uploads/` cleared)* Fix the H-1 project-plan wording and the stale deepfake docstrings (B9).
+- [ ] **\[M\] HALTED (D-27; D-13 withdrawn for v1.0)** Open the release PR from `integration` to `main` and tag `v1.0.0` after Gate 2 and the evaluation.
 
 ## One-day v1 plan
+
+> **Superseded in part by D-27 (2026-10-03).** Gate 1 (browser run) and Gate 2 (`VERIFIED` end-to-end test, release) are halted. Gate 0 still applies: a green build is needed for the module demos.
 
 The day runs through three gates. Nothing starts on top of a red build, and the code freezes before any evaluation recording starts.
 
@@ -207,9 +216,11 @@ All sessions run through the real browser UI after Gate 2. Each one is logged to
 
 ### Release steps
 
-- [ ] Gate 2 passed and CI green on `integration`.
-- [ ] Evaluation CSV complete, with results table and per-species counts written up.
-- [ ] Demo video recorded: genuine user, replay attack, silent attack, wrong phrase.
+Under D-27, the items marked HALTED below do not apply to v1.0. The module demo (`app.py`) replaces the browser demo video.
+
+- [ ] Gate 2 passed and CI green on `integration`. **(HALTED: CI green stays a goal; Gate 2 is withdrawn.)**
+- [ ] Evaluation CSV complete, with results table and per-species counts written up. **(HALTED)**
+- [ ] Module demo recorded (`app.py`): audio, visual and anti-spoofing modules on sample input. **(replaces the browser demo video)**
 - [ ] One-page technical summary that names the known limits (Stage 3 and replay are uncalibrated, and the sample is small).
 - [ ] PR from `integration` to `main` reviewed by all three, merged, and tagged `v1.0.0`.
 - [ ] `backend/temp_uploads/` and `unleash.db` cleared before the demo.

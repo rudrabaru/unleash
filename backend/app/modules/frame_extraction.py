@@ -44,29 +44,30 @@ def _extract_via_pyav(video_path: str, max_frames: int, hard_cap: int = 2000) ->
             return None
         stream = container.streams.video[0]
 
-        all_frames: List[np.ndarray] = []
-        all_timestamps: List[float] = []
+        all_timestamps: List[Optional[float]] = []
         all_had_pts = True
 
+        # Pass 1: count frames and read their real times. No RGB conversion yet: converting
+        # every frame to keep only ~30 was the slowest part of this function.
         for frame in container.decode(video=0):
-            if len(all_frames) >= hard_cap:
+            if len(all_timestamps) >= hard_cap:
                 break
-            all_frames.append(frame.to_ndarray(format="rgb24"))
             if frame.time is not None:
                 ts = float(frame.time)
             elif frame.pts is not None and stream.time_base is not None:
                 ts = float(frame.pts * stream.time_base)
             else:
-                all_had_pts = False
-                ts = len(all_timestamps) / 30.0
-            all_timestamps.append(round(ts, 4))
+                all_had_pts = False  # no real time for this frame: never invent one (J5)
+                ts = None
+            all_timestamps.append(None if ts is None else round(ts, 4))
 
-        container.close()
-        if not all_frames:
+        if not all_timestamps:
+            container.close()
             return None
 
-        total_count = len(all_frames)
-        duration = all_timestamps[-1] - all_timestamps[0] if total_count > 1 else 0.0
+        total_count = len(all_timestamps)
+        real_times = [t for t in all_timestamps if t is not None]
+        duration = real_times[-1] - real_times[0] if len(real_times) > 1 else 0.0
         # For N frames from t_0 to t_{N-1}, duration covers N-1 inter-frame intervals
         if duration > 0.1:
             fps = round(float((total_count - 1) / duration), 2)
@@ -76,9 +77,24 @@ def _extract_via_pyav(video_path: str, max_frames: int, hard_cap: int = 2000) ->
             fps = 30.0
 
         indices = _sample_indices(total_count, max_frames)
-        sampled_frames = [all_frames[i] for i in indices]
-        sampled_timestamps = [all_timestamps[i] for i in indices]
-        timestamps_source = "pyav" if all_had_pts else "estimated"
+
+        # Pass 2: decode again, converting only the sampled frames to RGB.
+        wanted = set(indices)
+        kept = {}
+        container.seek(0)
+        for index, frame in enumerate(container.decode(container.streams.video[0])):
+            if index >= total_count:
+                break
+            if index in wanted:
+                kept[index] = frame.to_ndarray(format="rgb24")
+        container.close()
+        if len(kept) != len(indices):
+            return None  # pass 2 did not reproduce pass 1; let the OpenCV path handle the file
+
+        sampled_frames = [kept[i] for i in indices]
+        # Either every sampled frame carries its real PyAV time, or none are reported.
+        sampled_timestamps = [all_timestamps[i] for i in indices] if all_had_pts else []
+        timestamps_source = "pyav" if all_had_pts else ""
 
         return FrameExtractionResult(
             frames=sampled_frames,
@@ -91,7 +107,21 @@ def _extract_via_pyav(video_path: str, max_frames: int, hard_cap: int = 2000) ->
         return None
 
 
+def _has_video_stream(video_path: str) -> bool:
+    """OpenCV's `cap.read()` blocks forever on an audio-only container, so check first."""
+    if not AV_AVAILABLE:
+        return True
+    try:
+        with av.open(video_path) as container:
+            return bool(container.streams.video)
+    except Exception:  # noqa: BLE001 - let the OpenCV path report the open failure as before
+        return True
+
+
 def extract_frames(video_path: str, max_frames: int = MAX_FRAMES) -> FrameExtractionResult:
+    if not _has_video_stream(video_path):
+        return FrameExtractionResult(frames=[], fps=0.0, error="No video stream in media file.")
+
     # 1. Primary path: PyAV for real presentation timestamps (D-19)
     pyav_result = _extract_via_pyav(video_path, max_frames)
     if pyav_result is not None:

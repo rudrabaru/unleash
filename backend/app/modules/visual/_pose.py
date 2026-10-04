@@ -14,6 +14,8 @@ HOLD_FRAMES = 2
 BASELINE_FRACTION = 0.2  # first ~20% of sampled frames act as the neutral baseline
 BLINK_EAR_THRESHOLD = 0.20
 BLINK_TWICE_MIN_EVENTS = 2
+BLINK_LOOK_DOWN_DEG = 7.0  # pitch rise over baseline that invalidates a closed-eye stretch
+BLINK_EXTREME_YAW_DEG = 25.0
 
 
 def _baseline(frames: List[Dict[str, Any]], key: str) -> float | None:
@@ -71,9 +73,25 @@ def _vertical_turn(frames, direction: str) -> Dict[str, Any]:
     return _check_axis(frames, "pitch", baseline, PITCH_THRESHOLD, positive_qualifies=(direction == "DOWN"))
 
 
+def _pose_corrupts_blink(frame, pitch_baseline, yaw_baseline) -> bool:
+    """Looking down or turning far makes the eyelids read as closed without a blink."""
+    pitch = frame.get("pitch")
+    yaw = frame.get("yaw")
+    looking_down = pitch is not None and pitch_baseline is not None and (pitch - pitch_baseline) >= BLINK_LOOK_DOWN_DEG
+    extreme_yaw = yaw is not None and yaw_baseline is not None and abs(yaw - yaw_baseline) >= BLINK_EXTREME_YAW_DEG
+    return looking_down or extreme_yaw
+
+
 def _blink_twice(frames) -> Dict[str, Any]:
+    """Count closed-eye stretches (EAR below threshold) as blinks.
+
+    A stretch is judged as a whole: if the head is looking down or turned far at ANY frame of it,
+    it is not a blink. Judging only the first frame let a downward glance count, because the eyes
+    start to read as closed before the head has visibly moved.
+    """
     events = 0
-    below = False
+    in_dip = False
+    dip_corrupted = False
     valid_frames = 0
 
     pitch_baseline = _baseline(frames, "pitch")
@@ -85,28 +103,16 @@ def _blink_twice(frames) -> Dict[str, Any]:
             continue
         valid_frames += 1
 
-        # Check pose orientation: pitch down or extreme yaw causes eyelid occlusion artifacts
-        pitch = frame.get("pitch")
-        yaw = frame.get("yaw")
-        looking_down = (
-            pitch is not None
-            and pitch_baseline is not None
-            and (pitch - pitch_baseline) >= 7.0
-        )
-        extreme_yaw = (
-            yaw is not None
-            and yaw_baseline is not None
-            and abs(yaw - yaw_baseline) >= 25.0
-        )
-        pose_corrupted = looking_down or extreme_yaw
-
         if value < BLINK_EAR_THRESHOLD:
-            if not below:
-                if not pose_corrupted:
-                    events += 1
-                below = True
-        else:
-            below = False
+            in_dip = True
+            dip_corrupted = dip_corrupted or _pose_corrupts_blink(frame, pitch_baseline, yaw_baseline)
+        elif in_dip:
+            events += 0 if dip_corrupted else 1
+            in_dip = False
+            dip_corrupted = False
+
+    if in_dip and not dip_corrupted:  # clip ended with the eyes still closed
+        events += 1
 
     return {
         "detected": events >= BLINK_TWICE_MIN_EVENTS,

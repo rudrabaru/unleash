@@ -3,9 +3,10 @@ Deepfake Detector: self-trained Xception classifier (kept per team decision —
 see implement-all-three-pillars Phase 3), forced to CPU unconditionally per
 CLAUDE.md Section G's GPU ban. Ported from deepfake_detection/app/model.py.
 
-No trained checkpoint ships with this repo. Until UNLEASH_XCEPTION_CHECKPOINT
-points at a real file, this module returns an honest error result — never a
-fabricated score (J5).
+The trained checkpoint (~250 MB) is not stored in git (`*.pth` is ignored) and is not yet
+published; it is read from UNLEASH_XCEPTION_CHECKPOINT or, by default, from
+backend/checkpoints/xception_deepfake_best.pth. Without a real file this module
+returns an honest error result — never a fabricated score (J5).
 """
 from pathlib import Path
 from typing import List

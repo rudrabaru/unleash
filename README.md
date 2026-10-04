@@ -35,12 +35,12 @@ pip install -r requirements-visual.txt
 pip install -r requirements-antispoof.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Optional: Deepfake Model Checkpoint (Dev 3)
-# Target path: checkpoints/xception_deepfake_best.pth (relative to process working directory)
+# Default path: backend/checkpoints/xception_deepfake_best.pth (independent of where you start the server)
 # Or specify an alternate path using environment variable UNLEASH_XCEPTION_CHECKPOINT.
 # If absent, the deepfake detector gracefully handles missing weights and returns score=None.
-# Download placeholder:
-# curl -L -o checkpoints/xception_deepfake_best.pth <RELEASE_URL_PLACEHOLDER>
-# Expected SHA-256: <SHA256_OF_PUBLISHED_CHECKPOINT>
+# NOT YET PUBLISHED: ask Dev 3 for the file (it is ~250 MB and not in git). Download URL: TBD (Dev 3, B7).
+# SHA-256 of the copy on Dev 1's machine (2026-10-04); Dev 3 must confirm it matches the published file:
+#   cb731a0a53dbdcaddb09ab6855039b24d6e633d723d951d08f566d79a9d1eb0b
 # Verify (PowerShell): Get-FileHash checkpoints\xception_deepfake_best.pth -Algorithm SHA256
 # Verify (Linux/bash): sha256sum checkpoints/xception_deepfake_best.pth
 
@@ -50,6 +50,15 @@ cp .env.example .env
 # Run FastAPI development server
 uvicorn app.main:app --reload --port 8000
 ```
+**v1.0 module demo (D-27):** the browser flow is not part of v1.0. To demo the three modules (visual, audio, anti-spoofing) plus fusion on a recorded clip, run from the **repository root** (not `backend/`):
+
+```bash
+python app.py                      # serves on http://localhost:8000, then open /docs and use POST /verify
+# or: uvicorn app:app --port 8000
+```
+
+Upload a `.webm`/`.mp4`, choose the visual challenge, and optionally edit the 5 verbal words. The response lists each module's score, pass/fail and reason. No end-to-end human verdict is claimed for v1.0 (see `.claude/context/decisions.md`, D-27).
+
 - **API Health Check:** [http://localhost:8000/health](http://localhost:8000/health)
 - **Interactive OpenAPI Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 

@@ -43,6 +43,16 @@ def test_deepfake_produces_real_scores_with_trained_checkpoint():
     assert result.details["processed_frames"] > 0
 
 
+def test_default_checkpoint_path_does_not_depend_on_working_directory():
+    """Regression: a cwd-relative default made the deepfake signal vanish when started from the repo root."""
+    from app.modules.antispoof._config import DeepfakeSettings
+
+    default = Path(DeepfakeSettings.checkpoint_path)
+    assert default.is_absolute()
+    assert default.parent.name == "checkpoints"
+    assert default.parent.parent.name == "backend"
+
+
 def test_replay_empty_frames_returns_contract_compliant_error():
     result = asyncio.run(detect_replay_attack([]))
     assert result.score is None

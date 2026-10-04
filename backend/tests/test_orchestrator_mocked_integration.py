@@ -111,7 +111,10 @@ def test_orchestrator_mocked_integration_flow_with_null_scores():
         created_at=now,
     )
 
-    mock_frame_res = FrameExtractionResult(frames=[], fps=0.0, timestamps=[], error=None)
+    # The orchestrator fails every video detector when no frames exist at all, so this test
+    # supplies frames: it is about null detector scores, not about missing video.
+    dummy_frame = np.zeros((64, 64, 3), dtype=np.uint8)
+    mock_frame_res = FrameExtractionResult(frames=[dummy_frame] * 5, fps=30.0, timestamps=[0.0, 0.033, 0.067, 0.1, 0.133], error=None)
 
     with patch("app.orchestrator.extract_frames", return_value=mock_frame_res), \
          patch("app.orchestrator.process_audio_pipeline", new_callable=AsyncMock) as mock_audio, \
