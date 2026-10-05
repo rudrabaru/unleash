@@ -1,187 +1,190 @@
 """
-Orchestrator Mocked Integration Test (Task D).
-Explicitly note: This test uses MOCKED detector outputs and dummy media path.
-It tests the orchestration, exception isolation, fusion invocation, and DB persistence.
-It does NOT claim to prove end-to-end VERIFIED on real user media recordings
-(which remains BLOCKED awaiting genuine multi-modal fixtures from Dev 1 & Dev 2).
+Orchestrator tests with mocked detectors and a dummy media path.
+
+They cover the data flow (extraction -> detectors -> fusion -> database), isolation of a
+crashing detector, and a recording with no video. They do not claim a VERIFIED verdict on a
+real recording; see test_analysis_integration.py for the real detectors.
 """
 import asyncio
+from contextlib import ExitStack, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import numpy as np
+import pytest
 
 from app import db, orchestrator
 from app.modules.frame_extraction import FrameExtractionResult
+from app.modules.visual._frames import VisualFramesResult
 from app.schemas.detector import DetectorResult
 from app.schemas.session import VerificationStatus
 
+PHRASE = "apple bridge cloud dark eagle"
+FRAME = np.zeros((64, 64, 3), dtype=np.uint8)
 
-def _dummy_detector_result(score=0.90, passed=True, reason="ok", error=None, details=None):
-    return DetectorResult(
-        score=score,
-        passed=passed,
-        reason=reason,
-        error=error,
-        details=details or {},
+
+def _detector_result(score=0.90, passed=True, reason="ok", error=None, details=None):
+    return DetectorResult(score=score, passed=passed, reason=reason, error=error, details=details or {})
+
+
+def _sparse_frames(count: int, error=None) -> FrameExtractionResult:
+    return FrameExtractionResult(
+        frames=[FRAME] * count, fps=30.0, timestamps=[i / 30 for i in range(count)], error=error
     )
 
 
-def test_orchestrator_mocked_integration_flow_all_pass():
-    """
-    Simulate full orchestrator execution when all five modules succeed.
-    Verifies data flow: extraction -> mock detectors -> fusion -> db persistence.
-    """
-    session_id = "mocked-session-all-pass"
-    now = datetime.now(timezone.utc)
+def _dense_frames(count: int, error=None) -> VisualFramesResult:
+    return VisualFramesResult(
+        frames=[FRAME] * count,
+        fps=30.0,
+        timestamps=[i / 30 for i in range(count)],
+        original_indices=list(range(count)),
+        error=error,
+    )
+
+
+@contextmanager
+def _mocked(*, audio, liveness, challenge, deepfake, replay, frames=5, frame_error=None):
+    """Patch extraction and every detector. A value that is an Exception is raised when called."""
+    with ExitStack() as stack:
+        stack.enter_context(patch("app.orchestrator.extract_frames", return_value=_sparse_frames(frames, frame_error)))
+        stack.enter_context(patch("app.orchestrator.extract_visual_frames", return_value=_dense_frames(frames, frame_error)))
+        stack.enter_context(
+            patch("app.orchestrator.extract_landmark_features", return_value={"frames": [], "error": None})
+        )
+        mocks = {}
+        for name, target, value in (
+            ("audio", "process_audio_pipeline", audio),
+            ("liveness", "detect_visual_liveness", liveness),
+            ("challenge", "verify_challenge_compliance", challenge),
+            ("deepfake", "detect_deepfake", deepfake),
+            ("replay", "detect_replay_attack", replay),
+        ):
+            mock = stack.enter_context(patch(f"app.orchestrator.{target}", new_callable=AsyncMock))
+            if isinstance(value, Exception):
+                mock.side_effect = value
+            else:
+                mock.return_value = value
+            mocks[name] = mock
+        yield mocks
+
+
+def _create_session(session_id: str, visual: str = "TURN_HEAD_LEFT") -> None:
     db.create_session(
         session_id=session_id,
         status="PENDING",
-        visual_challenge="TURN_HEAD_LEFT",
-        verbal_challenge="apple bridge cloud dark eagle",
-        created_at=now,
+        visual_challenge=visual,
+        verbal_challenge=PHRASE,
+        created_at=datetime.now(timezone.utc),
     )
 
-    dummy_frame = np.zeros((64, 64, 3), dtype=np.uint8)
-    mock_frame_res = FrameExtractionResult(
-        frames=[dummy_frame] * 5,
-        fps=30.0,
-        timestamps=[0.0, 0.033, 0.067, 0.1, 0.133],
-        error=None,
+
+def _run_verification(session_id: str, visual: str = "TURN_HEAD_LEFT") -> None:
+    asyncio.run(
+        orchestrator.run_verification(
+            session_id=session_id,
+            media_path=Path("dummy_video.webm"),
+            visual_challenge=visual,
+            verbal_challenge=PHRASE,
+        )
     )
 
-    with patch("app.orchestrator.extract_frames", return_value=mock_frame_res), \
-         patch("app.orchestrator.extract_landmark_features", return_value={"landmarks": []}), \
-         patch("app.orchestrator.build_lip_series", return_value={"fps": 30.0, "series": []}), \
-         patch("app.orchestrator.process_audio_pipeline", new_callable=AsyncMock) as mock_audio, \
-         patch("app.orchestrator.detect_visual_liveness", new_callable=AsyncMock) as mock_live, \
-         patch("app.orchestrator.verify_challenge_compliance", new_callable=AsyncMock) as mock_chal, \
-         patch("app.orchestrator.detect_deepfake", new_callable=AsyncMock) as mock_df, \
-         patch("app.orchestrator.detect_replay_attack", new_callable=AsyncMock) as mock_rep:
 
-        mock_audio.return_value = _dummy_detector_result(
+def test_all_signals_flow_through_fusion_into_the_database():
+    _create_session("all-pass")
+    with _mocked(
+        audio=_detector_result(
             0.92, True, "Audio speech matched", details={"voice_authenticity_score": 0.88, "av_alignment_score": 0.85}
-        )
-        mock_live.return_value = _dummy_detector_result(0.95, True, "Natural blink detected")
-        mock_chal.return_value = _dummy_detector_result(1.00, True, "Head turn left complied")
-        mock_df.return_value = _dummy_detector_result(0.90, True, "Real video classified")
-        mock_rep.return_value = _dummy_detector_result(0.85, True, "Genuine display")
+        ),
+        liveness=_detector_result(0.95, True, "Natural blink detected"),
+        challenge=_detector_result(1.00, True, "Head turn left complied"),
+        deepfake=_detector_result(0.90, True, "Real video classified"),
+        replay=_detector_result(0.85, True, "Genuine display"),
+    ):
+        _run_verification("all-pass")
 
-        asyncio.run(
-            orchestrator.run_verification(
-                session_id=session_id,
-                media_path=Path("dummy_video.webm"),
-                visual_challenge="TURN_HEAD_LEFT",
-                verbal_challenge="apple bridge cloud dark eagle",
-            )
-        )
-
-    saved = db.get_session(session_id)
-    assert saved is not None
+    saved = db.get_session("all-pass")
     assert saved["status"] == VerificationStatus.VERIFIED.value
-    assert saved["confidence"] is not None
     assert saved["confidence"] >= 0.80
-    assert "signals" in saved
+    assert set(saved["signals"]) == {"audio_pipeline", "visual_liveness", "visual_challenge", "deepfake", "replay"}
     assert saved["signals"]["visual_challenge"].passed is True
     assert saved["signals"]["audio_pipeline"].passed is True
 
 
-def test_orchestrator_mocked_integration_flow_with_null_scores():
-    """
-    Simulate orchestrator flow when uncalibrated/optional modules return score=None.
-    Verifies that fusion redistributes weight and DB correctly preserves nulls.
-    """
-    session_id = "mocked-session-null-scores"
-    now = datetime.now(timezone.utc)
-    db.create_session(
-        session_id=session_id,
-        status="PENDING",
-        visual_challenge="TURN_HEAD_RIGHT",
-        verbal_challenge="apple bridge cloud dark eagle",
-        created_at=now,
-    )
+def test_null_scores_are_stored_as_null_and_excluded_from_the_weighted_score():
+    _create_session("null-scores", "TURN_HEAD_RIGHT")
+    with _mocked(
+        audio=_detector_result(1.0, True, "Speech passed", details={"voice_authenticity_score": None}),
+        liveness=_detector_result(0.90, True, "Liveness ok"),
+        challenge=_detector_result(1.00, True, "Turn right ok"),
+        deepfake=_detector_result(score=None, passed=False, reason="Checkpoint missing", error="missing"),
+        replay=_detector_result(score=None, passed=False, reason="Uncalibrated"),
+    ):
+        _run_verification("null-scores", "TURN_HEAD_RIGHT")
 
-    # The orchestrator fails every video detector when no frames exist at all, so this test
-    # supplies frames: it is about null detector scores, not about missing video.
-    dummy_frame = np.zeros((64, 64, 3), dtype=np.uint8)
-    mock_frame_res = FrameExtractionResult(frames=[dummy_frame] * 5, fps=30.0, timestamps=[0.0, 0.033, 0.067, 0.1, 0.133], error=None)
-
-    with patch("app.orchestrator.extract_frames", return_value=mock_frame_res), \
-         patch("app.orchestrator.process_audio_pipeline", new_callable=AsyncMock) as mock_audio, \
-         patch("app.orchestrator.detect_visual_liveness", new_callable=AsyncMock) as mock_live, \
-         patch("app.orchestrator.verify_challenge_compliance", new_callable=AsyncMock) as mock_chal, \
-         patch("app.orchestrator.detect_deepfake", new_callable=AsyncMock) as mock_df, \
-         patch("app.orchestrator.detect_replay_attack", new_callable=AsyncMock) as mock_rep:
-
-        mock_audio.return_value = _dummy_detector_result(1.0, True, "Speech passed", details={"voice_authenticity_score": None})
-        mock_live.return_value = _dummy_detector_result(0.90, True, "Liveness ok")
-        mock_chal.return_value = _dummy_detector_result(1.00, True, "Turn right ok")
-        mock_df.return_value = _dummy_detector_result(score=None, passed=False, reason="Checkpoint missing", error="missing")
-        mock_rep.return_value = _dummy_detector_result(score=None, passed=False, reason="Uncalibrated", error=None)
-
-        asyncio.run(
-            orchestrator.run_verification(
-                session_id=session_id,
-                media_path=Path("dummy_video.webm"),
-                visual_challenge="TURN_HEAD_RIGHT",
-                verbal_challenge="apple bridge cloud dark eagle",
-            )
-        )
-
-    saved = db.get_session(session_id)
-    assert saved is not None
-    assert saved["status"] == VerificationStatus.VERIFIED.value
-    assert saved["confidence"] is not None
-    # Replay and deepfake scores were None and excluded from weighted denominator
+    saved = db.get_session("null-scores")
     assert saved["signals"]["deepfake"].score is None
     assert saved["signals"]["replay"].score is None
+    # Only liveness (weight 0.20) and challenge (weight 0.25) are measured, so their weights
+    # are redistributed over those two: (0.20*0.90 + 0.25*1.00) / 0.45
+    assert saved["confidence"] == pytest.approx((0.20 * 0.90 + 0.25 * 1.00) / 0.45, abs=1e-3)
 
 
-def test_orchestrator_isolates_crashing_detector():
-    """
-    Verify that if an individual detector raises an uncaught exception,
-    _safe_call isolates it and does not crash the orchestrator or session processing.
-    """
-    session_id = "mocked-session-crashing-module"
-    now = datetime.now(timezone.utc)
-    db.create_session(
-        session_id=session_id,
-        status="PENDING",
-        visual_challenge="TURN_HEAD_LEFT",
-        verbal_challenge="apple bridge cloud dark eagle",
-        created_at=now,
-    )
+def test_crashing_detector_is_isolated_and_fails_closed():
+    _create_session("crash")
+    with _mocked(
+        audio=_detector_result(1.0, True, "Audio passed"),
+        liveness=_detector_result(0.90, True, "Liveness ok"),
+        challenge=_detector_result(1.00, True, "Challenge ok"),
+        deepfake=RuntimeError("Out of memory in inference"),
+        replay=_detector_result(0.80, True, "Replay ok"),
+    ):
+        _run_verification("crash")
 
-    mock_frame_res = FrameExtractionResult(frames=[], fps=0.0, timestamps=[], error=None)
+    saved = db.get_session("crash")
+    deepfake = saved["signals"]["deepfake"]
+    assert deepfake.score is None
+    assert deepfake.passed is False
+    assert "Out of memory" in deepfake.error
+    # the other detectors still ran and were stored
+    assert saved["signals"]["replay"].score == 0.80
 
-    with patch("app.orchestrator.extract_frames", return_value=mock_frame_res), \
-         patch("app.orchestrator.process_audio_pipeline", new_callable=AsyncMock) as mock_audio, \
-         patch("app.orchestrator.detect_visual_liveness", new_callable=AsyncMock) as mock_live, \
-         patch("app.orchestrator.verify_challenge_compliance", new_callable=AsyncMock) as mock_chal, \
-         patch("app.orchestrator.detect_deepfake", new_callable=AsyncMock) as mock_df, \
-         patch("app.orchestrator.detect_replay_attack", new_callable=AsyncMock) as mock_rep:
 
-        mock_audio.return_value = _dummy_detector_result(1.0, True, "Audio passed")
-        mock_live.return_value = _dummy_detector_result(0.90, True, "Liveness ok")
-        mock_chal.return_value = _dummy_detector_result(1.00, True, "Challenge ok")
-        # Deepfake crashes unexpectedly
-        mock_df.side_effect = RuntimeError("Out of memory in inference")
-        mock_rep.return_value = _dummy_detector_result(0.80, True, "Replay ok")
+def test_recording_without_video_fails_the_video_signals_with_the_extraction_error():
+    _create_session("no-video")
+    with _mocked(
+        audio=_detector_result(1.0, True, "Audio passed"),
+        liveness=_detector_result(0.90, True, "not reached"),
+        challenge=_detector_result(1.00, True, "not reached"),
+        deepfake=_detector_result(0.90, True, "not reached"),
+        replay=_detector_result(0.80, True, "not reached"),
+        frames=0,
+        frame_error="No video stream in media file.",
+    ) as mocks:
+        _run_verification("no-video")
 
-        asyncio.run(
-            orchestrator.run_verification(
-                session_id=session_id,
-                media_path=Path("dummy_video.webm"),
-                visual_challenge="TURN_HEAD_LEFT",
-                verbal_challenge="apple bridge cloud dark eagle",
-            )
-        )
+    for name in ("liveness", "challenge", "deepfake", "replay"):
+        mocks[name].assert_not_called()
+    saved = db.get_session("no-video")
+    assert saved["status"] == VerificationStatus.FAILED.value
+    for name in orchestrator.VIDEO_SIGNALS:
+        signal = saved["signals"][name]
+        assert signal.score is None and signal.passed is False
+        assert signal.error == "No video stream in media file."
+    assert saved["signals"]["audio_pipeline"].passed is True
 
-    saved = db.get_session(session_id)
-    assert saved is not None
-    # Orchestrator caught the exception and marked deepfake failed closed
-    df_signal = saved["signals"]["deepfake"]
-    assert df_signal.score is None
-    assert df_signal.passed is False
-    assert "Out of memory" in df_signal.error
+
+def test_analyze_media_reports_timings_for_every_step():
+    with _mocked(
+        audio=_detector_result(1.0, True, "Audio passed"),
+        liveness=_detector_result(0.90, True, "Liveness ok"),
+        challenge=_detector_result(1.00, True, "Challenge ok"),
+        deepfake=_detector_result(0.90, True, "Deepfake ok"),
+        replay=_detector_result(0.80, True, "Replay ok"),
+    ):
+        analysis = asyncio.run(orchestrator.analyze_media(Path("dummy_video.webm"), "TURN_HEAD_LEFT", PHRASE))
+
+    assert set(analysis.timings) == {
+        "frames", "landmarks", "audio", "visual_liveness", "visual_challenge", "deepfake", "replay", "fusion", "total",
+    }

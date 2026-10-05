@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from pydantic import BaseModel, Field
 
 from app.schemas.detector import DetectorResult
@@ -52,3 +52,12 @@ class SessionResultResponse(BaseModel):
         default=None,
         description="Individual results for each of the 6 detection signals"
     )
+
+
+class VerifyResponse(BaseModel):
+    """Result of the development-only POST /verify demo: every detector's result and the verdict."""
+    status: VerificationStatus
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    reason: str
+    signals: Dict[str, DetectorResult]
+    timings: Dict[str, float] = Field(description="Seconds spent in each analysis step")
