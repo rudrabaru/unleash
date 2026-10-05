@@ -232,7 +232,7 @@ export default function AudioCapturePrototype() {
     }
   };
 
-  // Format verbal challenge digits with spacing
+  // Split the verbal challenge into its words
   const verbalWords: string[] = session?.challenge.verbal ? session.challenge.verbal.split(/\s+/).filter(Boolean) : [];
 
   return (
@@ -270,7 +270,7 @@ export default function AudioCapturePrototype() {
         </div>
 
         <div
-          className="challenge-digit-box"
+          className="challenge-word-box"
           style={{ letterSpacing: "normal", fontSize: "1.9rem", flexWrap: "wrap", gap: "0.5rem 1.25rem", textTransform: "lowercase" }}
         >
           {verbalWords.length > 0

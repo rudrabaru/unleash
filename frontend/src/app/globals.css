@@ -169,7 +169,7 @@ body {
   transition: height 0.05s ease-out;
 }
 
-.challenge-digit-box {
+.challenge-word-box {
   background: var(--bg-card);
   border: 2px solid var(--accent-cyan);
   box-shadow: 0 0 20px var(--accent-cyan-glow);

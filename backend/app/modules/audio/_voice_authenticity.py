@@ -229,11 +229,10 @@ def compute_spectral_flux_score(
     std_flux = float(np.std(flux))
     mean_flux = float(np.mean(flux))
 
-    # UNCALIBRATED divisor. Measured std_flux on every real fixture that reaches Stage 3
-    # (real_742 11.82, real_742-copy 14.83, tts_742 16.63) exceeds 10.0, so this term
-    # saturates to 1.0 on all of them and currently carries no information despite holding
-    # the heaviest weight. Needs the scenario 1/2/3/7/8/10 recording set before it can be set
-    # on evidence -- see docs/audio_pipeline_observations.md.
+    # UNCALIBRATED divisor. On the only early recordings available (two genuine, one TTS)
+    # std_flux was 11.8-16.6, all above 10.0, so this term saturates to 1.0 and currently
+    # carries no information despite holding the heaviest weight. It needs a labelled set of
+    # genuine, replayed and synthetic recordings before it can be set from evidence.
     score = min(max(std_flux / 10.0, 0.0), 1.0)
 
     return round(score, 3), _measured_meta(
