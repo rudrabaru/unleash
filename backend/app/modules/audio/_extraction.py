@@ -52,7 +52,7 @@ def probe_media(path: Path | str, timeout: int = 30) -> Dict[str, Any]:
         "container": str | None,
         "duration": float | None,
         "video_codec": str | None,
-        "audio": {"codec": str, "sample_rate": int, "channels": int} | None,
+        "audio": {"codec": str, "sample_rate": int, "channels": int, "start_time": float | None} | None,
         "error": str | None
       }
     """
@@ -126,10 +126,16 @@ def probe_media(path: Path | str, timeout: int = 30) -> Dict[str, Any]:
     if audio_stream is not None:
         sr_raw = audio_stream.get("sample_rate")
         sample_rate = int(sr_raw) if sr_raw and str(sr_raw).isdigit() else None
+        try:
+            audio_start = float(audio_stream.get("start_time"))
+        except (TypeError, ValueError):
+            audio_start = None
         audio_info = {
             "codec": audio_stream.get("codec_name"),
             "sample_rate": sample_rate,
-            "channels": audio_stream.get("channels")
+            "channels": audio_stream.get("channels"),
+            # seconds on the container clock at which the audio track starts
+            "start_time": audio_start,
         }
 
     return {

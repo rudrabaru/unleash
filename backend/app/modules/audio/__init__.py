@@ -13,7 +13,7 @@ import logging
 import time
 from pathlib import Path
 from app.core.config import settings
-from app.modules.audio._av_alignment import run_av_alignment
+from app.modules.audio._av_alignment import run_av_alignment, to_container_time
 from app.modules.audio._extraction import (
     check_extraction_completeness,
     extract_wav,
@@ -248,14 +248,18 @@ def process_audio_pipeline(
 
             # 9. Run Stage 4 AV Temporal Alignment (Whisper word timestamps x lip data - advisory)
             word_timestamps = stage2_result.details.get("word_timestamps") if stage2_result.details else None
+            audio_start = container_info["audio"].get("start_time") or 0.0
             t_stage4_start = time.perf_counter()
             stage4_result = run_av_alignment(
-                wav_path, word_timestamps=word_timestamps, lip_openness_data=lip_openness_data
+                wav_path,
+                word_timestamps=to_container_time(word_timestamps, audio_start),
+                lip_openness_data=lip_openness_data,
             )
             stage4_elapsed = time.perf_counter() - t_stage4_start
             if stage4_result.details is None:
                 stage4_result.details = {}
             stage4_result.details["stage4_latency_seconds"] = round(stage4_elapsed, 3)
+            stage4_result.details["audio_start_offset_seconds"] = round(max(0.0, audio_start), 3)
 
             # 10. Stages 1 & 2 Passed -> Fold into pipeline result
             combined_details = _merge_stage_details(stage1_result, stage2_result, stage3_result, stage4_result)

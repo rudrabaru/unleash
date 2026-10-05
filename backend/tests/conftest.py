@@ -98,3 +98,25 @@ def genuine_pipeline_result():
     from app.modules.audio import process_audio_pipeline
 
     return process_audio_pipeline(str(GENUINE_5WORD_WEBM), GENUINE_5WORD_PHRASE)
+
+
+@pytest.fixture(scope="session")
+def clap_clip(tmp_path_factory):
+    """Factory for a 3 s VP8/Opus clip with a white-frame flash and a 1 kHz tone, both scheduled at t=1.0 s.
+
+    `audio_delay` / `video_delay` shift that track later on the container clock (seconds).
+    """
+    folder = tmp_path_factory.mktemp("claps")
+    video = "color=c=black:s=320x240:r=30:d=3,drawbox=x=0:y=0:w=iw:h=ih:color=white:t=fill:enable='between(t,1,1.1)'"
+    audio = "aevalsrc='if(between(t,1,1.1),0.8*sin(2*PI*1000*t),0)':s=48000:d=3"
+
+    def make(name: str, audio_delay: float = 0.0, video_delay: float = 0.0) -> Path:
+        out = folder / f"{name}.webm"
+        _ffmpeg(
+            "-itsoffset", str(video_delay), "-f", "lavfi", "-i", video,
+            "-itsoffset", str(audio_delay), "-f", "lavfi", "-i", audio,
+            "-c:v", "libvpx", "-b:v", "1M", "-c:a", "libopus", str(out),
+        )
+        return out
+
+    return make

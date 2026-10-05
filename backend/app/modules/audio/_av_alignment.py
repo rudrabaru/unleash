@@ -41,6 +41,20 @@ OPEN_THRESHOLD_MIN_MARGIN = 0.02
 Sample = Tuple[float, float]  # (time_seconds, lip_openness_ratio)
 
 
+def to_container_time(word_timestamps: Optional[List[Dict[str, Any]]], audio_start_seconds: float) -> Optional[List[Dict[str, Any]]]:
+    """
+    Word times from the speech recognizer are relative to the extracted WAV, whose first sample
+    is the first sample of the audio track. The lip series uses the container clock, where the
+    audio track may start later (a probe on a clip with the audio delayed by 0.3 s showed the
+    extracted audio losing that offset). Adding the audio start puts both on one clock. A start
+    slightly below zero (the Opus pre-skip, about -0.007 s) is treated as zero.
+    """
+    if not word_timestamps:
+        return word_timestamps
+    offset = max(0.0, audio_start_seconds)
+    return [{**w, "start": w["start"] + offset, "end": w["end"] + offset} for w in word_timestamps]
+
+
 def _degraded_result(reason: str, word_count: int) -> DetectorResult:
     return DetectorResult(
         score=None,
