@@ -1,34 +1,23 @@
 """
-Tests for Audio Pipeline Canonical Output Schema Contract and Privacy NFR (Temp WAV cleanup).
+Tests for the audio pipeline's output schema and for cleaning up the temporary WAV.
 Verifies:
-1. Full 4-key contract + 7 canonical details keys per Project Plan v2.1 §5.6
-2. Privacy NFR §10: intermediate extracted WAV files are cleaned up post-analysis
-3. Pipeline composite score calculation logic (Stage 3 + Stage 4 weighting)
+1. The full 4-key contract plus the 7 canonical details keys
+2. Privacy: the intermediate extracted WAV is deleted after analysis, on success and on failure
+3. The composite advisory score (voice authenticity + lip-sync weighting)
 """
 from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any, Dict
 
-import pytest
-
-from app.modules.audio import (
-    _STAGE3_ADVISORY_WEIGHT,
-    _STAGE4_ADVISORY_WEIGHT,
-    _compute_pipeline_score,
-    process_audio_pipeline,
-)
+from app.core.config import settings
+from app.modules.audio import _compute_pipeline_score, process_audio_pipeline
 from app.schemas.detector import DetectorResult
-from _audio_fixtures import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM
+from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM, OTHER_5WORD_PHRASE, require
 
-FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
-TEMP_UPLOADS_DIR = Path(__file__).resolve().parent.parent / "temp_uploads"
+TEMP_UPLOADS_DIR = Path(settings.UPLOAD_TEMP_DIR)
 
-# Standard 5-word test phrase for consistency across tests
-TEST_CHALLENGE_PHRASE = "apple bridge cloud dark eagle"
-
-# Canonical details keys and expected type constraints per Project Plan §5.6
+# Canonical details keys and their expected types
 CANONICAL_DETAILS_SCHEMA = {
     "speech_detected": bool,
     "speech_duration_seconds": (float, int),
@@ -41,12 +30,8 @@ CANONICAL_DETAILS_SCHEMA = {
 
 
 def test_pipeline_output_schema_contract():
-    """Verify that a successful pipeline run satisfies the canonical schema with 5-word phrases."""
-    real_fixture = GENUINE_5WORD_WEBM
-    if not real_fixture.exists():
-        pytest.skip(f"Fixture {real_fixture} not found")
-
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), GENUINE_5WORD_PHRASE))
+    """A successful pipeline run satisfies the canonical schema."""
+    res = asyncio.run(process_audio_pipeline(str(require(GENUINE_5WORD_WEBM)), GENUINE_5WORD_PHRASE))
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True
@@ -72,10 +57,8 @@ def test_pipeline_output_schema_contract():
 
 
 def test_pipeline_temp_wav_cleanup_on_success():
-    """Verify Privacy NFR §10: temporary extracted WAV is deleted after successful pipeline execution."""
-    real_fixture = GENUINE_5WORD_WEBM
-    if not real_fixture.exists():
-        pytest.skip(f"Fixture {real_fixture} not found")
+    """The temporary extracted WAV is deleted after a successful pipeline run."""
+    real_fixture = require(GENUINE_5WORD_WEBM)
 
     expected_wav = TEMP_UPLOADS_DIR / f"{real_fixture.stem}_16k.wav"
     if expected_wav.exists():
@@ -86,23 +69,19 @@ def test_pipeline_temp_wav_cleanup_on_success():
     assert not expected_wav.exists(), f"Temporary WAV {expected_wav} was not deleted after execution"
 
 
-def test_pipeline_temp_wav_cleanup_on_failure():
-    """Verify Privacy NFR §10: temporary extracted WAV is deleted even when a hard gate fails."""
-    silence_fixture = FIXTURES_DIR / "silence.webm"
-    if not silence_fixture.exists():
-        pytest.skip(f"Fixture {silence_fixture} not found")
-
-    expected_wav = TEMP_UPLOADS_DIR / "silence_16k.wav"
+def test_pipeline_temp_wav_cleanup_on_failure(silence_webm):
+    """The temporary extracted WAV is deleted even when a must-pass check fails."""
+    expected_wav = TEMP_UPLOADS_DIR / f"{silence_webm.stem}_16k.wav"
     if expected_wav.exists():
         expected_wav.unlink()
 
-    res = asyncio.run(process_audio_pipeline(str(silence_fixture), TEST_CHALLENGE_PHRASE))
+    res = asyncio.run(process_audio_pipeline(str(silence_webm), OTHER_5WORD_PHRASE))
     assert res.passed is False
-    assert not expected_wav.exists(), f"Temporary WAV {expected_wav} was not deleted after failed gate"
+    assert not expected_wav.exists(), f"Temporary WAV {expected_wav} was not deleted after a failed check"
 
 
-def test_compute_pipeline_score_stage3_only():
-    """Verify composite advisory score calculation when Stage 4 is not yet active (stage4_score=None)."""
+def test_compute_pipeline_score_voice_check_only():
+    """Composite advisory score when the lip-sync check produced no score."""
     s3_res = DetectorResult(score=0.85, passed=True, reason="Authentic", error=None, details={})
     score, score_str = _compute_pipeline_score(s3_res, stage4_score=None)
 
@@ -110,8 +89,8 @@ def test_compute_pipeline_score_stage3_only():
     assert score_str == "0.850"
 
 
-def test_compute_pipeline_score_stage3_and_stage4():
-    """Verify composite advisory score calculation when both Stage 3 and Stage 4 are active."""
+def test_compute_pipeline_score_voice_and_lip_sync():
+    """Composite advisory score when both the voice check and the lip-sync check scored."""
     s3_res = DetectorResult(score=0.80, passed=True, reason="Authentic", error=None, details={})
     stage4_score = 0.90
 
@@ -123,7 +102,7 @@ def test_compute_pipeline_score_stage3_and_stage4():
 
 
 def test_compute_pipeline_score_none_when_no_scores():
-    """Verify composite advisory score returns None when no stage produced a score."""
+    """The composite advisory score is None when no check produced a score."""
     s3_res = DetectorResult(score=None, passed=True, reason="Error", error="err", details={})
     score, score_str = _compute_pipeline_score(s3_res, stage4_score=None)
 

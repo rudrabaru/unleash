@@ -1,12 +1,9 @@
-import sys
-import os
 import time
 
-# Ensure backend root is in sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import pytest
+from pydantic import ValidationError
 
 from app.schemas.detector import DetectorResult
-from app.schemas.session import VisualChallengeType, VerificationStatus
 from app.core.security import generate_challenge_token, verify_challenge_token
 
 
@@ -25,19 +22,18 @@ def test_detector_schema_valid():
 
 
 def test_detector_schema_bounds():
-    # Verify Pydantic bounds checking
-    try:
+    # Pydantic enforces the 0.0-1.0 range
+    with pytest.raises(ValidationError):
         DetectorResult(score=1.5, passed=True, reason="Invalid")
-        assert False, "Should fail validation for score > 1.0"
-    except Exception:
-        pass
+    with pytest.raises(ValidationError):
+        DetectorResult(score=-0.1, passed=True, reason="Invalid")
 
 
 def test_hmac_token_lifecycle():
     secret = "test_secret_key_12345"
     session_id = "test-session-uuid"
     visual = "TURN_HEAD_LEFT"
-    verbal = "742"
+    verbal = "walnut lantern bicycle maple trumpet"
 
     token, expires_at = generate_challenge_token(
         session_id=session_id,
@@ -74,9 +70,3 @@ def test_hmac_token_lifecycle():
     assert is_valid is False
     assert "expired" in err
 
-
-if __name__ == "__main__":
-    test_detector_schema_valid()
-    test_detector_schema_bounds()
-    test_hmac_token_lifecycle()
-    print("ALL PHASE 0 FOUNDATION TESTS PASSED SUCCESSFULLY!")

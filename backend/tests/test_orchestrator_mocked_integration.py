@@ -19,14 +19,6 @@ from app.schemas.detector import DetectorResult
 from app.schemas.session import VerificationStatus
 
 
-@pytest.fixture(autouse=True)
-def clean_db(tmp_path, monkeypatch):
-    """Ensure tests run against a clean database without modifying git-tracked DB."""
-    test_db_path = tmp_path / "test_unleash.db"
-    monkeypatch.setattr(db, "_DB_PATH", test_db_path)
-    db.init_db()
-
-
 def _dummy_detector_result(score=0.90, passed=True, reason="ok", error=None, details=None):
     return DetectorResult(
         score=score,

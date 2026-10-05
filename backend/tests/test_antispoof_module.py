@@ -1,8 +1,8 @@
 """
-Tests for the anti-spoofing module. No trained Xception checkpoint ships with this
-repo (Phase 3), so detect_deepfake must fail honestly (J5: never a fabricated score)
-rather than crash or invent a plausible-looking result. detect_replay_attack (Phase 4)
-is real and is exercised against actual fixture frames.
+Tests for the anti-spoofing module. The trained Xception checkpoint is not stored in git, so
+the tests that need it carry the `requires_checkpoint` marker; without a checkpoint
+detect_deepfake must fail honestly (never a fabricated score). detect_replay_attack is
+exercised against real frames.
 """
 import asyncio
 from pathlib import Path
@@ -11,17 +11,12 @@ import pytest
 
 from app.modules.antispoof import detect_deepfake, detect_replay_attack
 from app.modules.frame_extraction import extract_frames
+from _paths import GENUINE_5WORD_NOFACE_VIDEO_WEBM, require
 
-FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
 
-
-def _frames(name: str):
-    path = FIXTURES_DIR / name
-    if not path.exists():
-        pytest.skip(f"Fixture {name} not found")
-    result = extract_frames(str(path))
-    if not result.frames:
-        pytest.skip(f"No frames decoded from {name}")
+def _frames():
+    result = extract_frames(str(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)))
+    assert result.frames, "no frames decoded from the video fixture"
     return result.frames
 
 
@@ -32,9 +27,10 @@ def test_deepfake_empty_frames_returns_contract_compliant_error():
     assert result.error is not None
 
 
+@pytest.mark.requires_checkpoint
 def test_deepfake_produces_real_scores_with_trained_checkpoint():
-    """Phase 3 complete: checkpoint exists, model produces real (not fabricated) scores."""
-    frames = _frames("real_742.webm")
+    """With the checkpoint present, the model produces real (not fabricated) scores."""
+    frames = _frames()
     result = asyncio.run(detect_deepfake(frames))
     assert result.error is None
     assert result.score is not None
@@ -61,8 +57,8 @@ def test_replay_empty_frames_returns_contract_compliant_error():
 
 
 def test_replay_detector_scores_real_fixture_without_crashing():
-    """Phase 4: real FFT/noise/brightness computation over an actual fixture, not a stub."""
-    frames = _frames("real_742.webm")
+    """Real FFT/noise/brightness computation over an actual fixture, not a stub."""
+    frames = _frames()
     result = asyncio.run(detect_replay_attack(frames))
     assert result.error is None
     assert result.score is not None
@@ -75,7 +71,7 @@ def test_replay_detector_scores_real_fixture_without_crashing():
 
 def test_replay_detector_single_frame_does_not_crash():
     """Temporal noise needs >=2 frames; a single frame must degrade gracefully, not crash."""
-    frames = _frames("real_742.webm")[:1]
+    frames = _frames()[:1]
     result = asyncio.run(detect_replay_attack(frames))
     assert result.error is None
     assert result.details["noise_score"] is None  # unmeasurable -> null, never a 0.5 placeholder

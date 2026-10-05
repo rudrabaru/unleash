@@ -1,5 +1,5 @@
 """
-Unit and integration tests for Stage 2 Phrase Compliance (faster-whisper word matching).
+Tests for the phrase check (faster-whisper transcription plus fuzzy 4-of-5 word matching).
 """
 from __future__ import annotations
 
@@ -20,9 +20,7 @@ from app.modules.audio._phrase_compliance import (
     run_phrase_compliance,
 )
 from app.schemas.detector import DetectorResult
-
-FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
-OUT_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "out"
+from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM, OTHER_5WORD_PHRASE, require
 
 
 def test_whisper_model_loaded():
@@ -123,46 +121,37 @@ def test_match_does_not_reuse_one_spoken_word():
 
 
 def test_recognizer_settings_are_the_agreed_ones():
-    """D-18/D-23: base.en, no vocabulary prompt, 0.5 floor. Changing the floor needs team sign-off."""
+    """base.en, no vocabulary prompt, 0.5 per-word floor. Changing the floor needs the owner's approval."""
     assert _pc.WHISPER_MODEL_NAME == "base.en"
     assert _pc.MIN_WORD_CONFIDENCE == 0.5
     assert _pc.MIN_WORD_SIMILARITY == 0.8
 
 
-@pytest.mark.parametrize("fixture", ["tone.webm", "silence.webm"])
-def test_non_speech_never_produces_challenge_words(fixture, tmp_path):
+@pytest.mark.parametrize("fixture", ["tone_webm", "silence_webm"])
+def test_non_speech_never_produces_challenge_words(fixture, request, tmp_path):
     """The rejected `initial_prompt` approach made Whisper emit vocabulary words on tones/noise."""
-    src = FIXTURES_DIR / fixture
-    if not src.exists():
-        pytest.skip(f"Fixture {src} not found")
+    src = request.getfixturevalue(fixture)
     wav = tmp_path / "clip_16k.wav"
     ok, err, _ = extract_wav(src, wav)
     assert ok, err
-    res = run_phrase_compliance(wav, "walnut lantern bicycle maple trumpet")
+    res = run_phrase_compliance(wav, GENUINE_5WORD_PHRASE)
     assert res.error is None
     assert not set(w.lower().strip(".,?!") for w in res.details["words_detected"]) & set(CHALLENGE_VOCABULARY)
     assert res.passed is False
 
 
-def test_genuine_take_passes_the_5_word_gate(tmp_path):
-    """B10 regression: a real genuine take that Whisper tiny failed (3/5: 'Lenton', 'Nappal')."""
-    src = FIXTURES_DIR / "my_take1.webm"
-    if not src.exists():
-        pytest.skip(f"Fixture {src} not found")
-    wav = tmp_path / "take_16k.wav"
-    ok, err, _ = extract_wav(src, wav)
-    assert ok, err
-    res = run_phrase_compliance(wav, "walnut lantern bicycle maple trumpet")
+def test_genuine_take_passes_the_phrase_check(genuine_wav):
+    """Regression: a real genuine take that the multilingual tiny model failed (3/5: 'Lenton', 'Nappal')."""
+    res = run_phrase_compliance(genuine_wav, GENUINE_5WORD_PHRASE)
     assert res.error is None
     assert res.details["match_count"] >= 4, res.reason
     assert res.passed is True
     assert res.details["whisper_model"] == "base.en"
 
 
-def test_invalid_challenge_phrase():
-    """Test invalid challenge phrase format (not 5 words) returns error."""
-    fake_wav = OUT_DIR / "real_742_16k.wav"
-    res = run_phrase_compliance(fake_wav, "apple bridge cloud")
+def test_invalid_challenge_phrase(tmp_path):
+    """A challenge phrase that is not exactly 5 words returns an error."""
+    res = run_phrase_compliance(tmp_path / "unused.wav", "apple bridge cloud")
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None
@@ -172,74 +161,38 @@ def test_invalid_challenge_phrase():
 def test_nonexistent_audio_file():
     """Test missing WAV file is handled gracefully."""
     fake_wav = Path("nonexistent_path_audio_123.wav")
-    res = run_phrase_compliance(fake_wav, "apple bridge cloud dark eagle")
+    res = run_phrase_compliance(fake_wav, OTHER_5WORD_PHRASE)
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None
     assert res.error == "Audio file does not exist"
 
 
-def test_run_phrase_compliance_real_fixture():
-    """Test Stage 2 on real speech WAV fixture ('seven four two')."""
-    wav_path = OUT_DIR / "real_742_16k.wav"
-    if not wav_path.exists():
-        pytest.skip(f"Fixture {wav_path} not found")
-
-    # Test with a 5-word phrase (matching the new interface)
-    challenge_phrase = "apple bridge cloud dark eagle"
-    res = run_phrase_compliance(wav_path, challenge_phrase)
+def test_real_fixture_returns_word_timestamps(genuine_wav):
+    """Transcription keeps word-level timestamps (the lip-sync check needs them)."""
+    res = run_phrase_compliance(genuine_wav, GENUINE_5WORD_PHRASE)
     assert isinstance(res, DetectorResult)
     assert res.error is None
     assert res.details is not None
-    assert "word_timestamps" in res.details
     assert len(res.details["word_timestamps"]) > 0
-    assert res.details["target_words"] == challenge_phrase.lower().split()
+    assert res.details["target_words"] == GENUINE_5WORD_PHRASE.split()
 
 
-def test_run_phrase_compliance_wrong_phrase_fail():
-    """Test Stage 2 with wrong challenge phrase."""
-    wav_path = OUT_DIR / "real_742_16k.wav"
-    if not wav_path.exists():
-        pytest.skip(f"Fixture {wav_path} not found")
-
-    # Challenge phrase that doesn't match the spoken content
-    challenge_phrase = "wrong alpha beta gamma delta"
-    res = run_phrase_compliance(wav_path, challenge_phrase)
+def test_wrong_phrase_fails(genuine_wav):
+    """Speech that does not match the issued challenge fails the phrase check."""
+    res = run_phrase_compliance(genuine_wav, OTHER_5WORD_PHRASE)
     assert isinstance(res, DetectorResult)
     assert res.error is None
     assert res.details is not None
     assert res.details["phrase_matched"] is False
 
 
-def test_pipeline_integration_phrase_match():
-    """Test complete audio pipeline with word-phrase challenge."""
-    real_webm = FIXTURES_DIR / "real_742.webm"
-    if not real_webm.exists():
-        pytest.skip(f"Fixture {real_webm} not found")
-
-    # Test with a 5-word phrase
-    challenge_phrase = "apple bridge cloud dark eagle"
-    res = asyncio.run(process_audio_pipeline(str(real_webm), challenge_phrase))
+def test_pipeline_rejects_speech_that_does_not_match_the_challenge():
+    """Through the whole audio pipeline a wrong phrase is a failure, not an error."""
+    res = asyncio.run(process_audio_pipeline(str(require(GENUINE_5WORD_WEBM)), OTHER_5WORD_PHRASE))
     assert isinstance(res, DetectorResult)
+    assert res.passed is False
     assert res.error is None
     assert res.details is not None
     assert res.details["speech_detected"] is True
-    assert "word_timestamps" in res.details
-    assert len(res.details["word_timestamps"]) > 0
-
-
-def test_pipeline_integration_wrong_phrase():
-    """Test complete audio pipeline with wrong challenge phrase."""
-    real_webm = FIXTURES_DIR / "real_742.webm"
-    if not real_webm.exists():
-        pytest.skip(f"Fixture {real_webm} not found")
-
-    # Wrong challenge phrase will fail the hard gate
-    challenge_phrase = "wrong alpha beta gamma delta"
-    res = asyncio.run(process_audio_pipeline(str(real_webm), challenge_phrase))
-    assert isinstance(res, DetectorResult)
-    assert res.error is None
-    assert res.details is not None
-    assert res.details["speech_detected"] is True
-    # Hard gate failure
     assert res.details["phrase_matched"] is False

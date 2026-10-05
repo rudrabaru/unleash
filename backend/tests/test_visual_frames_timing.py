@@ -1,6 +1,6 @@
 """
 Tests for dense, real-timestamped frame extraction and the lip series built from it
-(B4 `time_seconds`, B6 dense sampling, decision D-19).
+(per-sample `time_seconds`, dense sampling for blink detection).
 """
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ from app.modules.frame_extraction import extract_frames
 from app.modules.visual._frames import MAX_VISUAL_FRAMES, extract_visual_frames
 from app.modules.visual._lip_series import build_lip_series
 from app.modules.audio._av_alignment import run_av_alignment
-from _audio_fixtures import GENUINE_5WORD_WEBM
+from _paths import GENUINE_5WORD_NOFACE_VIDEO_WEBM, GENUINE_5WORD_WEBM, require
 
-FIXTURES = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
-VIDEO_WEBM = FIXTURES / "real_742.webm"  # browser-style VP8 webm; OpenCV reports 1000 fps for it
+# browser-style VP8 webm; OpenCV reports 1000 fps for it
+VIDEO_WEBM = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
 
 
 def _container_truth(path: Path):
@@ -26,7 +26,6 @@ def _container_truth(path: Path):
         return [float(f.time) for f in c.decode(c.streams.video[0])]
 
 
-@pytest.mark.skipif(not VIDEO_WEBM.exists(), reason="video fixture missing")
 def test_timestamps_are_the_containers_real_presentation_times():
     truth = _container_truth(VIDEO_WEBM)
     res = extract_visual_frames(VIDEO_WEBM)
@@ -38,7 +37,6 @@ def test_timestamps_are_the_containers_real_presentation_times():
         assert t == pytest.approx(truth[i], abs=1e-3)
 
 
-@pytest.mark.skipif(not VIDEO_WEBM.exists(), reason="video fixture missing")
 def test_timestamps_strictly_increase_and_fps_is_real_not_1000():
     res = extract_visual_frames(VIDEO_WEBM)
 
@@ -46,7 +44,6 @@ def test_timestamps_strictly_increase_and_fps_is_real_not_1000():
     assert 5 < res.fps < 120, f"fps {res.fps} is not a real frame rate"
 
 
-@pytest.mark.skipif(not VIDEO_WEBM.exists(), reason="video fixture missing")
 def test_dense_sampling_is_denser_than_the_30_frame_detector_sample_and_capped():
     dense = extract_visual_frames(VIDEO_WEBM)
     sparse = extract_frames(str(VIDEO_WEBM))
@@ -56,7 +53,6 @@ def test_dense_sampling_is_denser_than_the_30_frame_detector_sample_and_capped()
     assert dense.frames[0].ndim == 3 and dense.frames[0].shape[2] == 3  # RGB
 
 
-@pytest.mark.skipif(not GENUINE_5WORD_WEBM.exists(), reason="audio-only fixture missing")
 def test_audio_only_media_returns_an_error_instead_of_hanging():
     """Regression: cv2 `cap.read()` blocked forever on an audio-only container."""
     results = {}

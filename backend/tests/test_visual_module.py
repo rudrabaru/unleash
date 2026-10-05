@@ -1,15 +1,14 @@
 """
-Tests for the visual liveness + challenge compliance module (Phase 2).
-Uses the real_742.webm fixture, which has no face in its video track — a
-useful edge case for confirming graceful "no face detected" handling.
+Tests for the visual liveness and challenge-compliance module.
+`genuine_5word_noface_video.webm` has no face in its video track, which is the edge case for
+confirming graceful "no face detected" handling; the real-face clips cover the head turns,
+looking up/down and blinking.
 """
 import asyncio
 from pathlib import Path
 
-import numpy as np
 import pytest
 
-from app.modules.frame_extraction import extract_frames
 from app.modules.visual import (
     detect_visual_liveness,
     extract_visual_frames,
@@ -17,16 +16,16 @@ from app.modules.visual import (
 )
 from app.schemas.session import VisualChallengeType
 
+from _paths import GENUINE_5WORD_NOFACE_VIDEO_WEBM, require
+
+# real-face clips (they move to tests/fixtures/video in the fixture reorganisation)
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
 
 
 def _frames(name: str):
-    path = FIXTURES_DIR / name
-    if not path.exists():
-        pytest.skip(f"Fixture {name} not found")
+    path = require(FIXTURES_DIR / name)
     result = extract_visual_frames(str(path))
-    if not result.frames:
-        pytest.skip(f"No frames decoded from {name}")
+    assert result.frames, f"no frames decoded from {name}"
     return result.frames
 
 
@@ -39,11 +38,8 @@ def test_liveness_empty_frames_returns_contract_compliant_error():
 
 
 def test_liveness_no_face_scores_low_not_crash():
-    path = FIXTURES_DIR / "real_742.webm"
-    if path.exists():
-        frames = extract_visual_frames(str(path)).frames
-    else:
-        frames = [np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(10)]
+    frames = extract_visual_frames(str(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM))).frames
+    assert frames
     result = asyncio.run(detect_visual_liveness(frames))
     assert result.error is None
     assert result.score is not None
@@ -51,12 +47,9 @@ def test_liveness_no_face_scores_low_not_crash():
     assert result.details["face_consistency_ratio"] == 0.0
 
 
-def test_challenge_compliance_no_face_fails_hard_gate():
-    path = FIXTURES_DIR / "real_742.webm"
-    if path.exists():
-        frames = extract_visual_frames(str(path)).frames
-    else:
-        frames = [np.zeros((480, 640, 3), dtype=np.uint8) for _ in range(10)]
+def test_challenge_compliance_no_face_fails_the_must_pass_check():
+    frames = extract_visual_frames(str(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM))).frames
+    assert frames
     result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value))
     assert result.error is None
     assert result.passed is False

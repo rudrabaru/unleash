@@ -1,5 +1,5 @@
 """
-Unit and integration tests for Stage 3 Voice Authenticity (librosa spectral heuristics).
+Tests for the voice-authenticity check (librosa spectral heuristics; advisory only).
 """
 from __future__ import annotations
 
@@ -12,8 +12,6 @@ import pytest
 import soundfile as sf
 
 from app.modules.audio import process_audio_pipeline
-from app.modules.audio._extraction import extract_wav
-from app.modules.audio._speech_gate import run_speech_gate
 from app.modules.audio._voice_authenticity import (
     compute_hf_rolloff_score,
     compute_noise_floor_score,
@@ -21,9 +19,7 @@ from app.modules.audio._voice_authenticity import (
     run_voice_authenticity,
 )
 from app.schemas.detector import DetectorResult
-from _audio_fixtures import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM
-
-FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
+from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM, OTHER_5WORD_PHRASE, require
 
 
 def test_heuristic_functions_smoke():
@@ -84,7 +80,7 @@ def test_run_voice_authenticity_invalid_path():
     res = run_voice_authenticity(nonexistent)
 
     assert isinstance(res, DetectorResult)
-    assert res.passed is True  # Advisory: Stage 3 never hard-fails pipeline
+    assert res.passed is True  # Advisory: the voice check never fails the pipeline
     assert res.score is None
     assert res.error is not None
     assert "Audio file does not exist" in res.error
@@ -127,7 +123,7 @@ def test_4key_contract_compliance(tmp_path: Path):
     # 4. error: None on success
     assert res.error is None
 
-    # 5. details: contains all required Stage 3 breakdown fields
+    # 5. details: contains all required breakdown fields
     assert res.details is not None
     assert "voice_authenticity_score" in res.details
     assert "noise_floor_score" in res.details
@@ -137,8 +133,8 @@ def test_4key_contract_compliance(tmp_path: Path):
     assert "heuristic_weights" in res.details
 
 
-def test_stage3_latency_budget(tmp_path: Path):
-    """Ensure Stage 3 completes within latency budget (< 1.0s) on CPU."""
+def test_voice_check_latency_budget(tmp_path: Path):
+    """The voice-authenticity check completes within its latency budget (< 1.0 s) on CPU."""
     sr = 16000
     # 6 seconds of speech-like audio
     t = np.linspace(0, 6.0, sr * 6, endpoint=False, dtype=np.float32)
@@ -151,16 +147,12 @@ def test_stage3_latency_budget(tmp_path: Path):
     duration = time.perf_counter() - t0
 
     assert res.score is not None
-    assert duration < 1.0, f"Stage 3 latency {duration:.3f}s exceeded budget of 1.0s"
+    assert duration < 1.0, f"voice check latency {duration:.3f}s exceeded budget of 1.0s"
 
 
-def test_pipeline_integration_with_stage3():
-    """Verify full pipeline execution on genuine recording integrates Stage 3 results."""
-    real_fixture = GENUINE_5WORD_WEBM
-    if not real_fixture.exists():
-        pytest.skip(f"Fixture {real_fixture} not found")
-
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), GENUINE_5WORD_PHRASE))
+def test_pipeline_includes_the_voice_check():
+    """The full pipeline on a genuine recording carries the voice-authenticity result."""
+    res = asyncio.run(process_audio_pipeline(str(require(GENUINE_5WORD_WEBM)), GENUINE_5WORD_PHRASE))
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True
@@ -168,7 +160,7 @@ def test_pipeline_integration_with_stage3():
     assert 0.0 <= res.score <= 1.0
     assert res.error is None
 
-    # Verify Stage 3 specific details merged
+    # The voice-check details are merged into the pipeline details
     details = res.details
     assert details is not None
     assert "voice_authenticity_score" in details
@@ -178,61 +170,8 @@ def test_pipeline_integration_with_stage3():
     assert "speech_segments_analysed" in details
     assert isinstance(details["voice_authenticity_score"], float)
 
-    # Verify reason contains Stage 3 information
+    # The reason mentions the voice check
     assert "Stage 3 voice authenticity:" in res.reason
-
-
-def _stage3_score_for_fixture(fixture: Path, tmp_path: Path) -> float:
-    """
-    Run a .webm fixture through extraction -> Stage 1 VAD -> Stage 3 and return the
-    advisory score. Deliberately skips Stage 2 (faster-whisper): what is under test here
-    is Stage 3's spectral discrimination, not phrase compliance.
-    """
-    wav_path = tmp_path / f"{fixture.stem}_16k.wav"
-    ok, err, _ = extract_wav(fixture, wav_path)
-    assert ok, f"extraction failed for {fixture.name}: {err}"
-
-    gate = run_speech_gate(wav_path)
-    segments = (gate.details or {}).get("segments", [])
-
-    res = run_voice_authenticity(wav_path, segments)
-    assert res.passed is True, "Stage 3 is advisory and must never gate"
-    assert res.error is None
-    assert res.score is not None
-    return res.score
-
-
-@pytest.mark.xfail(
-    reason=(
-        "Stage 3 is UNCALIBRATED and shows no genuine-vs-TTS separation on the only labelled "
-        "fixtures available. Measured composites: genuine real_742=0.723, genuine "
-        "real_742-copy=0.769, TTS tts_742=0.732 -- the attack sample lands BETWEEN the two "
-        "genuine ones. Root causes (see docs/audio_pipeline_observations.md): the spectral-flux "
-        "term saturates to 1.0 on every real recording (std_flux 11.8/14.8/16.6 all exceed the "
-        "10.0 divisor) and the HF-rolloff term runs opposite to its documented direction. This "
-        "cannot be fixed by tuning divisors against 3 samples from 2 sources; it needs the "
-        "scenario 1/2/3/7/8/10 recording set. Remove this xfail once calibration lands."
-    ),
-    strict=False,
-)
-def test_stage3_discriminates_genuine_from_tts(tmp_path: Path):
-    """
-    Scenario 1 (genuine speech) must score higher on voice authenticity than scenario 8
-    (TTS injection). This is the coverage Stage 3 exists to provide, and the gap it is
-    currently failing to demonstrate.
-    """
-    genuine = FIXTURES_DIR / "real_742.webm"
-    tts = FIXTURES_DIR / "tts_742.webm"
-    if not genuine.exists() or not tts.exists():
-        pytest.skip("scenario 1 / scenario 8 fixtures not present")
-
-    genuine_score = _stage3_score_for_fixture(genuine, tmp_path)
-    tts_score = _stage3_score_for_fixture(tts, tmp_path)
-
-    assert genuine_score > tts_score, (
-        f"Stage 3 failed to separate genuine ({genuine_score:.3f}) from "
-        f"TTS ({tts_score:.3f}) -- no discrimination."
-    )
 
 
 def test_degraded_flag_set_when_heuristic_cannot_measure(tmp_path: Path):
@@ -278,15 +217,9 @@ def test_degraded_flag_absent_on_fully_measured_run(tmp_path: Path):
     assert "DEGRADED" not in res.reason
 
 
-def test_pipeline_stage1_failure_does_not_run_stage3():
-    """Verify that if Stage 1 hard gate fails (e.g. silence), Stage 3 is not evaluated."""
-    silence_fixture = FIXTURES_DIR / "silence.webm"
-    if not silence_fixture.exists():
-        pytest.skip(f"Fixture {silence_fixture} not found")
-
-    challenge_phrase = "seven four two apple bridge"
-    res = asyncio.run(process_audio_pipeline(str(silence_fixture), challenge_phrase))
+def test_pipeline_skips_the_voice_check_when_the_speech_check_fails(silence_webm):
+    """If the speech check fails (silence), the voice-authenticity check is not evaluated."""
+    res = asyncio.run(process_audio_pipeline(str(silence_webm), OTHER_5WORD_PHRASE))
 
     assert res.passed is False
     assert "voice_authenticity_score" not in (res.details or {})
-

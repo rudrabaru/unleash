@@ -24,10 +24,10 @@ def test_vocabulary_is_unique_lowercase_alpha():
     assert all(re.fullmatch(r"[a-z]{4,9}", w) for w in CHALLENGE_VOCABULARY)
 
 
-def test_vocabulary_gives_far_more_entropy_than_three_digits():
+def test_vocabulary_is_large_enough_for_the_challenge_entropy():
     bits = PHRASE_LENGTH * math.log2(len(CHALLENGE_VOCABULARY))
     assert len(CHALLENGE_VOCABULARY) >= 120
-    assert bits > 30  # 3 random digits = ~9.8 bits
+    assert bits > 30  # 5 words from 136 are about 35 bits when drawn in order
 
 
 def test_vocabulary_is_not_clustered_in_a_few_letters():
