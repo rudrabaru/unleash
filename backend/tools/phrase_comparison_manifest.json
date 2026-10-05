@@ -1,0 +1,6 @@
+{
+  "genuine": [
+    {"file": "../tests/fixtures/genuine_5word.webm", "speaker": "owner", "challenge": "walnut lantern bicycle maple trumpet"}
+  ],
+  "attacks": []
+}
