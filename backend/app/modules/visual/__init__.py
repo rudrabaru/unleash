@@ -13,42 +13,25 @@ lip series, all over the same frame list — doesn't pay for three separate pass
 without it (e.g. tests exercising one function directly against raw frames), each function
 still computes it itself; behavior and thresholds are unchanged either way.
 """
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from app.schemas.detector import DetectorResult
 from app.schemas.session import VisualChallengeType
-from app.modules.visual._frames import extract_visual_frames, MAX_VISUAL_FRAMES, VisualFramesResult
 from app.modules.visual._landmarks import extract_landmark_features
 from app.modules.visual._liveness import score_liveness
 from app.modules.visual._pose import evaluate_challenge, YAW_THRESHOLD, PITCH_THRESHOLD
 
 
-def _resolve_frames(frames_or_source: Union[List[Any], str, Path]) -> tuple[List[Any], Optional[List[float]], Optional[List[int]], Optional[str]]:
-    """Helper to resolve either pre-extracted frames list or video path for dense extraction."""
-    if isinstance(frames_or_source, (str, Path)):
-        res = extract_visual_frames(frames_or_source, max_frames=MAX_VISUAL_FRAMES)
-        return res.frames, res.timestamps, res.original_indices, res.error
-    return frames_or_source, None, None, None
-
-
 def detect_visual_liveness(
-    frames: Union[list, str, Path],
+    frames: List[Any],
     features: Optional[Dict[str, Any]] = None,
 ) -> DetectorResult:
-    frame_list, timestamps, original_indices, extract_err = _resolve_frames(frames)
-    if extract_err:
-        return DetectorResult(score=None, passed=False, reason="Could not extract video frames.", error=extract_err)
-    if not frame_list:
+    if not frames:
         return DetectorResult(score=None, passed=False, reason="No video frames available.", error="empty frame list")
 
     try:
         if features is None:
-            features = extract_landmark_features(
-                frame_list,
-                timestamps=timestamps,
-                original_indices=original_indices,
-            )
+            features = extract_landmark_features(frames)
         if features.get("error"):
             return DetectorResult(score=None, passed=False, reason="Face landmark extraction unavailable.", error=features["error"])
 
@@ -78,14 +61,11 @@ def detect_visual_liveness(
 
 
 def verify_challenge_compliance(
-    frames: Union[list, str, Path],
+    frames: List[Any],
     visual_challenge: str,
     features: Optional[Dict[str, Any]] = None,
 ) -> DetectorResult:
-    frame_list, timestamps, original_indices, extract_err = _resolve_frames(frames)
-    if extract_err:
-        return DetectorResult(score=None, passed=False, reason="Could not extract video frames.", error=extract_err)
-    if not frame_list:
+    if not frames:
         return DetectorResult(score=None, passed=False, reason="No video frames available.", error="empty frame list")
 
     try:
@@ -95,11 +75,7 @@ def verify_challenge_compliance(
 
     try:
         if features is None:
-            features = extract_landmark_features(
-                frame_list,
-                timestamps=timestamps,
-                original_indices=original_indices,
-            )
+            features = extract_landmark_features(frames)
         if features.get("error"):
             return DetectorResult(score=None, passed=False, reason="Face landmark extraction unavailable.", error=features["error"])
 
@@ -136,8 +112,5 @@ __all__ = [
     "detect_visual_liveness",
     "verify_challenge_compliance",
     "extract_landmark_features",
-    "extract_visual_frames",
-    "MAX_VISUAL_FRAMES",
-    "VisualFramesResult",
 ]
 

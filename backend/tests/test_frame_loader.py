@@ -1,11 +1,10 @@
 """
-Tests for the single-decode frame loader (app.media.frames).
-
-The loader must hand the detectors exactly the frames and real timestamps they used to get from
-the two older extractors (this file compares against them while they exist), keep the sparse set
-a subset of the dense set, and fail cleanly on files that are not usable video.
+Tests for the single-decode frame loader (app.media.frames): frame counts and sampling, real
+presentation timestamps, the sparse set being drawn from the dense set, downscaling of the dense
+frames only, and clean failures on files that are not usable video.
 """
 import threading
+from pathlib import Path
 
 import av
 import numpy as np
@@ -13,8 +12,6 @@ import pytest
 
 from app.media.frames import MAX_DENSE_FRAMES, MAX_SPARSE_FRAMES, load_frames
 from app.media.sampling import sample_indices
-from app.modules.frame_extraction import extract_frames
-from app.modules.visual._frames import extract_visual_frames
 from _paths import GENUINE_5WORD_NOFACE_VIDEO_WEBM, GENUINE_5WORD_WEBM, VIDEO_FIXTURES_DIR, require
 
 CLIPS = [
@@ -30,6 +27,21 @@ def _container_times(path):
         return [float(f.time) for f in container.decode(container.streams.video[0])]
 
 
+def _write_video(path: Path, frame_count: int, fps: int = 30) -> Path:
+    """A small synthetic clip whose frame i is a flat grey of brightness 10*i (mod 250)."""
+    with av.open(str(path), mode="w", format="mp4") as container:
+        stream = container.add_stream("libx264", rate=fps)
+        stream.width = stream.height = 64
+        stream.pix_fmt = "yuv420p"
+        for i in range(frame_count):
+            img = np.full((64, 64, 3), (10 * i) % 250, dtype=np.uint8)
+            for packet in stream.encode(av.VideoFrame.from_ndarray(img, format="rgb24")):
+                container.mux(packet)
+        for packet in stream.encode():
+            container.mux(packet)
+    return path
+
+
 def test_sample_indices():
     assert sample_indices(0, 30) == []
     assert sample_indices(10, 30) == list(range(10))
@@ -39,21 +51,27 @@ def test_sample_indices():
     assert picked[1] == 15
 
 
-@pytest.mark.parametrize("clip", CLIPS)
-def test_loader_returns_the_same_frames_as_the_two_older_extractors(clip):
-    path = require(clip)
-    bundle = load_frames(path)
-    old_sparse = extract_frames(str(path))
-    old_dense = extract_visual_frames(path)
+def test_a_short_clip_keeps_every_frame_in_order(tmp_path):
+    bundle = load_frames(_write_video(tmp_path / "short.mp4", frame_count=20, fps=30))
 
     assert bundle.error is None
-    assert len(bundle.sparse) == len(old_sparse.frames)
-    assert all(np.array_equal(a, b) for a, b in zip(bundle.sparse, old_sparse.frames))
-    assert len(bundle.dense) == len(old_dense.frames)
-    assert all(np.array_equal(a, b) for a, b in zip(bundle.dense, old_dense.frames))
-    assert bundle.dense_times == pytest.approx(old_dense.timestamps, abs=1e-4)
-    assert bundle.dense_indices == old_dense.original_indices
-    assert bundle.fps == old_dense.fps
+    assert bundle.dense_indices == list(range(20))
+    assert bundle.sparse_indices == list(range(20))
+    assert bundle.fps == pytest.approx(30.0, abs=0.5)
+    assert bundle.dense_times == pytest.approx([i / 30 for i in range(20)], abs=1e-3)
+    # frame k really is frame k (the lossy encoder keeps flat greys close to their value)
+    assert [int(f.mean()) for f in bundle.dense] == pytest.approx([(10 * i) % 250 for i in range(20)], abs=12)
+    assert bundle.dense[0].shape == (64, 64, 3) and bundle.dense[0].dtype == np.uint8
+
+
+@pytest.mark.parametrize("frame_count", [45, 300])
+def test_a_long_clip_is_sampled_evenly(tmp_path, frame_count):
+    bundle = load_frames(_write_video(tmp_path / "long.mp4", frame_count=frame_count))
+
+    assert bundle.dense_indices == sample_indices(frame_count, MAX_DENSE_FRAMES)
+    assert bundle.sparse_indices == sample_indices(frame_count, MAX_SPARSE_FRAMES)
+    assert len(bundle.sparse) == MAX_SPARSE_FRAMES
+    assert len(bundle.dense) == min(frame_count, MAX_DENSE_FRAMES)
 
 
 @pytest.mark.parametrize("clip", CLIPS)
@@ -76,7 +94,6 @@ def test_sparse_frames_are_drawn_from_the_dense_set(clip):
 
     assert 0 < len(bundle.dense) <= MAX_DENSE_FRAMES
     assert 0 < len(bundle.sparse) <= MAX_SPARSE_FRAMES
-    assert len(bundle.sparse) <= len(bundle.dense)
     assert set(bundle.sparse_indices) <= set(bundle.dense_indices)
     expected = [bundle.dense_indices[p] for p in sample_indices(len(bundle.dense_indices), MAX_SPARSE_FRAMES)]
     assert bundle.sparse_indices == expected
@@ -112,3 +129,6 @@ def test_missing_and_garbage_files_never_raise(tmp_path):
     junk = tmp_path / "junk.webm"
     junk.write_bytes(b"not a video" * 50)
     assert load_frames(junk).error
+    empty = tmp_path / "empty.webm"
+    empty.write_bytes(b"")
+    assert load_frames(empty).error

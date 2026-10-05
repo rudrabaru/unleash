@@ -6,11 +6,8 @@ looking up/down and blinking.
 """
 
 
-from app.modules.visual import (
-    detect_visual_liveness,
-    extract_visual_frames,
-    verify_challenge_compliance,
-)
+from app.media.frames import DENSE_MAX_EDGE, load_frames
+from app.modules.visual import detect_visual_liveness, verify_challenge_compliance
 from app.schemas.session import VisualChallengeType
 
 from _paths import GENUINE_5WORD_NOFACE_VIDEO_WEBM, VIDEO_FIXTURES_DIR, require
@@ -18,9 +15,9 @@ from _paths import GENUINE_5WORD_NOFACE_VIDEO_WEBM, VIDEO_FIXTURES_DIR, require
 
 def _frames(name: str):
     path = require(VIDEO_FIXTURES_DIR / name)
-    result = extract_visual_frames(str(path))
-    assert result.frames, f"no frames decoded from {name}"
-    return result.frames
+    bundle = load_frames(path, dense_max_edge=DENSE_MAX_EDGE)  # the same frames the pipeline gives the detectors
+    assert bundle.dense, f"no frames decoded from {name}"
+    return bundle.dense
 
 
 def test_liveness_empty_frames_returns_contract_compliant_error():
@@ -32,7 +29,7 @@ def test_liveness_empty_frames_returns_contract_compliant_error():
 
 
 def test_liveness_no_face_scores_low_not_crash():
-    frames = extract_visual_frames(str(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM))).frames
+    frames = load_frames(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM), dense_max_edge=DENSE_MAX_EDGE).dense
     assert frames
     result = detect_visual_liveness(frames)
     assert result.error is None
@@ -42,7 +39,7 @@ def test_liveness_no_face_scores_low_not_crash():
 
 
 def test_challenge_compliance_no_face_fails_the_must_pass_check():
-    frames = extract_visual_frames(str(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM))).frames
+    frames = load_frames(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM), dense_max_edge=DENSE_MAX_EDGE).dense
     assert frames
     result = verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value)
     assert result.error is None

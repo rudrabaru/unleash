@@ -4,11 +4,14 @@ Tests real background analysis through HTTP requests.
 """
 from __future__ import annotations
 
+import secrets
+
 from fastapi.testclient import TestClient
 
 from app import db
 from app.core.config import settings
 from app.core.security import generate_challenge_token
+from app.api.v1.endpoints import sessions
 from app.main import app
 from app.schemas.session import VerificationStatus
 from _paths import (
@@ -95,3 +98,7 @@ def test_submit_loses_when_another_request_claimed_the_session_first(monkeypatch
     monkeypatch.setattr(db, "claim_for_processing", lambda *args, **kwargs: False)
 
     assert _submit(session_id, token, media).status_code == 409
+
+
+def test_challenge_selection_uses_the_os_csprng():
+    assert isinstance(sessions._rng, secrets.SystemRandom)

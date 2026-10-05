@@ -15,11 +15,10 @@ from pathlib import Path
 from typing import Dict
 
 from app import db, fusion
+from app.media.frames import DENSE_MAX_EDGE, load_frames
 from app.modules.audio import process_audio_pipeline
 from app.modules.antispoof import detect_deepfake, detect_replay_attack
-from app.modules.frame_extraction import extract_frames
 from app.modules.visual import detect_visual_liveness, verify_challenge_compliance
-from app.modules.visual._frames import extract_visual_frames
 from app.modules.visual._landmarks import extract_landmark_features
 from app.modules.visual._lip_series import build_lip_series
 from app.schemas.detector import DetectorResult
@@ -79,14 +78,12 @@ def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> 
     def timed(name: str, since: float) -> None:
         timings[name] = round(time.perf_counter() - since, 3)
 
-    # ~30 evenly spaced frames for the deepfake and replay detectors.
+    # One decode gives ~120 timestamped frames for the visual detectors (a blink lasts 0.1-0.3 s)
+    # and the lip series, and ~30 native-resolution frames (a subset) for deepfake and replay.
     step = time.perf_counter()
-    frame_result = extract_frames(str(media_path))
-    frames = frame_result.frames
-    # Dense, real-timestamped frames for the visual detectors (a blink lasts 0.1-0.3 s) and
-    # for the lip series.
-    visual_result = extract_visual_frames(media_path)
-    visual_frames = visual_result.frames
+    bundle = load_frames(media_path, dense_max_edge=DENSE_MAX_EDGE)
+    frames = bundle.sparse
+    visual_frames = bundle.dense
     timed("frames", step)
 
     # MediaPipe runs once and the result is shared by liveness, challenge compliance and the
@@ -97,8 +94,8 @@ def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> 
         try:
             landmark_features = extract_landmark_features(
                 visual_frames,
-                timestamps=visual_result.timestamps,
-                original_indices=visual_result.original_indices,
+                timestamps=bundle.dense_times,
+                original_indices=bundle.dense_indices,
             )
         except Exception:  # noqa: BLE001 - fall back to per-detector extraction
             logger.exception("Shared landmark extraction failed; detectors will each retry")
@@ -113,7 +110,7 @@ def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> 
         process_audio_pipeline,
         str(media_path),
         verbal_challenge,
-        lip_openness_data=_lip_series(landmark_features, visual_result.fps),
+        lip_openness_data=_lip_series(landmark_features, bundle.fps),
     )
     timed("audio", step)
 
@@ -128,7 +125,7 @@ def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> 
             signals[name] = _safe_call(name, detector, *args, **kwargs)
             timed(name, step)
     else:
-        error = frame_result.error or visual_result.error or "No video frames available."
+        error = bundle.error or "No video frames available."
         for name in VIDEO_SIGNALS:
             signals[name] = _failed_result(reason="No video frames available", error=error)
 

@@ -2,9 +2,9 @@
 Shared MediaPipe FaceLandmarker wrapper for the visual module.
 
 Ported from `Liveliness + challenge/video_process.py` (Dev 2's standalone app),
-adapted to run on a pre-sampled RGB frame list (from the shared frame_extraction
-utility) instead of decoding the video itself, and switched to IMAGE running
-mode since sampled frames are not temporally contiguous.
+adapted to run on a pre-sampled RGB frame list (from the shared frame loader)
+instead of decoding the video itself, and switched to IMAGE running mode since
+sampled frames are not temporally contiguous.
 """
 import math
 from pathlib import Path

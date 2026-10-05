@@ -101,7 +101,7 @@ class XceptionDeepfakeClassifier:
         return float(probabilities[self.settings.fake_class_index].item())
 
     def _preprocess_frame(self, frame: np.ndarray):
-        # frame is already RGB (shared frame_extraction output)
+        # frame is already RGB (from the shared frame loader)
         resized_frame = cv2.resize(
             frame,
             (self.settings.image_size, self.settings.image_size),

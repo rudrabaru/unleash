@@ -28,6 +28,11 @@ MAX_DENSE_FRAMES = 120
 MAX_SPARSE_FRAMES = 30
 # A challenge response is about 15 s; decoding stops here (about 66 s at 30 fps) on a longer file.
 MAX_DECODED_FRAMES = 2000
+# Long-edge cap for the dense frames. Webcam recordings (up to 1280x720) are not touched; larger
+# inputs are downscaled, which bounds the 120 held RGB frames at about 330 MB instead of about
+# 750 MB for 1080p. MediaPipe takes the same ~10 ms per frame at either size. Downscaling is not
+# perfectly score-neutral: on the 1080p sample clips the liveness score moved by up to 0.02.
+DENSE_MAX_EDGE = 1280
 
 
 @dataclass

@@ -4,8 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from app.modules.frame_extraction import FrameExtractionResult
-from app.modules.visual._frames import VisualFramesResult
+from app.media.frames import FrameBundle
 from app.schemas.detector import DetectorResult
 
 MOCK_PHRASE = "apple bridge cloud dark eagle"
@@ -16,19 +15,15 @@ def detector_result(score=0.90, passed=True, reason="ok", error=None, details=No
     return DetectorResult(score=score, passed=passed, reason=reason, error=error, details=details or {})
 
 
-def sparse_frames(count: int, error=None) -> FrameExtractionResult:
-    return FrameExtractionResult(
-        frames=[FRAME] * count, fps=30.0, timestamps=[i / 30 for i in range(count)], error=error
-    )
-
-
-def dense_frames(count: int, error=None) -> VisualFramesResult:
-    return VisualFramesResult(
-        frames=[FRAME] * count,
-        fps=30.0,
-        timestamps=[i / 30 for i in range(count)],
-        original_indices=list(range(count)),
-        error=error,
+def frame_bundle(count: int, error=None) -> FrameBundle:
+    """A bundle of `count` identical blank frames; count 0 gives an error bundle with no frames."""
+    if count == 0:
+        return FrameBundle(error=error)
+    times = [i / 30 for i in range(count)]
+    return FrameBundle(
+        dense=[FRAME] * count, dense_times=times, dense_indices=list(range(count)),
+        sparse=[FRAME] * count, sparse_times=times, sparse_indices=list(range(count)),
+        fps=30.0, error=error,
     )
 
 
@@ -40,8 +35,7 @@ def mocked_detectors(*, audio, liveness, challenge, deepfake, replay, frames=5, 
     when called) or a function (called instead).
     """
     with ExitStack() as stack:
-        stack.enter_context(patch("app.orchestrator.extract_frames", return_value=sparse_frames(frames, frame_error)))
-        stack.enter_context(patch("app.orchestrator.extract_visual_frames", return_value=dense_frames(frames, frame_error)))
+        stack.enter_context(patch("app.orchestrator.load_frames", return_value=frame_bundle(frames, frame_error)))
         stack.enter_context(
             patch("app.orchestrator.extract_landmark_features", return_value={"frames": [], "error": None})
         )

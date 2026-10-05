@@ -9,14 +9,14 @@ from pathlib import Path
 import pytest
 
 from app.modules.antispoof import detect_deepfake, detect_replay_attack
-from app.modules.frame_extraction import extract_frames
+from app.media.frames import load_frames
 from _paths import GENUINE_5WORD_NOFACE_VIDEO_WEBM, require
 
 
 def _frames():
-    result = extract_frames(str(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)))
-    assert result.frames, "no frames decoded from the video fixture"
-    return result.frames
+    bundle = load_frames(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM))
+    assert bundle.sparse, "no frames decoded from the video fixture"
+    return bundle.sparse
 
 
 def test_deepfake_empty_frames_returns_contract_compliant_error():
