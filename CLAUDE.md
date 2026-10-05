@@ -41,21 +41,11 @@ Defined in `backend/app/schemas/detector.py` as the Pydantic model `DetectorResu
 
 ---
 
-## C. Team Ownership Map (Module-Level)
+## C. Solo Mode
 
-| Path | Owner | Notes |
-|---|---|---|
-| `backend/app/modules/audio/` | **Dev 1 (You)** | Exclusive. Stages 1–4 of the audio pipeline. |
-| `backend/app/modules/visual/` | Dev 2 | Exclusive. Visual liveness + head-pose/challenge compliance. |
-| `backend/app/modules/antispoof/` | Dev 3 | Exclusive. Deepfake detector, replay detector, orchestrator, fusion engine live under Dev 3's backend-core ownership (orchestrator/fusion may live outside this folder — see Dev 3's own workspace once created). |
-| `backend/app/schemas/` | **Shared** | The 4-key contract and session schemas. Changes require team agreement before committing (see Section G). |
-| `backend/app/core/` | **Shared** | Config + HMAC security. Changes require team agreement. |
-| `backend/app/api/v1/endpoints/sessions.py` | Dev 2 (creation logic) / Dev 3 (orchestration + submit/result) | `POST /sessions` challenge generation is Dev 2's; `POST /sessions/{id}/submit` background orchestration is Dev 3's. |
-| `backend/app/api/v1/endpoints/eval.py` | Dev 3 | Evaluation dashboard API. |
-| `frontend/src/app/` | Split by screen | Dev 2: camera capture UI, challenge display UI, result display UI (Screens 4–5), session creation API. Dev 1: mic capture UI, volume indicator, verbal challenge display, audio permission errors. Dev 3: eval dashboard UI (`/eval`). |
-| `.claude/context/audio-pipeline/` | **Dev 1 (You)** | This is your agentic workspace — see Section E. |
+One person (the owner) currently works on the whole project, so there are no per-module owners and no ownership guard. Any module can be changed when the owner asks for it. The previous three-developer ownership map is preserved at git tag `pre-solo-reset`.
 
-**Rule of thumb:** Claude Code should never modify another developer's exclusive module folder without the user explicitly asking for a cross-team/pairing change.
+**Returning to three developers:** when the owner says "distribute work among 3", record the decision in `.claude/context/decisions.md`, restore the ownership map and the ownership guard hook from the tag, and split the work as the owner specifies.
 
 ---
 
