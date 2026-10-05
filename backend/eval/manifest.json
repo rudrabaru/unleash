@@ -1,0 +1,15 @@
+{
+  "description": "Clips used to re-measure the detectors with tools/measure_clips.py. Paths are relative to backend/. These are phone-style H.264/AAC files (one is video-only), not browser recordings, so results are a smoke check, not a calibration. Labels come from the file names and from what each clip shows; nothing here has been measured on attack recordings yet.",
+  "clips": [
+    {"path": "tests/fixtures/video/BLINKING.webm", "kind": "genuine", "performed": "blinking", "visual_challenge": "BLINK_TWICE"},
+    {"path": "tests/fixtures/video/DOWN.webm", "kind": "genuine", "performed": "looking down", "visual_challenge": "LOOK_DOWN"},
+    {"path": "tests/fixtures/video/UP.webm", "kind": "genuine", "performed": "looking up", "visual_challenge": "LOOK_UP"},
+    {"path": "tests/fixtures/video/TURN_LEFT.webm", "kind": "genuine", "performed": "turning the head left (video only)", "visual_challenge": "TURN_HEAD_LEFT"},
+    {"path": "tests/fixtures/video/TURN_RIGHT.webm", "kind": "genuine", "performed": "turning the head right", "visual_challenge": "TURN_HEAD_RIGHT"},
+    {"path": "eval/clips/TALKING.webm", "kind": "genuine", "performed": "talking", "visual_challenge": "BLINK_TWICE"},
+    {"path": "eval/clips/LIVELINESS_1.webm", "kind": "genuine", "performed": "natural movement", "visual_challenge": "BLINK_TWICE"},
+    {"path": "eval/clips/LIVELINESS_2.webm", "kind": "genuine", "performed": "natural movement", "visual_challenge": "BLINK_TWICE"},
+    {"path": "eval/clips/real.webm", "kind": "genuine", "performed": "face video used as the real side of a deepfake pair", "visual_challenge": "BLINK_TWICE"},
+    {"path": "eval/clips/fake.webm", "kind": "fake", "performed": "video labelled fake by whoever added it", "visual_challenge": "BLINK_TWICE"}
+  ]
+}

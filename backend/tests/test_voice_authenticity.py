@@ -8,7 +8,6 @@ import time
 from pathlib import Path
 
 import numpy as np
-import pytest
 import soundfile as sf
 
 from app.modules.audio import process_audio_pipeline
@@ -19,7 +18,7 @@ from app.modules.audio._voice_authenticity import (
     run_voice_authenticity,
 )
 from app.schemas.detector import DetectorResult
-from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM, OTHER_5WORD_PHRASE, require
+from _paths import OTHER_5WORD_PHRASE
 
 
 def test_heuristic_functions_smoke():
@@ -150,9 +149,9 @@ def test_voice_check_latency_budget(tmp_path: Path):
     assert duration < 1.0, f"voice check latency {duration:.3f}s exceeded budget of 1.0s"
 
 
-def test_pipeline_includes_the_voice_check():
+def test_pipeline_includes_the_voice_check(genuine_pipeline_result):
     """The full pipeline on a genuine recording carries the voice-authenticity result."""
-    res = asyncio.run(process_audio_pipeline(str(require(GENUINE_5WORD_WEBM)), GENUINE_5WORD_PHRASE))
+    res = genuine_pipeline_result
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True

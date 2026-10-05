@@ -9,13 +9,10 @@ Verifies:
 """
 from __future__ import annotations
 
-import asyncio
 import pytest
 
-from app.modules.audio import process_audio_pipeline
 from app.modules.audio._av_alignment import run_av_alignment
 from app.schemas.detector import DetectorResult
-from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM, require
 
 WORDS = [
     {"word": "walnut", "start": 1.0, "end": 1.5, "probability": 0.99},
@@ -185,9 +182,9 @@ def test_lip_sync_malformed_word_never_raises():
     assert res.score is None
 
 
-def test_lip_sync_pipeline_integration_without_lip_data_still_passes():
+def test_lip_sync_pipeline_integration_without_lip_data_still_passes(genuine_pipeline_result):
     """End-to-end: the caller contract (lip_openness_data optional) still works."""
-    res = asyncio.run(process_audio_pipeline(str(require(GENUINE_5WORD_WEBM)), GENUINE_5WORD_PHRASE))
+    res = genuine_pipeline_result
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True

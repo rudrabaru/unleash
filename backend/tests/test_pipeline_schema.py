@@ -29,9 +29,9 @@ CANONICAL_DETAILS_SCHEMA = {
 }
 
 
-def test_pipeline_output_schema_contract():
+def test_pipeline_output_schema_contract(genuine_pipeline_result):
     """A successful pipeline run satisfies the canonical schema."""
-    res = asyncio.run(process_audio_pipeline(str(require(GENUINE_5WORD_WEBM)), GENUINE_5WORD_PHRASE))
+    res = genuine_pipeline_result
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True

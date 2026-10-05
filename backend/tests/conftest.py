@@ -18,7 +18,7 @@ _SANDBOX = Path(tempfile.mkdtemp(prefix="unleash_tests_"))
 os.environ["DATABASE_URL"] = "sqlite:///" + (_SANDBOX / "unleash.db").as_posix()
 os.environ["UPLOAD_TEMP_DIR"] = str(_SANDBOX / "uploads")
 
-from _paths import GENUINE_5WORD_WEBM  # noqa: E402  (after the environment is set)
+from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM  # noqa: E402  (after the environment is set)
 
 
 def pytest_sessionfinish(session, exitstatus):
@@ -90,3 +90,13 @@ def genuine_wav(tmp_path_factory) -> Path:
     ok, err, _ = extract_wav(GENUINE_5WORD_WEBM, out)
     assert ok, err
     return out
+
+
+@pytest.fixture(scope="session")
+def genuine_pipeline_result():
+    """One audio-pipeline run on the genuine take, shared by the tests that only inspect it."""
+    import asyncio
+
+    from app.modules.audio import process_audio_pipeline
+
+    return asyncio.run(process_audio_pipeline(str(GENUINE_5WORD_WEBM), GENUINE_5WORD_PHRASE))

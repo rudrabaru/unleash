@@ -5,9 +5,7 @@ confirming graceful "no face detected" handling; the real-face clips cover the h
 looking up/down and blinking.
 """
 import asyncio
-from pathlib import Path
 
-import pytest
 
 from app.modules.visual import (
     detect_visual_liveness,
@@ -16,14 +14,11 @@ from app.modules.visual import (
 )
 from app.schemas.session import VisualChallengeType
 
-from _paths import GENUINE_5WORD_NOFACE_VIDEO_WEBM, require
-
-# real-face clips (they move to tests/fixtures/video in the fixture reorganisation)
-FIXTURES_DIR = Path(__file__).resolve().parent.parent / "prototypes" / "fixtures"
+from _paths import GENUINE_5WORD_NOFACE_VIDEO_WEBM, VIDEO_FIXTURES_DIR, require
 
 
 def _frames(name: str):
-    path = require(FIXTURES_DIR / name)
+    path = require(VIDEO_FIXTURES_DIR / name)
     result = extract_visual_frames(str(path))
     assert result.frames, f"no frames decoded from {name}"
     return result.frames

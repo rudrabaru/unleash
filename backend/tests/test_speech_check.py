@@ -18,7 +18,7 @@ from app.modules.audio._speech_gate import (
     run_speech_gate,
 )
 from app.schemas.detector import DetectorResult
-from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM, OTHER_5WORD_PHRASE, require
+from _paths import OTHER_5WORD_PHRASE
 
 
 def test_vad_model_loaded():
@@ -125,9 +125,9 @@ def test_verify_wav_contract(tmp_path):
     assert "violated" in desc.lower()
 
 
-def test_pipeline_with_real_speech_fixture():
+def test_pipeline_with_real_speech_fixture(genuine_pipeline_result):
     """The full audio pipeline passes a genuine take of the 5-word challenge."""
-    res = asyncio.run(process_audio_pipeline(str(require(GENUINE_5WORD_WEBM)), GENUINE_5WORD_PHRASE))
+    res = genuine_pipeline_result
     assert isinstance(res, DetectorResult)
     assert res.passed is True
     assert res.error is None

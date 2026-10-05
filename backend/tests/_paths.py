@@ -3,6 +3,7 @@ from pathlib import Path
 
 TESTS_DIR = Path(__file__).resolve().parent
 FIXTURES_DIR = TESTS_DIR / "fixtures"
+VIDEO_FIXTURES_DIR = FIXTURES_DIR / "video"  # real-face clips: head turns, looking up/down, blinking
 
 # A real human take of GENUINE_5WORD_PHRASE. Audio only (no video track).
 GENUINE_5WORD_WEBM = FIXTURES_DIR / "genuine_5word.webm"
