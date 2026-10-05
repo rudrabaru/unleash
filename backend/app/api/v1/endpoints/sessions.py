@@ -25,12 +25,11 @@ _rng = secrets.SystemRandom()
 
 
 @router.post("", response_model=SessionCreateResponse, status_code=status.HTTP_201_CREATED)
-async def create_session():
+def create_session():
     """
     Create a new human verification session.
     Generates a random visual challenge (5 types: head turns, blinks) and a 5-word
     verbal challenge (from curated, phonetically-distinct vocabulary). Signs HMAC token.
-    (Owned by Dev 2 in integration)
     """
     session_id = str(uuid.uuid4())
 
@@ -65,7 +64,7 @@ async def create_session():
 
 
 @router.post("/{session_id}/submit", response_model=SessionSubmitResponse, status_code=status.HTTP_202_ACCEPTED)
-async def submit_session(
+def submit_session(
     session_id: str,
     background_tasks: BackgroundTasks,
     token: str = Form(...),
@@ -73,8 +72,7 @@ async def submit_session(
 ):
     """
     Submit the recorded single-blob .webm media for verification.
-    Validates HMAC token and launches the real orchestrator + fusion pipeline.
-    (Orchestration lead: Dev 3)
+    Validates the HMAC token and starts the analysis (all detectors, then fusion) in the background.
     """
     session = db.get_session(session_id)
     if session is None:
@@ -100,15 +98,23 @@ async def submit_session(
             detail=f"Security verification failed: {error_msg}"
         )
 
-    now = datetime.now(timezone.utc)
-    db.update_session_status(session_id, VerificationStatus.PROCESSING.value, now)
+    # One atomic UPDATE decides which request owns the session: a concurrent second submit loses.
+    if not db.claim_for_processing(session_id, datetime.now(timezone.utc)):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Session {session_id} has already been submitted.",
+        )
 
     temp_dir = Path(settings.UPLOAD_TEMP_DIR)
     temp_dir.mkdir(parents=True, exist_ok=True)
     media_path = temp_dir / f"{session_id}.webm"
 
-    with open(media_path, "wb") as buffer:
-        shutil.copyfileobj(media.file, buffer)
+    try:
+        with open(media_path, "wb") as buffer:
+            shutil.copyfileobj(media.file, buffer)
+    except OSError:
+        db.update_session_status(session_id, VerificationStatus.FAILED.value, datetime.now(timezone.utc))
+        raise
 
     background_tasks.add_task(
         _run_and_cleanup,
@@ -125,10 +131,10 @@ async def submit_session(
     )
 
 
-async def _run_and_cleanup(session_id: str, media_path: Path, visual_challenge: str, verbal_challenge: str) -> None:
+def _run_and_cleanup(session_id: str, media_path: Path, visual_challenge: str, verbal_challenge: str) -> None:
     """Run the orchestrator, guaranteeing media cleanup post-analysis (Privacy NFR §10)."""
     try:
-        await orchestrator.run_verification(session_id, media_path, visual_challenge, verbal_challenge)
+        orchestrator.run_verification(session_id, media_path, visual_challenge, verbal_challenge)
     except Exception as exc:  # noqa: BLE001 - orchestrator already isolates per-detector errors;
         # this only catches a fusion/persistence-level failure so the session never hangs in PROCESSING.
         db.update_session_status(session_id, VerificationStatus.FAILED.value, datetime.now(timezone.utc))
@@ -142,7 +148,7 @@ async def _run_and_cleanup(session_id: str, media_path: Path, visual_challenge: 
 
 
 @router.get("/{session_id}", response_model=SessionResultResponse)
-async def get_session_result(session_id: str):
+def get_session_result(session_id: str):
     """
     Poll session status and retrieve the final verification verdict + signal scores.
     """

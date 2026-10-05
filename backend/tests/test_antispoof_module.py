@@ -4,7 +4,6 @@ the tests that need it carry the `requires_checkpoint` marker; without a checkpo
 detect_deepfake must fail honestly (never a fabricated score). detect_replay_attack is
 exercised against real frames.
 """
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -21,7 +20,7 @@ def _frames():
 
 
 def test_deepfake_empty_frames_returns_contract_compliant_error():
-    result = asyncio.run(detect_deepfake([]))
+    result = detect_deepfake([])
     assert result.score is None
     assert result.passed is False
     assert result.error is not None
@@ -31,7 +30,7 @@ def test_deepfake_empty_frames_returns_contract_compliant_error():
 def test_deepfake_produces_real_scores_with_trained_checkpoint():
     """With the checkpoint present, the model produces real (not fabricated) scores."""
     frames = _frames()
-    result = asyncio.run(detect_deepfake(frames))
+    result = detect_deepfake(frames)
     assert result.error is None
     assert result.score is not None
     assert 0.0 <= result.score <= 1.0
@@ -50,7 +49,7 @@ def test_default_checkpoint_path_does_not_depend_on_working_directory():
 
 
 def test_replay_empty_frames_returns_contract_compliant_error():
-    result = asyncio.run(detect_replay_attack([]))
+    result = detect_replay_attack([])
     assert result.score is None
     assert result.passed is False
     assert result.error is not None
@@ -59,7 +58,7 @@ def test_replay_empty_frames_returns_contract_compliant_error():
 def test_replay_detector_scores_real_fixture_without_crashing():
     """Real FFT/noise/brightness computation over an actual fixture, not a stub."""
     frames = _frames()
-    result = asyncio.run(detect_replay_attack(frames))
+    result = detect_replay_attack(frames)
     assert result.error is None
     assert result.score is not None
     assert 0.0 <= result.score <= 1.0
@@ -72,7 +71,7 @@ def test_replay_detector_scores_real_fixture_without_crashing():
 def test_replay_detector_single_frame_does_not_crash():
     """Temporal noise needs >=2 frames; a single frame must degrade gracefully, not crash."""
     frames = _frames()[:1]
-    result = asyncio.run(detect_replay_attack(frames))
+    result = detect_replay_attack(frames)
     assert result.error is None
     assert result.details["noise_score"] is None  # unmeasurable -> null, never a 0.5 placeholder
     assert result.score is not None  # combined from the sub-signals that did measure

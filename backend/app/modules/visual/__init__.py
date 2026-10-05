@@ -32,7 +32,7 @@ def _resolve_frames(frames_or_source: Union[List[Any], str, Path]) -> tuple[List
     return frames_or_source, None, None, None
 
 
-async def detect_visual_liveness(
+def detect_visual_liveness(
     frames: Union[list, str, Path],
     features: Optional[Dict[str, Any]] = None,
 ) -> DetectorResult:
@@ -77,7 +77,7 @@ async def detect_visual_liveness(
         return DetectorResult(score=None, passed=False, reason="Visual liveness detection failed.", error=str(exc))
 
 
-async def verify_challenge_compliance(
+def verify_challenge_compliance(
     frames: Union[list, str, Path],
     visual_challenge: str,
     features: Optional[Dict[str, Any]] = None,

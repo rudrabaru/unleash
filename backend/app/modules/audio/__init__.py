@@ -99,7 +99,7 @@ def _cleanup_temp_file(file_path: Optional[Path]) -> None:
             logger.warning(f"Could not delete temporary WAV file {file_path}: {e}")
 
 
-async def process_audio_pipeline(
+def process_audio_pipeline(
     media_path: str,
     challenge_phrase: str,
     lip_openness_data: Optional[Dict[str, Any]] = None,

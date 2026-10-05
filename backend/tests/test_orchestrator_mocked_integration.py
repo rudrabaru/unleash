@@ -5,69 +5,16 @@ They cover the data flow (extraction -> detectors -> fusion -> database), isolat
 crashing detector, and a recording with no video. They do not claim a VERIFIED verdict on a
 real recording; see test_analysis_integration.py for the real detectors.
 """
-import asyncio
-from contextlib import ExitStack, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
-import numpy as np
 import pytest
 
 from app import db, orchestrator
-from app.modules.frame_extraction import FrameExtractionResult
-from app.modules.visual._frames import VisualFramesResult
-from app.schemas.detector import DetectorResult
 from app.schemas.session import VerificationStatus
+from _mocks import MOCK_PHRASE, detector_result as _detector_result, mocked_detectors as _mocked
 
-PHRASE = "apple bridge cloud dark eagle"
-FRAME = np.zeros((64, 64, 3), dtype=np.uint8)
-
-
-def _detector_result(score=0.90, passed=True, reason="ok", error=None, details=None):
-    return DetectorResult(score=score, passed=passed, reason=reason, error=error, details=details or {})
-
-
-def _sparse_frames(count: int, error=None) -> FrameExtractionResult:
-    return FrameExtractionResult(
-        frames=[FRAME] * count, fps=30.0, timestamps=[i / 30 for i in range(count)], error=error
-    )
-
-
-def _dense_frames(count: int, error=None) -> VisualFramesResult:
-    return VisualFramesResult(
-        frames=[FRAME] * count,
-        fps=30.0,
-        timestamps=[i / 30 for i in range(count)],
-        original_indices=list(range(count)),
-        error=error,
-    )
-
-
-@contextmanager
-def _mocked(*, audio, liveness, challenge, deepfake, replay, frames=5, frame_error=None):
-    """Patch extraction and every detector. A value that is an Exception is raised when called."""
-    with ExitStack() as stack:
-        stack.enter_context(patch("app.orchestrator.extract_frames", return_value=_sparse_frames(frames, frame_error)))
-        stack.enter_context(patch("app.orchestrator.extract_visual_frames", return_value=_dense_frames(frames, frame_error)))
-        stack.enter_context(
-            patch("app.orchestrator.extract_landmark_features", return_value={"frames": [], "error": None})
-        )
-        mocks = {}
-        for name, target, value in (
-            ("audio", "process_audio_pipeline", audio),
-            ("liveness", "detect_visual_liveness", liveness),
-            ("challenge", "verify_challenge_compliance", challenge),
-            ("deepfake", "detect_deepfake", deepfake),
-            ("replay", "detect_replay_attack", replay),
-        ):
-            mock = stack.enter_context(patch(f"app.orchestrator.{target}", new_callable=AsyncMock))
-            if isinstance(value, Exception):
-                mock.side_effect = value
-            else:
-                mock.return_value = value
-            mocks[name] = mock
-        yield mocks
+PHRASE = MOCK_PHRASE
 
 
 def _create_session(session_id: str, visual: str = "TURN_HEAD_LEFT") -> None:
@@ -81,13 +28,11 @@ def _create_session(session_id: str, visual: str = "TURN_HEAD_LEFT") -> None:
 
 
 def _run_verification(session_id: str, visual: str = "TURN_HEAD_LEFT") -> None:
-    asyncio.run(
-        orchestrator.run_verification(
-            session_id=session_id,
-            media_path=Path("dummy_video.webm"),
-            visual_challenge=visual,
-            verbal_challenge=PHRASE,
-        )
+    orchestrator.run_verification(
+        session_id=session_id,
+        media_path=Path("dummy_video.webm"),
+        visual_challenge=visual,
+        verbal_challenge=PHRASE,
     )
 
 
@@ -183,7 +128,7 @@ def test_analyze_media_reports_timings_for_every_step():
         deepfake=_detector_result(0.90, True, "Deepfake ok"),
         replay=_detector_result(0.80, True, "Replay ok"),
     ):
-        analysis = asyncio.run(orchestrator.analyze_media(Path("dummy_video.webm"), "TURN_HEAD_LEFT", PHRASE))
+        analysis = orchestrator.analyze_media(Path("dummy_video.webm"), "TURN_HEAD_LEFT", PHRASE)
 
     assert set(analysis.timings) == {
         "frames", "landmarks", "audio", "visual_liveness", "visual_challenge", "deepfake", "replay", "fusion", "total",

@@ -3,7 +3,6 @@ Tests for the phrase check (faster-whisper transcription plus fuzzy 4-of-5 word 
 """
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -189,7 +188,7 @@ def test_wrong_phrase_fails(genuine_wav):
 
 def test_pipeline_rejects_speech_that_does_not_match_the_challenge():
     """Through the whole audio pipeline a wrong phrase is a failure, not an error."""
-    res = asyncio.run(process_audio_pipeline(str(require(GENUINE_5WORD_WEBM)), OTHER_5WORD_PHRASE))
+    res = process_audio_pipeline(str(require(GENUINE_5WORD_WEBM)), OTHER_5WORD_PHRASE)
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.error is None

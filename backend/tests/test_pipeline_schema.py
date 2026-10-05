@@ -7,7 +7,6 @@ Verifies:
 """
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 from app.core.config import settings
@@ -64,7 +63,7 @@ def test_pipeline_temp_wav_cleanup_on_success():
     if expected_wav.exists():
         expected_wav.unlink()
 
-    res = asyncio.run(process_audio_pipeline(str(real_fixture), GENUINE_5WORD_PHRASE))
+    res = process_audio_pipeline(str(real_fixture), GENUINE_5WORD_PHRASE)
     assert res.passed is True
     assert not expected_wav.exists(), f"Temporary WAV {expected_wav} was not deleted after execution"
 
@@ -75,7 +74,7 @@ def test_pipeline_temp_wav_cleanup_on_failure(silence_webm):
     if expected_wav.exists():
         expected_wav.unlink()
 
-    res = asyncio.run(process_audio_pipeline(str(silence_webm), OTHER_5WORD_PHRASE))
+    res = process_audio_pipeline(str(silence_webm), OTHER_5WORD_PHRASE)
     assert res.passed is False
     assert not expected_wav.exists(), f"Temporary WAV {expected_wav} was not deleted after a failed check"
 

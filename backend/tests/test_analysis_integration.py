@@ -3,7 +3,6 @@ Integration tests: real detectors on real clips through the shared analysis entr
 development-only demo endpoint. They check that the modules fit together, not that any signal
 is accurate.
 """
-import asyncio
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -36,7 +35,7 @@ def test_video_without_audio_fails_on_the_audio_check():
     """A clip with a face turning left but no audio track: every signal is present, audio fails."""
     clip = require(VIDEO_FIXTURES_DIR / "TURN_LEFT.webm")
 
-    analysis = asyncio.run(orchestrator.analyze_media(clip, "TURN_HEAD_LEFT", GENUINE_5WORD_PHRASE))
+    analysis = orchestrator.analyze_media(clip, "TURN_HEAD_LEFT", GENUINE_5WORD_PHRASE)
 
     _assert_contract(analysis.signals)
     assert analysis.signals["visual_challenge"].passed is True
@@ -48,7 +47,7 @@ def test_video_without_audio_fails_on_the_audio_check():
 def test_genuine_speech_on_a_video_without_a_face_fails_on_the_visual_challenge():
     clip = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
 
-    analysis = asyncio.run(orchestrator.analyze_media(clip, "TURN_HEAD_LEFT", GENUINE_5WORD_PHRASE))
+    analysis = orchestrator.analyze_media(clip, "TURN_HEAD_LEFT", GENUINE_5WORD_PHRASE)
 
     _assert_contract(analysis.signals)
     assert analysis.signals["audio_pipeline"].passed is True

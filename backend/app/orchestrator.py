@@ -7,6 +7,7 @@ by the development-only `POST /api/v1/verify` demo. Failures are isolated per de
 broken module never takes the whole analysis down.
 """
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -28,6 +29,12 @@ logger = logging.getLogger("unleash.orchestrator")
 # Signals that need video frames; they all fail together when the recording has none.
 VIDEO_SIGNALS = ("visual_liveness", "visual_challenge", "deepfake", "replay")
 
+# The speech detector keeps state between calls (`reset_states`) and the MediaPipe landmarker
+# is created once and shared, so two analyses must not run at the same time. Analyses already
+# run in worker threads (the detectors are plain blocking functions), so this lock is what
+# serialises them.
+_ANALYSIS_LOCK = threading.Lock()
+
 
 @dataclass
 class AnalysisResult:
@@ -40,10 +47,10 @@ def _failed_result(reason: str, error: str) -> DetectorResult:
     return DetectorResult(score=None, passed=False, reason=reason, error=error)
 
 
-async def _safe_call(name: str, coro) -> DetectorResult:
+def _safe_call(name: str, detector, *args, **kwargs) -> DetectorResult:
     """Never let one detector's exception take down the whole session."""
     try:
-        return await coro
+        return detector(*args, **kwargs)
     except Exception as exc:  # noqa: BLE001 - a detector must never take the analysis down
         logger.exception("Detector %s raised", name)
         return _failed_result(reason="Detector unavailable", error=str(exc))
@@ -60,7 +67,12 @@ def _lip_series(landmark_features, fps: float):
         return None
 
 
-async def analyze_media(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
+def analyze_media(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
+    with _ANALYSIS_LOCK:
+        return _analyze(media_path, visual_challenge, verbal_challenge)
+
+
+def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
     timings: Dict[str, float] = {}
     started = time.perf_counter()
 
@@ -96,21 +108,24 @@ async def analyze_media(media_path: Path, visual_challenge: str, verbal_challeng
     signals: Dict[str, DetectorResult] = {}
 
     step = time.perf_counter()
-    signals["audio_pipeline"] = await _safe_call(
+    signals["audio_pipeline"] = _safe_call(
         "audio_pipeline",
-        process_audio_pipeline(str(media_path), verbal_challenge, lip_openness_data=_lip_series(landmark_features, visual_result.fps)),
+        process_audio_pipeline,
+        str(media_path),
+        verbal_challenge,
+        lip_openness_data=_lip_series(landmark_features, visual_result.fps),
     )
     timed("audio", step)
 
     if frames or visual_frames:
-        for name, call in (
-            ("visual_liveness", lambda: detect_visual_liveness(visual_frames, features=landmark_features)),
-            ("visual_challenge", lambda: verify_challenge_compliance(visual_frames, visual_challenge, features=landmark_features)),
-            ("deepfake", lambda: detect_deepfake(frames)),
-            ("replay", lambda: detect_replay_attack(frames)),
+        for name, detector, args, kwargs in (
+            ("visual_liveness", detect_visual_liveness, (visual_frames,), {"features": landmark_features}),
+            ("visual_challenge", verify_challenge_compliance, (visual_frames, visual_challenge), {"features": landmark_features}),
+            ("deepfake", detect_deepfake, (frames,), {}),
+            ("replay", detect_replay_attack, (frames,), {}),
         ):
             step = time.perf_counter()
-            signals[name] = await _safe_call(name, call())
+            signals[name] = _safe_call(name, detector, *args, **kwargs)
             timed(name, step)
     else:
         error = frame_result.error or visual_result.error or "No video frames available."
@@ -124,8 +139,8 @@ async def analyze_media(media_path: Path, visual_challenge: str, verbal_challeng
     return AnalysisResult(signals=signals, fusion=result, timings=timings)
 
 
-async def run_verification(session_id: str, media_path: Path, visual_challenge: str, verbal_challenge: str) -> None:
-    analysis = await analyze_media(media_path, visual_challenge, verbal_challenge)
+def run_verification(session_id: str, media_path: Path, visual_challenge: str, verbal_challenge: str) -> None:
+    analysis = analyze_media(media_path, visual_challenge, verbal_challenge)
     db.write_decision(
         session_id=session_id,
         status=analysis.fusion.status.value,

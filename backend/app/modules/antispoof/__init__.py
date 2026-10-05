@@ -8,7 +8,7 @@ from app.modules.antispoof._deepfake import ModelNotReadyError, classifier
 from app.modules.antispoof._replay import REPLAY_PASS_THRESHOLD, score_replay
 
 
-async def detect_deepfake(frames: list) -> DetectorResult:
+def detect_deepfake(frames: list) -> DetectorResult:
     """
     Self-trained Xception deepfake classifier, forced to CPU.
 
@@ -45,7 +45,7 @@ async def detect_deepfake(frames: list) -> DetectorResult:
     )
 
 
-async def detect_replay_attack(frames: list) -> DetectorResult:
+def detect_replay_attack(frames: list) -> DetectorResult:
     """
     Replay Screen Attack Detector (Phase 4): FFT moire (55%) + temporal noise std (30%) +
     brightness histogram shape (15%), pass threshold 0.60. See `_replay.py` for the

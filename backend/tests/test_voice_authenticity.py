@@ -3,7 +3,6 @@ Tests for the voice-authenticity check (librosa spectral heuristics; advisory on
 """
 from __future__ import annotations
 
-import asyncio
 import time
 from pathlib import Path
 
@@ -218,7 +217,7 @@ def test_degraded_flag_absent_on_fully_measured_run(tmp_path: Path):
 
 def test_pipeline_skips_the_voice_check_when_the_speech_check_fails(silence_webm):
     """If the speech check fails (silence), the voice-authenticity check is not evaluated."""
-    res = asyncio.run(process_audio_pipeline(str(silence_webm), OTHER_5WORD_PHRASE))
+    res = process_audio_pipeline(str(silence_webm), OTHER_5WORD_PHRASE)
 
     assert res.passed is False
     assert "voice_authenticity_score" not in (res.details or {})

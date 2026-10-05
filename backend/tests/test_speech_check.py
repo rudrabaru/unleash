@@ -3,7 +3,6 @@ Tests for the speech check (voice-activity detection) and the audio extraction t
 """
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 import numpy as np
@@ -139,7 +138,7 @@ def test_pipeline_with_real_speech_fixture(genuine_pipeline_result):
 
 def test_pipeline_with_silence(silence_webm):
     """Muted microphone: the speech check stops the pipeline."""
-    res = asyncio.run(process_audio_pipeline(str(silence_webm), OTHER_5WORD_PHRASE))
+    res = process_audio_pipeline(str(silence_webm), OTHER_5WORD_PHRASE)
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None
@@ -149,7 +148,7 @@ def test_pipeline_with_silence(silence_webm):
 
 def test_pipeline_with_non_speech_tone(tone_webm):
     """Music or a tone near the microphone is not speech."""
-    res = asyncio.run(process_audio_pipeline(str(tone_webm), OTHER_5WORD_PHRASE))
+    res = process_audio_pipeline(str(tone_webm), OTHER_5WORD_PHRASE)
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None
@@ -159,7 +158,7 @@ def test_pipeline_with_non_speech_tone(tone_webm):
 
 def test_pipeline_with_truncated_file(corrupt_webm):
     """A valid header with a cut-off body fails cleanly."""
-    res = asyncio.run(process_audio_pipeline(str(corrupt_webm), OTHER_5WORD_PHRASE))
+    res = process_audio_pipeline(str(corrupt_webm), OTHER_5WORD_PHRASE)
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None
@@ -167,7 +166,7 @@ def test_pipeline_with_truncated_file(corrupt_webm):
 
 def test_pipeline_with_garbage_bytes(garbage_webm):
     """Random bytes fail cleanly with an error and no score."""
-    res = asyncio.run(process_audio_pipeline(str(garbage_webm), OTHER_5WORD_PHRASE))
+    res = process_audio_pipeline(str(garbage_webm), OTHER_5WORD_PHRASE)
     assert isinstance(res, DetectorResult)
     assert res.passed is False
     assert res.score is None

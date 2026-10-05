@@ -98,6 +98,16 @@ def set_challenge(session_id: str, visual_challenge: Optional[str] = None, verba
             conn.execute("UPDATE sessions SET verbal_challenge = ? WHERE session_id = ?", (verbal_challenge, session_id))
 
 
+def claim_for_processing(session_id: str, updated_at: datetime) -> bool:
+    """Move a CREATED session to PROCESSING in one statement. False if another request got there first."""
+    with _connect() as conn:
+        cursor = conn.execute(
+            "UPDATE sessions SET status = ?, updated_at = ? WHERE session_id = ? AND status = ?",
+            ("PROCESSING", updated_at.isoformat(), session_id, "CREATED"),
+        )
+        return cursor.rowcount == 1
+
+
 def update_session_status(session_id: str, status: str, updated_at: datetime) -> None:
     with _connect() as conn:
         conn.execute(

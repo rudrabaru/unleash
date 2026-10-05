@@ -4,7 +4,6 @@ Tests for the visual liveness and challenge-compliance module.
 confirming graceful "no face detected" handling; the real-face clips cover the head turns,
 looking up/down and blinking.
 """
-import asyncio
 
 
 from app.modules.visual import (
@@ -25,7 +24,7 @@ def _frames(name: str):
 
 
 def test_liveness_empty_frames_returns_contract_compliant_error():
-    result = asyncio.run(detect_visual_liveness([]))
+    result = detect_visual_liveness([])
     assert result.score is None
     assert result.passed is False
     assert result.error is not None
@@ -35,7 +34,7 @@ def test_liveness_empty_frames_returns_contract_compliant_error():
 def test_liveness_no_face_scores_low_not_crash():
     frames = extract_visual_frames(str(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM))).frames
     assert frames
-    result = asyncio.run(detect_visual_liveness(frames))
+    result = detect_visual_liveness(frames)
     assert result.error is None
     assert result.score is not None
     assert 0.0 <= result.score <= 1.0
@@ -45,13 +44,13 @@ def test_liveness_no_face_scores_low_not_crash():
 def test_challenge_compliance_no_face_fails_the_must_pass_check():
     frames = extract_visual_frames(str(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM))).frames
     assert frames
-    result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value))
+    result = verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value)
     assert result.error is None
     assert result.passed is False
 
 
 def test_challenge_compliance_unknown_challenge_errors_gracefully():
-    result = asyncio.run(verify_challenge_compliance([], "NOT_A_REAL_CHALLENGE"))
+    result = verify_challenge_compliance([], "NOT_A_REAL_CHALLENGE")
     assert result.score is None
     assert result.passed is False
     assert result.error is not None
@@ -59,7 +58,7 @@ def test_challenge_compliance_unknown_challenge_errors_gracefully():
 
 def test_liveness_real_face_detects_blink_and_natural_movement():
     frames = _frames("BLINKING.webm")
-    result = asyncio.run(detect_visual_liveness(frames))
+    result = detect_visual_liveness(frames)
     assert result.error is None
     assert result.passed is True
     assert result.score is not None and result.score >= 0.5
@@ -72,13 +71,13 @@ def test_liveness_real_face_detects_blink_and_natural_movement():
 def test_challenge_compliance_turn_head_left_real_video():
     frames = _frames("TURN_LEFT.webm")
     # Correct challenge must pass
-    result_left = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value))
+    result_left = verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value)
     assert result_left.error is None
     assert result_left.passed is True
     assert result_left.score == 1.0
 
     # Opposite challenge must fail
-    result_right = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_RIGHT.value))
+    result_right = verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_RIGHT.value)
     assert result_right.error is None
     assert result_right.passed is False
 
@@ -86,34 +85,34 @@ def test_challenge_compliance_turn_head_left_real_video():
 def test_challenge_compliance_turn_head_right_real_video():
     frames = _frames("TURN_RIGHT.webm")
     # Correct challenge must pass
-    result_right = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_RIGHT.value))
+    result_right = verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_RIGHT.value)
     assert result_right.error is None
     assert result_right.passed is True
     assert result_right.score == 1.0
 
     # Opposite challenge must fail
-    result_left = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value))
+    result_left = verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value)
     assert result_left.error is None
     assert result_left.passed is False
 
 
 def test_challenge_compliance_look_down_real_video():
     frames = _frames("DOWN.webm")
-    result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.LOOK_DOWN.value))
+    result = verify_challenge_compliance(frames, VisualChallengeType.LOOK_DOWN.value)
     assert result.error is None
     assert result.passed is True
 
 
 def test_challenge_compliance_look_up_real_video():
     frames = _frames("UP.webm")
-    result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.LOOK_UP.value))
+    result = verify_challenge_compliance(frames, VisualChallengeType.LOOK_UP.value)
     assert result.error is None
     assert result.passed is True
 
 
 def test_look_down_does_not_pass_blink_twice():
     frames = _frames("DOWN.webm")
-    result = asyncio.run(verify_challenge_compliance(frames, VisualChallengeType.BLINK_TWICE.value))
+    result = verify_challenge_compliance(frames, VisualChallengeType.BLINK_TWICE.value)
     assert result.error is None
     assert result.passed is False, "Looking down should not trigger blink-twice challenge"
 

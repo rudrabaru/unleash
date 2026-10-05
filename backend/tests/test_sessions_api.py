@@ -86,3 +86,12 @@ def test_session_lifecycle_with_wrong_challenge_fails():
     res_data = client.get(f"/api/v1/sessions/{session_id}").json()
     assert res_data["status"] == VerificationStatus.FAILED
     assert res_data["signals"]["audio_pipeline"]["passed"] is False
+
+
+def test_submit_loses_when_another_request_claimed_the_session_first(monkeypatch):
+    """The CREATED -> PROCESSING change is one atomic update; the request that loses it gets 409."""
+    media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
+    session_id, token = _create_session_with_phrase(GENUINE_5WORD_PHRASE)
+    monkeypatch.setattr(db, "claim_for_processing", lambda *args, **kwargs: False)
+
+    assert _submit(session_id, token, media).status_code == 409
