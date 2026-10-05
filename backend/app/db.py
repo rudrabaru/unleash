@@ -161,10 +161,3 @@ def get_session(session_id: str) -> Optional[Dict[str, Any]]:
             for r in signal_rows
         }
         return session
-
-
-def list_sessions() -> list[Dict[str, Any]]:
-    with _connect() as conn:
-        rows = conn.execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
-        session_ids = [r["session_id"] for r in rows]
-    return [get_session(sid) for sid in session_ids]
