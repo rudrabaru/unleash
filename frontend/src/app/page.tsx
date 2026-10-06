@@ -15,6 +15,15 @@ interface SessionChallenge {
   expires_at: number;
 }
 
+// Left and right are the person's own left and right (the backend reads an unmirrored recording).
+const VISUAL_INSTRUCTIONS: Record<string, string> = {
+  TURN_HEAD_LEFT: "Turn your head to your left",
+  TURN_HEAD_RIGHT: "Turn your head to your right",
+  LOOK_UP: "Look up",
+  LOOK_DOWN: "Look down",
+  BLINK_TWICE: "Blink twice",
+};
+
 export default function AudioCapturePrototype() {
   // Session State
   const [session, setSession] = useState<SessionChallenge | null>(null);
@@ -305,7 +314,7 @@ export default function AudioCapturePrototype() {
           Visual Challenge
         </span>
         <p style={{ fontSize: "1.4rem", fontWeight: 600, marginTop: "0.4rem" }}>
-          {session?.challenge.visual ? session.challenge.visual.replace(/_/g, " ").toLowerCase() : "•"}
+          {session?.challenge.visual ? (VISUAL_INSTRUCTIONS[session.challenge.visual] ?? session.challenge.visual) : "•"}
         </p>
         <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
           Do this while saying the words.
