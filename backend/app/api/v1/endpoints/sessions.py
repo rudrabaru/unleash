@@ -20,7 +20,7 @@ from app.schemas.session import (
 
 router = APIRouter()
 
-# Challenges must be unpredictable (B3): use the OS CSPRNG, not the Mersenne Twister `random`.
+# Challenges must be unpredictable : use the OS CSPRNG, not the Mersenne Twister `random`.
 _rng = secrets.SystemRandom()
 
 

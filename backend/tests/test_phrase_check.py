@@ -70,7 +70,7 @@ def test_match_words_fuzzy():
     assert match_count == 5
     assert avg_conf > 0.85
 
-    # 4 of 5 match (passing hard gate, threshold=4)
+    # 4 of 5 match (passes, threshold=4)
     recognized = [("apple", 0.95), ("bridget", 0.70), ("cloud", 0.88), ("dark", 0.91), ("eagle", 0.89)]
     target = ["apple", "bridge", "cloud", "dark", "eagle"]
     match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_word_confidence=0.5, min_word_similarity=0.6)

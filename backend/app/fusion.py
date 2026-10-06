@@ -11,9 +11,9 @@ from typing import Dict, Optional
 from app.schemas.detector import DetectorResult
 from app.schemas.session import VerificationStatus
 
-# Weighted-scoring portion. Challenge compliance's hard gate is separate from its
-# score weight; audio speech-gate and phrase-compliance are pure hard gates with no
-# weight of their own (they gate audio_pipeline.passed instead).
+# Weighted-scoring portion. Challenge compliance's must-pass check is separate from its
+# score weight; the audio speech and phrase checks are pure must-pass checks with no
+# weight of their own (they decide audio_pipeline.passed instead).
 SIGNAL_WEIGHTS: Dict[str, float] = {
     "visual_liveness": 0.20,
     "visual_challenge": 0.25,
@@ -37,15 +37,15 @@ class FusionResult:
     reason: str
 
 
-def _hard_gate_failed(signals: Dict[str, DetectorResult]) -> Optional[str]:
-    """Return a human-readable reason if any hard gate failed, else None."""
+def _must_pass_failed(signals: Dict[str, DetectorResult]) -> Optional[str]:
+    """Return a human-readable reason if any must-pass check failed, else None."""
     visual_challenge = signals.get("visual_challenge")
     if visual_challenge is not None and not visual_challenge.passed:
         return f"Visual challenge compliance failed: {visual_challenge.reason}"
 
     audio = signals.get("audio_pipeline")
     if audio is not None and not audio.passed:
-        return f"Audio hard gate failed: {audio.reason}"
+        return f"Audio must-pass check failed: {audio.reason}"
 
     deepfake = signals.get("deepfake")
     replay = signals.get("replay")
@@ -71,7 +71,7 @@ def _weighted_score(signals: Dict[str, DetectorResult]) -> Optional[float]:
     (never treated as 0), per plan Section 6.
 
     visual_challenge contributes its score to this weighted portion even though
-    its `passed` boolean is checked separately as a hard gate above.
+    its `passed` boolean is checked separately as a must-pass check above.
     """
     present: Dict[str, float] = {}
     for key, weight in SIGNAL_WEIGHTS.items():
@@ -114,13 +114,13 @@ def _weighted_score(signals: Dict[str, DetectorResult]) -> Optional[float]:
 
 def evaluate(signals: Dict[str, DetectorResult]) -> FusionResult:
     """
-    Run hard gates first, then weighted scoring, per plan Section 6.
+    Run the must-pass checks first, then the weighted score.
 
     `signals` keys expected: visual_liveness, visual_challenge, deepfake, replay,
-    audio_pipeline (Dev 1's combined Stage1-4 result). voice_authenticity and
+    audio_pipeline (the combined audio result). voice_authenticity and
     av_alignment may be read from audio_pipeline.details if not passed separately.
     """
-    gate_reason = _hard_gate_failed(signals)
+    gate_reason = _must_pass_failed(signals)
     if gate_reason is not None:
         return FusionResult(status=VerificationStatus.FAILED, confidence=None, reason=gate_reason)
 
@@ -129,7 +129,7 @@ def evaluate(signals: Dict[str, DetectorResult]) -> FusionResult:
         return FusionResult(
             status=VerificationStatus.FAILED,
             confidence=None,
-            reason="All hard gates passed but no usable signal scores were available.",
+            reason="All must-pass checks passed but no usable signal scores were available.",
         )
 
     if score >= VERIFIED_THRESHOLD:

@@ -5,7 +5,7 @@ Visual liveness and challenge verification
 
 Both entrypoints accept an optional pre-computed `features` dict (from
 `_landmarks.extract_landmark_features`) so a caller running MediaPipe once for several
-consumers — the orchestrator runs it for liveness, challenge compliance, and the Stage 4
+consumers — the orchestrator runs it for liveness, challenge compliance, and the lip-sync
 lip series, all over the same frame list — doesn't pay for three separate passes. Called
 without it (e.g. tests exercising one function directly against raw frames), each function
 still computes it itself; behavior and thresholds are unchanged either way.

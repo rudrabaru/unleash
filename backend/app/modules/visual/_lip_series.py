@@ -1,13 +1,13 @@
 """
-Per-frame lip openness series export for Stage 4 AV alignment (Phase 5).
+Per-frame lip openness series export for the lip-sync check.
 Normalized by face height (top-of-forehead to chin), not raw x/y width, to
 avoid the aspect-distortion bug found in the standalone app's MAR ratio.
 
-Per av-alignment-interface.md §5 (B4 fix): each sample carries the frame's real
+Per av-alignment-interface.md §5: each sample carries the frame's real
 presentation timestamp `time_seconds`. A timestamp is NEVER derived here from
 `frame_index / fps`: browser `.webm` reports a bogus 1000 fps and indices count sampled
 frames, so that clock is wrong. When a frame has no real timestamp the field is omitted and
-Stage 4 degrades to `score=None` instead of scoring against an invented clock (J5).
+the lip-sync check degrades to `score=None` instead of scoring against an invented clock.
 """
 from typing import Any, Dict
 

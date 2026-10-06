@@ -1,7 +1,7 @@
 """
 Deepfake detector configuration. Owns the constants that used to live in
 training/train_xception.py so the runtime module never has to import the
-training script (see Phase 3: invert the config -> training import direction).
+training script.
 """
 from dataclasses import dataclass
 from pathlib import Path

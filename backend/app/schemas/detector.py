@@ -15,7 +15,7 @@ class DetectorResult(BaseModel):
     )
     passed: bool = Field(
         ...,
-        description="Hard gate decision or module-level pass/fail evaluation."
+        description="The module's own pass/fail decision (for a must-pass check, whether it passed)."
     )
     reason: str = Field(
         ...,

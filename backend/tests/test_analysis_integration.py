@@ -41,7 +41,7 @@ def test_video_without_audio_fails_on_the_audio_check():
     assert analysis.signals["visual_challenge"].passed is True
     assert analysis.signals["audio_pipeline"].passed is False
     assert analysis.fusion.status.value == "FAILED"
-    assert analysis.fusion.reason.startswith("Audio hard gate failed")
+    assert analysis.fusion.reason.startswith("Audio must-pass check failed")
 
 
 def test_genuine_speech_on_a_video_without_a_face_fails_on_the_visual_challenge():

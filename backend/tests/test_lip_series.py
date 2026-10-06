@@ -24,7 +24,7 @@ def test_lip_series_carries_real_time_and_original_index():
 
 @pytest.mark.parametrize("fps", [1000.0, 30.0])
 def test_lip_series_never_invents_a_time_from_fps(fps):
-    """Without a real timestamp the field is omitted; Stage 4 then degrades instead of mis-scoring."""
+    """Without a real timestamp the field is omitted; the lip-sync check then degrades instead of mis-scoring."""
     feats = {"frames": [{"mouth_open": 0.03, "time_seconds": None, "original_index": i} for i in range(30)]}
     data = build_lip_series(feats, fps)
 

@@ -40,4 +40,4 @@ def test_no_two_vocabulary_words_can_match_each_other():
         (word_similarity_score(a, b), a, b)
         for a, b in itertools.combinations(CHALLENGE_VOCABULARY, 2)
     )
-    assert worst[0] < MIN_WORD_SIMILARITY, f"{worst[1]!r} and {worst[2]!r} are interchangeable to Stage 2"
+    assert worst[0] < MIN_WORD_SIMILARITY, f"{worst[1]!r} and {worst[2]!r} are interchangeable to the phrase check"

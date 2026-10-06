@@ -126,7 +126,7 @@ def run_av_alignment(
     lip_openness_data: Optional[Dict[str, Any]] = None,
 ) -> DetectorResult:
     """
-    Execute Stage 4 AV Temporal Alignment.
+    Run the lip-sync check.
 
     `lip_openness_data` shape: {"fps": float, "series": [{"frame_index": int,
     "time_seconds": float, "lip_openness_ratio": float}, ...]}, per av-alignment-interface.md;

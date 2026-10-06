@@ -241,7 +241,7 @@ export default function AudioCapturePrototype() {
       <header className="card" style={{ padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
-            <span className="badge badge-verified">Day 8 Prototype</span>
+            <span className="badge badge-verified">Recorder prototype</span>
             <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Audio Vertical</span>
           </div>
           <h1 style={{ fontSize: "1.5rem", fontWeight: "700" }}>Microphone Capture & Voice UI</h1>

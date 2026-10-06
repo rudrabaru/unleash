@@ -1,5 +1,5 @@
 """
-Tests for the evidence fusion engine: hard gates, joint veto, null-score
+Tests for the evidence fusion engine: must-pass checks, joint veto, null-score
 redistribution, and threshold bands (docs/unleash_project_plan.md Section 6).
 """
 from app import fusion
@@ -11,7 +11,7 @@ def _result(score, passed=True, reason="ok", details=None):
     return DetectorResult(score=score, passed=passed, reason=reason, error=None, details=details)
 
 
-def test_visual_challenge_hard_gate_fails_regardless_of_score():
+def test_visual_challenge_must_pass_check_fails_regardless_of_score():
     signals = {
         "visual_challenge": _result(0.9, passed=False),
         "visual_liveness": _result(0.9),
@@ -24,7 +24,7 @@ def test_visual_challenge_hard_gate_fails_regardless_of_score():
     assert result.confidence is None
 
 
-def test_audio_hard_gate_fails_regardless_of_score():
+def test_audio_must_pass_check_fails_regardless_of_score():
     signals = {
         "visual_challenge": _result(0.9, passed=True),
         "audio_pipeline": _result(0.9, passed=False),
@@ -254,7 +254,7 @@ def test_replay_score_none_excludes_weight_and_matches_absent():
 
 def test_stage3_and_deepfake_none_exclude_weights_and_match_absent():
     """
-    b) Stage 3/deepfake score = None
+    b) voice-authenticity/deepfake score = None
     - No exception raised.
     - Score None excludes the signal's weight.
     - Remaining active weights are renormalized proportionally.
@@ -276,7 +276,7 @@ def test_stage3_and_deepfake_none_exclude_weights_and_match_absent():
     assert res_df_none.status == res_df_absent.status == VerificationStatus.VERIFIED
     assert res_df_none.confidence == res_df_absent.confidence == 0.90
 
-    # 2. Stage 3 (voice authenticity) in audio_pipeline.details with score=None vs absent
+    # 2. voice authenticity in audio_pipeline.details with score=None vs absent
     base_audio = {
         "visual_challenge": _result(1.0, passed=True),
         "audio_pipeline": _result(
@@ -300,17 +300,17 @@ def test_stage3_and_deepfake_none_exclude_weights_and_match_absent():
     assert res_va_none.confidence == res_va_absent.confidence == 1.0
 
 
-def test_hard_gate_behavior_with_none_score():
+def test_must_pass_check_behavior_with_none_score():
     """
-    c) Hard gate involving a None score
+    c) Must-pass check involving a None score
     Current production behavior:
-    Hard gates depend only on the boolean `.passed` fields (audio_pipeline.passed
+    Must-pass checks depend only on the boolean `.passed` fields (audio_pipeline.passed
     and visual_challenge.passed), not on numeric scores.
-    If a hard gate fails (passed=False), fusion immediately fails closed
-    (status=FAILED, confidence=None) even if replay, deepfake, or Stage 3 scores are None.
-    Conversely, if passed=True, a None score does not fail the hard gate.
+    If a must-pass check fails (passed=False), fusion immediately fails closed
+    (status=FAILED, confidence=None) even if replay, deepfake, or voice-authenticity scores are None.
+    Conversely, if passed=True, a None score does not fail the must-pass check.
     """
-    # Audio hard gate fails even when replay score is None
+    # Audio must-pass check fails even when replay score is None
     signals_audio_failed = {
         "visual_challenge": _result(1.0, passed=True),
         "audio_pipeline": _result(score=None, passed=False, reason="Speech too short"),
@@ -320,9 +320,9 @@ def test_hard_gate_behavior_with_none_score():
     res_audio_failed = fusion.evaluate(signals_audio_failed)
     assert res_audio_failed.status == VerificationStatus.FAILED
     assert res_audio_failed.confidence is None
-    assert "Audio hard gate failed" in res_audio_failed.reason
+    assert "Audio must-pass check failed" in res_audio_failed.reason
 
-    # Visual challenge hard gate fails even when deepfake score is None
+    # Visual challenge must-pass check fails even when deepfake score is None
     signals_visual_failed = {
         "visual_challenge": _result(score=0.9, passed=False, reason="Wrong head turn"),
         "audio_pipeline": _result(score=1.0, passed=True),
@@ -373,7 +373,7 @@ def test_joint_veto_behavior_with_none_inputs():
 
 def test_simultaneous_null_replay_stage3_and_av_no_division_by_zero():
     """
-    e) replay=None + Stage3=None + AV=None simultaneously
+    e) replay=None + voice-check=None + AV=None simultaneously
     - No exception raised.
     - No division-by-zero.
     - Remaining active weights (visual_liveness 0.20, visual_challenge 0.25, deepfake 0.20)
@@ -384,7 +384,7 @@ def test_simultaneous_null_replay_stage3_and_av_no_division_by_zero():
         "visual_liveness": _result(0.60),                 # 0.20 * 0.60 = 0.12
         "deepfake": _result(0.70),                        # 0.20 * 0.70 = 0.14
         "replay": _result(score=None),                     # excluded
-        "audio_pipeline": _result(                         # Stage 3 & AV excluded
+        "audio_pipeline": _result(                         # voice and lip-sync scores excluded
             score=1.0,
             passed=True,
             details={
@@ -405,7 +405,7 @@ def test_valid_zero_scores_treated_as_present_not_none():
     """
     f) Valid 0.0 values:
     - replay score of 0.0 must be treated as PRESENT (not None/missing).
-    - Stage 3/deepfake score of 0.0 must be treated as PRESENT (not None/missing).
+    - voice-authenticity/deepfake score of 0.0 must be treated as PRESENT (not None/missing).
     - They contribute 0.0 to the numerator and their weight to the denominator.
     """
     # 1. replay=0.0 vs replay=None
@@ -438,7 +438,7 @@ def test_valid_zero_scores_treated_as_present_not_none():
     res_df_zero = fusion.evaluate(sig_df_zero)
     assert res_df_zero.confidence == round(0.25 / 0.45, 4)
 
-    # 3. Stage 3 (voice authenticity in details) = 0.0 vs None
+    # 3. voice authenticity in details = 0.0 vs None
     sig_va_zero = {
         "visual_challenge": _result(1.0, passed=True),  # weight 0.25
         "audio_pipeline": _result(
