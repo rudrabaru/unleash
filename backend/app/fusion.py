@@ -2,8 +2,8 @@
 Evidence Fusion + Decision Engine.
 
 Combines the five detector signals (visual liveness, visual challenge compliance,
-deepfake, replay, audio) into a final verdict, per docs/unleash_project_plan.md
-Section 6 and docs/unleash_team_companion_guide.md Section 2.5.
+deepfake, replay, audio) into a final verdict: must-pass checks first, then the joint veto,
+then the weighted score (see CLAUDE.md for the weights and bands).
 """
 from dataclasses import dataclass
 from typing import Dict, Optional

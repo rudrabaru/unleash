@@ -8,7 +8,7 @@ from pathlib import Path
 import os
 
 # Anchored to the backend folder, not the process working directory, so the default
-# checkpoint is found whether the server starts from backend/ or from the repo root (app.py).
+# checkpoint is found whether the server starts from backend/ or from the repo root.
 _DEFAULT_CHECKPOINT = str(Path(__file__).resolve().parents[3] / "checkpoints" / "xception_deepfake_best.pth")
 
 FAKE_CLASS_INDEX = 1

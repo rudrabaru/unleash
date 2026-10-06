@@ -1,6 +1,6 @@
 """
 Tests for the evidence fusion engine: must-pass checks, joint veto, null-score
-redistribution, and threshold bands (docs/unleash_project_plan.md Section 6).
+redistribution, and threshold bands.
 """
 from app import fusion
 from app.schemas.detector import DetectorResult
