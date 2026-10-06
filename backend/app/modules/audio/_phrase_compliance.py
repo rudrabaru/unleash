@@ -1,13 +1,14 @@
 """
-Stage 2: Phrase Compliance (STT + Word Matching) Implementation.
+Phrase check (speech recognition plus word matching), the second must-pass audio check.
 
-Transcribes audio using faster-whisper (base.en model, decision D-18) on CPU, extracts
-word-level timestamps and confidences, and verifies compliance against a 5-word phrase
-challenge using 1x-normalized edit distance + a per-word confidence floor.
+Transcribes audio with faster-whisper (the base.en model) on CPU, extracts word-level
+timestamps and confidences, and verifies them against the 5-word challenge using a
+length-normalised edit distance plus a per-word confidence floor.
 
 No vocabulary `initial_prompt` is used: it lifted genuine recall but made Whisper emit
-vocabulary words on noise and tones ("zucchini" x6 on noise), which is a false-accept
-channel for a hard gate (bake-off: backend/prototypes/stage2_bakeoff.py, decision D-23).
+vocabulary words on noise and tones ("zucchini" x6 on noise), which would let non-speech
+pass a must-pass check. The model was chosen by comparing candidates on recorded takes
+(tools/phrase_model_comparison.py).
 """
 from __future__ import annotations
 
@@ -21,36 +22,34 @@ from app.schemas.detector import DetectorResult
 
 logger = logging.getLogger(__name__)
 
-# Chosen by the Stage 2 bake-off (D-18/D-23): English-only, so isolated uncommon nouns are
-# decoded as English words instead of the multilingual tiny model's "Lenton"/"Nappal".
+# English-only, so isolated uncommon nouns are decoded as English words instead of the
+# multilingual tiny model's "Lenton"/"Nappal" for "lantern"/"maple".
 WHISPER_MODEL_NAME: str = "base.en"
 WHISPER_COMPUTE_TYPE: str = "int8"
 
 # Per-word Whisper probability a recognized word needs before it can satisfy a challenge word.
-# Kept at 0.5 (D-18: base.en passes the real take without lowering it). Lowering it is a hard-gate
-# threshold change (D-04) and waits for >= 10 genuine takes from >= 3 speakers.
+# Kept at 0.5: base.en passes the one real genuine take without lowering it. Lowering it changes
+# a must-pass threshold and waits for >= 10 genuine takes from >= 3 speakers.
 MIN_WORD_CONFIDENCE: float = 0.5
 
-# faster-whisper loaded ONCE at module init (known-tricky-spots #1, #4)
+# faster-whisper is loaded ONCE at import, never per request (loading takes seconds and would
+# exceed the token's lifetime if it happened inside a request).
 _WHISPER_MODEL: Optional[Any] = None
 _WHISPER_LOAD_ERROR: Optional[str] = None
-_WHISPER_LOAD_TIME_S: float = 0.0
 
 try:
-    _t0 = time.perf_counter()
     from faster_whisper import WhisperModel
 
+    _started = time.perf_counter()
     # int8 quantization for CPU inference speed
     _WHISPER_MODEL = WhisperModel(WHISPER_MODEL_NAME, device="cpu", compute_type=WHISPER_COMPUTE_TYPE)
-    _WHISPER_LOAD_TIME_S = time.perf_counter() - _t0
     logger.info(
-        f"faster-whisper ({WHISPER_MODEL_NAME}/{WHISPER_COMPUTE_TYPE}) loaded successfully "
-        f"in {_WHISPER_LOAD_TIME_S:.3f}s"
+        "faster-whisper (%s/%s) loaded in %.3fs",
+        WHISPER_MODEL_NAME, WHISPER_COMPUTE_TYPE, time.perf_counter() - _started,
     )
-except Exception as _e:  # noqa: BLE001
-    _WHISPER_LOAD_ERROR = f"{type(_e).__name__}: {_e}"
-    _WHISPER_MODEL = None
-    logger.error(f"Failed to load faster-whisper model at module init: {_WHISPER_LOAD_ERROR}")
+except Exception as _exc:  # noqa: BLE001
+    _WHISPER_LOAD_ERROR = f"{type(_exc).__name__}: {_exc}"
+    logger.error("Failed to load faster-whisper at import: %s", _WHISPER_LOAD_ERROR)
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:
@@ -103,7 +102,7 @@ def word_similarity_score(recognized: str, target: str) -> float:
 def match_words_fuzzy(
     recognized_words: List[Tuple[str, float]],
     target_words: List[str],
-    min_avg_confidence: float = 0.5,
+    min_word_confidence: float = MIN_WORD_CONFIDENCE,
     min_word_similarity: float = MIN_WORD_SIMILARITY,
 ) -> Tuple[int, List[str], float]:
     """
@@ -112,7 +111,7 @@ def match_words_fuzzy(
     Args:
         recognized_words: list of (word, confidence) tuples from Whisper
         target_words: list of target words from challenge phrase
-        min_avg_confidence: minimum average confidence across matched words
+        min_word_confidence: a recognized word below this confidence is not considered
         min_word_similarity: minimum per-word fuzzy-match score (0.0-1.0)
 
     Returns:
@@ -124,7 +123,6 @@ def match_words_fuzzy(
     if not recognized_words or not target_words:
         return 0, [], 0.0
 
-    n_target = len(target_words)
     matched = 0
     matched_pairs = []
     confidence_sum = 0.0
@@ -141,7 +139,7 @@ def match_words_fuzzy(
                 continue
 
             # Only consider words with sufficient confidence
-            if confidence < min_avg_confidence:
+            if confidence < min_word_confidence:
                 continue
 
             similarity = word_similarity_score(rec_word, target_word)
@@ -164,7 +162,7 @@ CHALLENGE_WORD_COUNT: int = 5
 
 
 def _failure_result(reason: str, error: str, target_words: List[str]) -> DetectorResult:
-    """4-key failure result (score=None, passed=False) with the empty-details shape later stages expect."""
+    """Failure result (score=None, passed=False) with the empty-details shape the later checks expect."""
     return DetectorResult(
         score=None,
         passed=False,
@@ -182,7 +180,7 @@ def _failure_result(reason: str, error: str, target_words: List[str]) -> Detecto
 
 
 def _precheck_failure(path_obj: Path, challenge_phrase: str, target_words: List[str]) -> Optional[DetectorResult]:
-    """Return a failure result if the model, phrase or file is unusable; None when Stage 2 can run."""
+    """Return a failure result if the model, phrase or file is unusable; None when the phrase check can run."""
     if _WHISPER_MODEL is None:
         return _failure_result(
             "Phrase compliance check unavailable due to Whisper model initialization error.",
@@ -208,7 +206,7 @@ def _transcribe(path_obj: Path) -> Tuple[List[Any], Any, float]:
         beam_size=5,
         language="en",
         word_timestamps=True,
-        vad_filter=False,  # Stage 1 already filtered via silero-vad
+        vad_filter=False,  # the speech check already ran silero-vad
         temperature=0.0,
     )
     segments_list = list(segments)
@@ -216,7 +214,7 @@ def _transcribe(path_obj: Path) -> Tuple[List[Any], Any, float]:
 
 
 def _collect_words(segments: List[Any]) -> Tuple[List[Dict[str, Any]], List[Tuple[str, float]]]:
-    """Word timestamps (critical for Stage 4 AV alignment) and (word, probability) pairs."""
+    """Word timestamps (needed by the lip-sync check) and (word, probability) pairs."""
     word_timestamps: List[Dict[str, Any]] = []
     recognized_words: List[Tuple[str, float]] = []
     for seg in segments:
@@ -260,20 +258,17 @@ def run_phrase_compliance(
     wav_path: Path | str,
     challenge_phrase: str,
     threshold: int = 4,
-    min_avg_confidence: float = MIN_WORD_CONFIDENCE,
+    min_word_confidence: float = MIN_WORD_CONFIDENCE,
 ) -> DetectorResult:
     """
-    Execute Stage 2 Phrase Compliance on a 16kHz mono WAV file.
+    Run the phrase check on a 16kHz mono WAV file.
 
-    Hard gate requirements:
+    Must-pass requirements:
       - At least 4 of 5 challenge words must match (with fuzzy edit distance).
-      - Each matched word must have >= min_avg_confidence (0.0-1.0).
-      - Extracts and retains word-level timestamps in details for Stage 4 AV alignment.
+      - Each matched word must have a recognition confidence >= min_word_confidence (0.0-1.0).
+      - Word-level timestamps are kept in details for the lip-sync check.
 
-    Guarantees:
-      - Never raises an uncaught exception (4-key contract).
-      - Returns a fully compliant DetectorResult.
-      - Always populates word-level timestamps in details on successful transcription.
+    Never raises; always returns a DetectorResult, with word timestamps on a successful transcription.
     """
     path_obj = Path(wav_path)
     target_words = challenge_phrase.lower().strip().split()
@@ -290,7 +285,7 @@ def run_phrase_compliance(
         match_count, matched_pairs, avg_confidence = match_words_fuzzy(
             recognized_words=recognized_words,
             target_words=target_words,
-            min_avg_confidence=min_avg_confidence,
+            min_word_confidence=min_word_confidence,
             min_word_similarity=MIN_WORD_SIMILARITY,
         )
         passed = match_count >= threshold
@@ -316,13 +311,13 @@ def run_phrase_compliance(
                 "language": getattr(info, "language", "en"),
                 "whisper_model": WHISPER_MODEL_NAME,
                 "compute_type": WHISPER_COMPUTE_TYPE,
-                "min_word_confidence": min_avg_confidence,
+                "min_word_confidence": min_word_confidence,
             },
         )
     except Exception as e:  # noqa: BLE001 - a detector must never raise
         logger.exception("Unexpected error in run_phrase_compliance")
         return _failure_result(
-            f"Stage 2 Phrase Compliance failed unexpectedly: {type(e).__name__}: {e}",
+            f"Phrase check failed unexpectedly: {type(e).__name__}: {e}",
             f"{type(e).__name__}: {e}",
             target_words,
         )

@@ -66,20 +66,20 @@ def test_match_words_fuzzy():
     # Perfect match: all 5 words recognized with high confidence
     recognized = [("apple", 0.95), ("bridge", 0.92), ("cloud", 0.88), ("dark", 0.91), ("eagle", 0.89)]
     target = ["apple", "bridge", "cloud", "dark", "eagle"]
-    match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_avg_confidence=0.5, min_word_similarity=0.6)
+    match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_word_confidence=0.5, min_word_similarity=0.6)
     assert match_count == 5
     assert avg_conf > 0.85
 
     # 4 of 5 match (passing hard gate, threshold=4)
     recognized = [("apple", 0.95), ("bridget", 0.70), ("cloud", 0.88), ("dark", 0.91), ("eagle", 0.89)]
     target = ["apple", "bridge", "cloud", "dark", "eagle"]
-    match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_avg_confidence=0.5, min_word_similarity=0.6)
+    match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_word_confidence=0.5, min_word_similarity=0.6)
     assert match_count >= 4  # "bridget" -> "bridge" with fuzzy match
 
     # Low confidence words filtered out
     recognized = [("apple", 0.95), ("wrong", 0.2), ("cloud", 0.88), ("dark", 0.91), ("eagle", 0.89)]
     target = ["apple", "bridge", "cloud", "dark", "eagle"]
-    match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_avg_confidence=0.5, min_word_similarity=0.6)
+    match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_word_confidence=0.5, min_word_similarity=0.6)
     assert match_count == 4  # "wrong" skipped due to low confidence
 
 

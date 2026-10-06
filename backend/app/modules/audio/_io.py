@@ -13,7 +13,7 @@ import numpy as np
 import soundfile as sf
 import torch
 
-TARGET_SAMPLE_RATE = 16000
+from app.modules.audio._constants import TARGET_SAMPLE_RATE
 
 
 def read_wav_numpy(path: Path | str) -> Tuple[np.ndarray, int, float]:

@@ -13,8 +13,10 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-TARGET_SAMPLE_RATE = 16000
-TARGET_CHANNELS = 1
+from app.modules.audio._constants import TARGET_CHANNELS, TARGET_SAMPLE_RATE
+
+# ffmpeg can exit 0 and still lose most of the audio (seen on a clip cut off after 2 KB), so an
+# extraction shorter than this share of the container's claimed duration counts as truncated.
 DEFAULT_TRUNCATION_RATIO = 0.5
 
 FFMPEG = shutil.which("ffmpeg")
@@ -43,6 +45,44 @@ def run_command(argv: list[str], timeout: int = 120) -> tuple[int, str, str]:
         return -1, "", f"Unexpected error running command: {type(e).__name__}: {e}"
 
 
+def _probe_failure(error: str) -> Dict[str, Any]:
+    return {
+        "ok": False,
+        "container": None,
+        "duration": None,
+        "video_codec": None,
+        "audio": None,
+        "error": error,
+    }
+
+
+def _parse_duration(format_info: Dict[str, Any]) -> Optional[float]:
+    raw = format_info.get("duration")
+    if raw in (None, "N/A"):
+        return None
+    try:
+        return float(raw)
+    except (ValueError, TypeError):
+        return None
+
+
+def _audio_info(audio_stream: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if audio_stream is None:
+        return None
+    sr_raw = audio_stream.get("sample_rate")
+    try:
+        audio_start = float(audio_stream.get("start_time"))
+    except (TypeError, ValueError):
+        audio_start = None
+    return {
+        "codec": audio_stream.get("codec_name"),
+        "sample_rate": int(sr_raw) if sr_raw and str(sr_raw).isdigit() else None,
+        "channels": audio_stream.get("channels"),
+        # seconds on the container clock at which the audio track starts
+        "start_time": audio_start,
+    }
+
+
 def probe_media(path: Path | str, timeout: int = 30) -> Dict[str, Any]:
     """
     Probe container and stream information using ffprobe.
@@ -58,93 +98,33 @@ def probe_media(path: Path | str, timeout: int = 30) -> Dict[str, Any]:
     """
     path_obj = Path(path)
     if not path_obj.exists():
-        return {
-            "ok": False,
-            "container": None,
-            "duration": None,
-            "video_codec": None,
-            "audio": None,
-            "error": f"File does not exist: {path}"
-        }
-
+        return _probe_failure(f"File does not exist: {path}")
     if not FFPROBE:
-        return {
-            "ok": False,
-            "container": None,
-            "duration": None,
-            "video_codec": None,
-            "audio": None,
-            "error": "ffprobe executable not found on PATH"
-        }
+        return _probe_failure("ffprobe executable not found on PATH")
 
-    argv = [
-        FFPROBE,
-        "-v", "error",
-        "-show_streams",
-        "-show_format",
-        "-of", "json",
-        str(path_obj)
-    ]
-
-    rc, out, err = run_command(argv, timeout=timeout)
+    rc, out, err = run_command(
+        [FFPROBE, "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path_obj)],
+        timeout=timeout,
+    )
     if rc != 0:
-        return {
-            "ok": False,
-            "container": None,
-            "duration": None,
-            "video_codec": None,
-            "audio": None,
-            "error": err.strip() or f"ffprobe exited with rc={rc}"
-        }
+        return _probe_failure(err.strip() or f"ffprobe exited with rc={rc}")
 
     try:
         data = json.loads(out)
     except json.JSONDecodeError as e:
-        return {
-            "ok": False,
-            "container": None,
-            "duration": None,
-            "video_codec": None,
-            "audio": None,
-            "error": f"Failed to parse ffprobe JSON output: {e}"
-        }
+        return _probe_failure(f"Failed to parse ffprobe JSON output: {e}")
 
     streams = data.get("streams", [])
     audio_stream = next((s for s in streams if s.get("codec_type") == "audio"), None)
     video_stream = next((s for s in streams if s.get("codec_type") == "video"), None)
-    
     format_info = data.get("format", {})
-    raw_dur = format_info.get("duration")
-    duration: Optional[float] = None
-    if raw_dur not in (None, "N/A"):
-        try:
-            duration = float(raw_dur)
-        except (ValueError, TypeError):
-            duration = None
-
-    audio_info: Optional[Dict[str, Any]] = None
-    if audio_stream is not None:
-        sr_raw = audio_stream.get("sample_rate")
-        sample_rate = int(sr_raw) if sr_raw and str(sr_raw).isdigit() else None
-        try:
-            audio_start = float(audio_stream.get("start_time"))
-        except (TypeError, ValueError):
-            audio_start = None
-        audio_info = {
-            "codec": audio_stream.get("codec_name"),
-            "sample_rate": sample_rate,
-            "channels": audio_stream.get("channels"),
-            # seconds on the container clock at which the audio track starts
-            "start_time": audio_start,
-        }
-
     return {
         "ok": True,
         "container": format_info.get("format_name"),
-        "duration": duration,
+        "duration": _parse_duration(format_info),
         "video_codec": video_stream.get("codec_name") if video_stream else None,
-        "audio": audio_info,
-        "error": None
+        "audio": _audio_info(audio_stream),
+        "error": None,
     }
 
 
@@ -221,7 +201,7 @@ def check_extraction_completeness(
     threshold_ratio: float = DEFAULT_TRUNCATION_RATIO
 ) -> Tuple[bool, Optional[str]]:
     """
-    Finding #2: An ffmpeg exit code 0 does not prove extraction completeness.
+    An ffmpeg exit code 0 does not prove extraction completeness.
     Compares extracted duration against container's claimed duration.
     If container has no duration header (common in some browser MediaRecorder blobs),
     returns True (skips ratio check).

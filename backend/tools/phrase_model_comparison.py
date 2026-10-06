@@ -92,7 +92,7 @@ def false_accept_rate(words: List[Tuple[str, float]], floor: float, rng: random.
     hits = 0
     for _ in range(N_RANDOM_CHALLENGES):
         challenge = rng.sample(CHALLENGE_VOCABULARY, 5)
-        n, _, _ = match_words_fuzzy(words, challenge, min_avg_confidence=floor, min_word_similarity=MIN_WORD_SIMILARITY)
+        n, _, _ = match_words_fuzzy(words, challenge, min_word_confidence=floor, min_word_similarity=MIN_WORD_SIMILARITY)
         hits += n >= REQUIRED_WORDS
     return hits / N_RANDOM_CHALLENGES
 
@@ -125,7 +125,7 @@ def main() -> int:
                 counts, missed = [], {}
                 for g, words, _ in g_tr:
                     target = g["challenge"].split()
-                    n, pairs, _ = match_words_fuzzy(words, target, min_avg_confidence=floor,
+                    n, pairs, _ = match_words_fuzzy(words, target, min_word_confidence=floor,
                                                     min_word_similarity=MIN_WORD_SIMILARITY)
                     counts.append(n)
                     hit = {p.split(" -> ")[1] for p in pairs}
