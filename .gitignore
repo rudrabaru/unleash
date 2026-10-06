@@ -49,6 +49,8 @@ yarn-error.log*
 *.sqlite3
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 
 # Temporary Media & Uploads
 temp_uploads/
@@ -64,6 +66,9 @@ checkpoints/
 *.pt
 backend/app/modules/antispoof/training/data/
 frontend\tsconfig.tsbuildinfo
+
+# Local Claude Code settings
+.claude/settings.local.json
 
 # IDE & OS
 .vscode/
