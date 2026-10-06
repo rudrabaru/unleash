@@ -7,7 +7,9 @@ Usage (from backend/):
     .venv\\Scripts\\python.exe tools/measure_clips.py [--manifest eval/manifest.json]
                                                      [--phrase "w1 w2 w3 w4 w5"] [--json out.json]
 
-Clips without the spoken phrase simply fail the audio check; the video signals are still measured.
+A clip entry may carry its own "phrase"; otherwise --phrase is used. Clips that do not contain the
+spoken phrase simply fail the audio check; the video signals are still measured. A listed file that
+is missing (for example a local recording on another machine) is reported and skipped.
 """
 from __future__ import annotations
 
@@ -25,7 +27,7 @@ from app import orchestrator  # noqa: E402
 
 DEFAULT_PHRASE = "walnut lantern bicycle maple trumpet"
 SIGNALS = ("audio_pipeline", "visual_liveness", "visual_challenge", "deepfake", "replay")
-HEADERS = ("clip", "challenge", "audio", "liveness", "challenge", "deepfake", "replay", "verdict", "score", "secs")
+HEADERS = ("clip", "kind", "challenge", "audio", "liveness", "challenge", "deepfake", "replay", "verdict", "score", "secs")
 
 
 def _cell(result: Dict[str, Any]) -> str:
@@ -40,8 +42,11 @@ def measure(manifest_path: Path, phrase: str) -> List[Dict[str, Any]]:
     rows = []
     for clip in manifest["clips"]:
         path = BACKEND / clip["path"]
+        if not path.exists():
+            print(f"skipped (file missing): {clip['path']}", file=sys.stderr)
+            continue
         started = time.perf_counter()
-        analysis = orchestrator.analyze_media(path, clip["visual_challenge"], phrase)
+        analysis = orchestrator.analyze_media(path, clip["visual_challenge"], clip.get("phrase", phrase))
         rows.append({
             "clip": clip["path"],
             "kind": clip["kind"],
@@ -61,6 +66,7 @@ def print_table(rows: List[Dict[str, Any]]) -> None:
         results = row["signals"]
         table.append((
             Path(row["clip"]).name,
+            row["kind"],
             row["visual_challenge"],
             *(_cell(results[name]) for name in SIGNALS),
             row["verdict"],
@@ -76,7 +82,7 @@ def print_table(rows: List[Dict[str, Any]]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--manifest", type=Path, default=BACKEND / "eval" / "manifest.json")
-    parser.add_argument("--phrase", default=DEFAULT_PHRASE, help="the 5-word challenge the audio is checked against")
+    parser.add_argument("--phrase", default=DEFAULT_PHRASE, help="the 5-word challenge for clips that do not list their own")
     parser.add_argument("--json", type=Path, help="also write the full results to this file")
     args = parser.parse_args()
 

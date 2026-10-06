@@ -81,3 +81,6 @@ Thumbs.db
 
 # Private project documents
 /docs/
+# local calibration recordings (faces and voices) and their manifest
+backend/eval/recordings/
+backend/eval/calibration.json

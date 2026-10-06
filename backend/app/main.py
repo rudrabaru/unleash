@@ -1,12 +1,13 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app import db
+from app import db, orchestrator
 
 # Ensure temp uploads directory exists
 os.makedirs(settings.UPLOAD_TEMP_DIR, exist_ok=True)
@@ -15,7 +16,15 @@ _orphaned = db.fail_orphaned_sessions(datetime.now(timezone.utc))
 if _orphaned:
     logging.getLogger("unleash").warning("Closed %d session(s) left in PROCESSING by a previous run", _orphaned)
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # Blocking, but it runs once before the server accepts requests.
+    orchestrator.warm_up()
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Unleash Multimodal Human Verification API",
     version="1.0.0",
     description="Multimodal active challenge-response verification defending against deepfakes and replay attacks."

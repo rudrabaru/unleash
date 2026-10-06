@@ -67,6 +67,25 @@ def _lip_series(landmark_features, fps: float):
         return None
 
 
+def warm_up() -> Dict[str, str]:
+    """
+    Load the models that are otherwise created on the first request (the audio models already
+    load at import), so the first user does not wait for them. Returns an error text per model
+    that could not be loaded; a failure here never stops the server, the detector reports it later.
+    """
+    from app.modules.antispoof._deepfake import classifier
+    from app.modules.visual._landmarks import _get_landmarker
+
+    failures: Dict[str, str] = {}
+    for name, load in (("face_landmarker", _get_landmarker), ("deepfake", classifier._load_model)):
+        try:
+            load()
+        except Exception as exc:  # noqa: BLE001 - a missing checkpoint must not block startup
+            failures[name] = str(exc)
+            logger.warning("Warm-up of %s failed: %s", name, exc)
+    return failures
+
+
 def analyze_media(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
     with _ANALYSIS_LOCK:
         return _analyze(media_path, visual_challenge, verbal_challenge)

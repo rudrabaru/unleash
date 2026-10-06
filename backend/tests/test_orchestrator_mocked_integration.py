@@ -133,3 +133,13 @@ def test_analyze_media_reports_timings_for_every_step():
     assert set(analysis.timings) == {
         "frames", "landmarks", "audio", "visual_liveness", "visual_challenge", "deepfake", "replay", "fusion", "total",
     }
+
+
+def test_warm_up_reports_a_model_that_cannot_load_and_does_not_raise():
+    from unittest.mock import patch
+
+    from app import orchestrator
+
+    with patch("app.modules.antispoof._deepfake.classifier._load_model", side_effect=RuntimeError("no checkpoint")):
+        failures = orchestrator.warm_up()
+    assert failures == {"deepfake": "no checkpoint"}
