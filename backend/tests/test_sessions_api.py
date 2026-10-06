@@ -29,7 +29,8 @@ def _create_session_with_phrase(phrase: str):
     create_resp = client.post("/api/v1/sessions")
     assert create_resp.status_code == 201
     session_id = create_resp.json()["session_id"]
-    db.set_challenge(session_id, verbal_challenge=phrase)
+    with db._connect() as conn:  # pin the random challenge to the phrase the fixture speaks
+        conn.execute("UPDATE sessions SET verbal_challenge = ? WHERE session_id = ?", (phrase, session_id))
     session = db.get_session(session_id)
     token, _ = generate_challenge_token(
         session_id=session_id,

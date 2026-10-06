@@ -1,7 +1,7 @@
 """
-Anti-Spoofing Detection Module (Owned by Dev 3)
-- Module 1: Deepfake Detector (self-trained Xception, CPU-only)
-- Module 2: Replay Detector (OpenCV FFT moiré + temporal noise + brightness histogram)
+Anti-spoofing detectors
+- Deepfake detector (self-trained Xception, CPU-only)
+- Replay detector (OpenCV FFT moiré + temporal noise + brightness histogram)
 """
 from app.schemas.detector import DetectorResult
 from app.modules.antispoof._deepfake import ModelNotReadyError, classifier
@@ -12,10 +12,9 @@ def detect_deepfake(frames: list) -> DetectorResult:
     """
     Self-trained Xception deepfake classifier, forced to CPU.
 
-    No trained checkpoint ships with this repo yet (Phase 3 blocker: requires
-    a FaceForensics++-style dataset to train on). Until UNLEASH_XCEPTION_CHECKPOINT
-    points at a real file, this returns an honest null-score error result — never
-    a fabricated pass/fail (J5).
+    The trained checkpoint is not stored in git. Without a file at the default path or at
+    UNLEASH_XCEPTION_CHECKPOINT this returns an honest null-score error result, never a
+    fabricated pass/fail.
     """
     if not frames:
         return DetectorResult(score=None, passed=False, reason="No video frames available.", error="empty frame list")
@@ -47,9 +46,9 @@ def detect_deepfake(frames: list) -> DetectorResult:
 
 def detect_replay_attack(frames: list) -> DetectorResult:
     """
-    Replay Screen Attack Detector (Phase 4): FFT moire (55%) + temporal noise std (30%) +
+    Replay screen-attack detector: FFT moire (55%) + temporal noise std (30%) +
     brightness histogram shape (15%), pass threshold 0.60. See `_replay.py` for the
-    per-signal design and its honest [UNCALIBRATED] status.
+    per-signal design and its [UNCALIBRATED] status.
     """
     if not frames:
         return DetectorResult(score=None, passed=False, reason="No video frames available.", error="empty frame list")

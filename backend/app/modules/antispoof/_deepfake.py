@@ -1,27 +1,28 @@
 """
-Deepfake Detector: self-trained Xception classifier (kept per team decision —
-see implement-all-three-pillars Phase 3), forced to CPU unconditionally per
-CLAUDE.md Section G's GPU ban. Ported from deepfake_detection/app/model.py.
+Deepfake Detector: a self-trained Xception classifier, forced to CPU (the project is CPU-only).
 
 The trained checkpoint (~250 MB) is not stored in git (`*.pth` is ignored) and is not yet
 published; it is read from UNLEASH_XCEPTION_CHECKPOINT or, by default, from
-backend/checkpoints/xception_deepfake_best.pth. Without a real file this module
-returns an honest error result — never a fabricated score (J5).
+backend/checkpoints/xception_deepfake_best.pth. Without a real file this module returns an
+honest error result, never a fabricated score.
+
+The classifier sees whole frames: face cropping is not implemented yet (the earlier Haar-cascade
+crop silently did nothing because OpenCV 5 ships without its data files).
 """
 from pathlib import Path
 from typing import List
 
+import cv2
 import numpy as np
+import timm
+import torch
 
+from app.media.sampling import sample_indices
 from app.modules.antispoof._config import IMAGENET_MEAN, IMAGENET_STD, DeepfakeSettings, settings
-from app.modules.antispoof._face_crop import crop_primary_face
 
-try:
-    import cv2
-    import torch
-    TORCH_AVAILABLE = True
-except ImportError:  # pragma: no cover
-    TORCH_AVAILABLE = False
+# Frames scored per video. Xception costs about 0.3 s per frame on CPU, so this bounds the
+# time spent here; the average over frames is what the verdict uses.
+MAX_SCORED_FRAMES = 12
 
 
 class ModelNotReadyError(Exception):
@@ -31,17 +32,14 @@ class ModelNotReadyError(Exception):
 class XceptionDeepfakeClassifier:
     def __init__(self, config: DeepfakeSettings) -> None:
         self.settings = config
-        self.device = torch.device("cpu") if TORCH_AVAILABLE else None
+        self.device = torch.device("cpu")
         self.model = None
 
     def predict_video(self, frames: List[np.ndarray]) -> tuple:
         if not frames:
             raise ValueError("At least one frame is required for prediction.")
 
-        # Sample frames to reduce inference latency: use every Nth frame if too many
-        # Keeps at most 20 frames for analysis; averaging across sampled frames is sufficient
-        max_frames = 20
-        sampled_frames = frames if len(frames) <= max_frames else [frames[i] for i in range(0, len(frames), len(frames) // max_frames)]
+        sampled_frames = [frames[i] for i in sample_indices(len(frames), MAX_SCORED_FRAMES)]
 
         model = self._load_model()
         fake_probabilities = [self._predict_frame(model, frame) for frame in sampled_frames]
@@ -57,9 +55,6 @@ class XceptionDeepfakeClassifier:
         if self.model is not None:
             return self.model
 
-        if not TORCH_AVAILABLE:
-            raise ModelNotReadyError("torch is not installed.")
-
         if not self.settings.checkpoint_path:
             raise ModelNotReadyError(
                 "UNLEASH_XCEPTION_CHECKPOINT is not set. Provide a trained Xception checkpoint before inference."
@@ -69,13 +64,8 @@ class XceptionDeepfakeClassifier:
         if not checkpoint_path.exists():
             raise ModelNotReadyError(f"model not loaded: checkpoint missing ({checkpoint_path})")
 
-        try:
-            import timm
-        except ImportError as exc:
-            raise ModelNotReadyError("The timm package is required to create the Xception model.") from exc
-
         model = timm.create_model(self.settings.model_name, pretrained=False, num_classes=2)
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=True)
         state_dict = _extract_state_dict(checkpoint)
         try:
             model.load_state_dict(_strip_module_prefix(state_dict), strict=True)
@@ -88,14 +78,10 @@ class XceptionDeepfakeClassifier:
         return model
 
     def _predict_frame(self, model, frame: np.ndarray) -> float:
-        processed_frame = crop_primary_face(frame) if self.settings.enable_face_crop else frame
-        tensor = self._preprocess_frame(processed_frame)
+        tensor = self._preprocess_frame(frame)
 
         with torch.no_grad():
             logits = model(tensor)
-
-        if logits.shape[-1] == 1:
-            return float(torch.sigmoid(logits.squeeze()).item())
 
         probabilities = torch.softmax(logits.squeeze(0), dim=0)
         return float(probabilities[self.settings.fake_class_index].item())

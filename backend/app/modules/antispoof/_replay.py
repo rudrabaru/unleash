@@ -1,9 +1,6 @@
 """
-Replay Screen Attack Detector (Phase 4). New module — nothing existed before this.
-
-Per docs/unleash_project_plan.md Section "Tech Stack" (OpenCV + NumPy, FFT + brightness
-analysis) and implement-all-three-pillars.md Phase 4: three real, independently-computed
-sub-signals, weighted and combined into one 0.0-1.0 score:
+Replay screen-attack detector: three real, independently computed sub-signals (OpenCV + NumPy),
+weighted and combined into one 0.0-1.0 score:
 
   - FFT moire detection      (55%) - screens/monitors photographed by a camera produce a
                                       periodic pixel-grid pattern that shows up as sharp,
@@ -19,24 +16,20 @@ sub-signals, weighted and combined into one 0.0-1.0 score:
 
 Threshold: pass if combined score >= REPLAY_PASS_THRESHOLD (0.60).
 
-**Calibration status: [UNCALIBRATED].** These are real computations over real frames -
-nothing here is a fabricated number (J5) - but every threshold and weight below (the ring
-radii, MOIRE_PEAKINESS_FLOOR/CEIL, the natural noise-std band, CLIP_FRACTION_CEIL, the
-0.55/0.30/0.15 weights, the 0.60 pass line) is an initial, reasoned guess never fitted to a
-labelled replay-vs-genuine recording set, per the same honesty standard as Stage 3 voice
-authenticity (see .claude/context/audio-pipeline/stage-specifications.md). Do not cite a
-score from this module as a tuned/validated number until scenario recordings exist to
-calibrate against.
+**Calibration status: [UNCALIBRATED].** These are real computations over real frames - nothing
+here is a fabricated number - but every threshold and weight below (the ring radii,
+MOIRE_PEAKINESS_FLOOR/CEIL, the natural noise-std band, CLIP_FRACTION_CEIL, the 0.55/0.30/0.15
+weights, the 0.60 pass line) is an initial, reasoned guess never fitted to a labelled
+replay-vs-genuine recording set. On the real-face sample clips the score is 0.30-0.42, below
+the pass line, so it flags genuine clips too. Do not cite a score from this module as a
+tuned or validated number until recordings of real replay attacks exist to calibrate against.
 """
 from typing import Any, Dict, List, Optional
 
+import cv2
 import numpy as np
 
-try:
-    import cv2
-    CV2_AVAILABLE = True
-except ImportError:  # pragma: no cover
-    CV2_AVAILABLE = False
+from app.media.sampling import sample_indices
 
 # --- weights -----------------------------------------------------------------
 MOIRE_WEIGHT = 0.55
@@ -72,13 +65,6 @@ def _to_gray_frames(frames: List[np.ndarray]) -> List[np.ndarray]:
     return [cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY) for frame in frames]
 
 
-def _sample_for_fft(frames: List[np.ndarray], max_frames: int) -> List[np.ndarray]:
-    if len(frames) <= max_frames:
-        return frames
-    step = len(frames) / max_frames
-    return [frames[int(i * step)] for i in range(max_frames)]
-
-
 def _moire_score_for_frame(gray: np.ndarray) -> Optional[float]:
     spectrum = np.fft.fftshift(np.fft.fft2(gray.astype(np.float32)))
     magnitude = np.abs(spectrum)
@@ -106,7 +92,7 @@ def _moire_score_for_frame(gray: np.ndarray) -> Optional[float]:
 
 
 def _moire_score(gray_frames: List[np.ndarray]) -> Dict[str, Any]:
-    sampled = _sample_for_fft(gray_frames, MOIRE_MAX_FRAMES_SAMPLED)
+    sampled = [gray_frames[i] for i in sample_indices(len(gray_frames), MOIRE_MAX_FRAMES_SAMPLED)]
     per_frame_scores = [s for s in (_moire_score_for_frame(frame) for frame in sampled) if s is not None]
     score = float(np.mean(per_frame_scores)) if per_frame_scores else None
     return {"score": score, "frames_sampled": len(per_frame_scores)}
@@ -175,24 +161,7 @@ def score_replay(frames: List[np.ndarray]) -> Dict[str, Any]:
     the detector contract, but every sub-signal here already degrades to None
     rather than crashing on edge-case input (single frame, blank frame, etc); an unmeasurable sub-signal is None and is excluded from the combined score.
     """
-    # Guard against missing cv2 dependency (DIP violation fix)
-    if not CV2_AVAILABLE:
-        return {
-            "score": None,
-            "passed": False,
-            "moire": {"score": None, "frames_sampled": 0},
-            "temporal_noise": {"score": None, "mean_diff_std": None},
-            "brightness_histogram": {"score": None, "entropy_bits": None, "clip_fraction": None},
-            "frames_analyzed": len(frames),
-            "degraded_reason": "cv2 (OpenCV) not installed",
-        }
-
-    # Sample frames to reduce latency: use every Nth frame if too many
-    # Keeps at most 30 frames for analysis; temporal patterns are preserved at this sampling rate
-    max_frames = 30
-    sampled_frames = frames if len(frames) <= max_frames else [frames[i] for i in range(0, len(frames), len(frames) // max_frames)]
-
-    gray_frames = _to_gray_frames(sampled_frames)
+    gray_frames = _to_gray_frames(frames)
 
     moire = _moire_score(gray_frames)
     noise = _temporal_noise_score(gray_frames)

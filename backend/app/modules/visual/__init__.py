@@ -1,10 +1,7 @@
 """
-Visual Liveness & Challenge Verification Module (Owned by Dev 2)
-- Module 1: Visual Liveness Detector (MediaPipe EAR + blink + micro-movement)
-- Module 2: Head Pose + Challenge Compliance Verifier (MediaPipe)
-
-Ported from the standalone `Liveliness + challenge/` app and fixed to the
-4-key DetectorResult contract (see implement-all-three-pillars Phase 0/2).
+Visual liveness and challenge verification
+- Visual liveness detector (MediaPipe EAR + blink + micro-movement)
+- Head pose and challenge compliance verifier (MediaPipe)
 
 Both entrypoints accept an optional pre-computed `features` dict (from
 `_landmarks.extract_landmark_features`) so a caller running MediaPipe once for several
@@ -19,7 +16,7 @@ from app.schemas.detector import DetectorResult
 from app.schemas.session import VisualChallengeType
 from app.modules.visual._landmarks import extract_landmark_features
 from app.modules.visual._liveness import score_liveness
-from app.modules.visual._pose import evaluate_challenge, YAW_THRESHOLD, PITCH_THRESHOLD
+from app.modules.visual._pose import BLINK_TWICE_MIN_EVENTS, evaluate_challenge, YAW_THRESHOLD, PITCH_THRESHOLD
 
 
 def detect_visual_liveness(
@@ -86,7 +83,7 @@ def verify_challenge_compliance(
             denom = YAW_THRESHOLD if challenge in (VisualChallengeType.TURN_HEAD_LEFT, VisualChallengeType.TURN_HEAD_RIGHT) else PITCH_THRESHOLD
             score = max(0.0, min(1.0, result["max_displacement"] / denom))
         else:
-            score = max(0.0, min(1.0, result.get("blink_events", 0) / 2.0))
+            score = max(0.0, min(1.0, result.get("blink_events", 0) / BLINK_TWICE_MIN_EVENTS))
 
         reason = (
             f"Challenge {challenge.value} {'passed' if passed else 'failed'}: "

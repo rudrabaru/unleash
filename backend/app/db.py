@@ -1,5 +1,5 @@
 """
-SQLite persistence for verification sessions, per plan's "SQLite Schema" section.
+SQLite persistence for verification sessions and their per-signal results.
 
 One connection per call (SQLite + FastAPI BackgroundTasks doesn't benefit from a
 pool at this scale); WAL mode so a read during a background write doesn't block.
@@ -38,14 +38,6 @@ CREATE TABLE IF NOT EXISTS signal_scores (
     details TEXT,
     PRIMARY KEY (session_id, signal_name),
     FOREIGN KEY (session_id) REFERENCES sessions(session_id)
-);
-
-CREATE TABLE IF NOT EXISTS error_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    signal_name TEXT,
-    error TEXT NOT NULL,
-    logged_at TEXT NOT NULL
 );
 """
 
@@ -87,15 +79,6 @@ def create_session(
                 created_at.isoformat(), created_at.isoformat(),
             ),
         )
-
-
-def set_challenge(session_id: str, visual_challenge: Optional[str] = None, verbal_challenge: Optional[str] = None) -> None:
-    """Test/tooling helper to override a session's stored challenge before submit."""
-    with _connect() as conn:
-        if visual_challenge is not None:
-            conn.execute("UPDATE sessions SET visual_challenge = ? WHERE session_id = ?", (visual_challenge, session_id))
-        if verbal_challenge is not None:
-            conn.execute("UPDATE sessions SET verbal_challenge = ? WHERE session_id = ?", (verbal_challenge, session_id))
 
 
 def claim_for_processing(session_id: str, updated_at: datetime) -> bool:
@@ -144,11 +127,6 @@ def write_decision(
                     result.error, json.dumps(result.details) if result.details else None,
                 ),
             )
-            if result.error:
-                conn.execute(
-                    "INSERT INTO error_log (session_id, signal_name, error, logged_at) VALUES (?, ?, ?, ?)",
-                    (session_id, name, result.error, updated_at.isoformat()),
-                )
 
 
 def get_session(session_id: str) -> Optional[Dict[str, Any]]:

@@ -1,13 +1,13 @@
 """
-Visual Liveness: real EAR-based blink detection + landmark micro-movement +
-face-tracking consistency. Replaces the standalone app's blendshape-based
-blink signal per the Phase 2 decision (see implement-all-three-pillars plan).
+Visual liveness: EAR-based blink detection + landmark micro-movement + face-tracking
+consistency.
 """
 from typing import Any, Dict, List
 
 import numpy as np
 
-EAR_BLINK_THRESHOLD = 0.20
+from app.modules.visual._landmarks import EAR_BLINK_THRESHOLD
+
 EAR_STD_THRESHOLD = 0.01
 
 

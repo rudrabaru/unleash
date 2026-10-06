@@ -6,13 +6,13 @@ instead of the standalone app's 20 degree/2-frame values.
 import statistics
 from typing import Any, Dict, List
 
+from app.modules.visual._landmarks import EAR_BLINK_THRESHOLD
 from app.schemas.session import VisualChallengeType
 
 YAW_THRESHOLD = 15.0
 PITCH_THRESHOLD = 10.0
 HOLD_FRAMES = 2
 BASELINE_FRACTION = 0.2  # first ~20% of sampled frames act as the neutral baseline
-BLINK_EAR_THRESHOLD = 0.20
 BLINK_TWICE_MIN_EVENTS = 2
 BLINK_LOOK_DOWN_DEG = 7.0  # pitch rise over baseline that invalidates a closed-eye stretch
 BLINK_EXTREME_YAW_DEG = 25.0
@@ -103,7 +103,7 @@ def _blink_twice(frames) -> Dict[str, Any]:
             continue
         valid_frames += 1
 
-        if value < BLINK_EAR_THRESHOLD:
+        if value < EAR_BLINK_THRESHOLD:
             in_dip = True
             dip_corrupted = dip_corrupted or _pose_corrupts_blink(frame, pitch_baseline, yaw_baseline)
         elif in_dip:
@@ -139,7 +139,7 @@ def evaluate_challenge(features: Dict[str, Any], challenge: VisualChallengeType)
         threshold_desc = f"pitch >= {PITCH_THRESHOLD} deg held {HOLD_FRAMES} frames"
     elif challenge == VisualChallengeType.BLINK_TWICE:
         result = _blink_twice(frames)
-        threshold_desc = f">= {BLINK_TWICE_MIN_EVENTS} distinct blinks (EAR < {BLINK_EAR_THRESHOLD})"
+        threshold_desc = f">= {BLINK_TWICE_MIN_EVENTS} distinct blinks (EAR < {EAR_BLINK_THRESHOLD})"
     else:
         result = {"detected": False, "max_displacement": 0.0, "longest_run": 0, "valid_frames": 0, "total_frames": len(frames)}
         threshold_desc = "unknown challenge"

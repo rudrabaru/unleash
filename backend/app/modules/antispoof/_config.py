@@ -36,20 +36,12 @@ def _get_float(name: str, default: float) -> float:
         return default
 
 
-def _get_bool(name: str, default: bool) -> bool:
-    raw_value = os.getenv(name)
-    if raw_value is None:
-        return default
-    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
-
-
 @dataclass(frozen=True)
 class DeepfakeSettings:
     model_name: str = os.getenv("UNLEASH_XCEPTION_MODEL_NAME", "xception")
     checkpoint_path: str | None = os.getenv("UNLEASH_XCEPTION_CHECKPOINT", _DEFAULT_CHECKPOINT)
     fake_threshold: float = _get_float("UNLEASH_FAKE_THRESHOLD", 0.5)
     image_size: int = _get_int("UNLEASH_IMAGE_SIZE", 299)
-    enable_face_crop: bool = _get_bool("UNLEASH_ENABLE_FACE_CROP", True)
     fake_class_index: int = _get_int("UNLEASH_FAKE_CLASS_INDEX", FAKE_CLASS_INDEX)
 
 

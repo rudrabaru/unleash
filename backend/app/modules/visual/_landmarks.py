@@ -10,15 +10,10 @@ import math
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import mediapipe as mp
 import numpy as np
-
-try:
-    import mediapipe as mp
-    from mediapipe.tasks import python as mp_python
-    from mediapipe.tasks.python import vision as mp_vision
-    MEDIAPIPE_AVAILABLE = True
-except ImportError:  # pragma: no cover - exercised only if mediapipe isn't installed
-    MEDIAPIPE_AVAILABLE = False
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision as mp_vision
 
 MODEL_PATH = Path(__file__).parent / "face_landmarker.task"
 
@@ -26,10 +21,12 @@ MODEL_PATH = Path(__file__).parent / "face_landmarker.task"
 LEFT_EYE = (33, 160, 158, 133, 153, 144)
 RIGHT_EYE = (362, 385, 387, 263, 373, 380)
 
-# Mouth vertical/horizontal points (used by _lip_series and challenge compliance).
+# Inner-lip points and forehead/chin points: the mouth opening is normalised by face height.
 MOUTH_TOP, MOUTH_BOTTOM = 13, 14
-MOUTH_LEFT, MOUTH_RIGHT = 61, 291
 FACE_TOP, FACE_CHIN = 10, 152
+
+# Eye aspect ratio below this means the eye is closed. Shared by liveness and the blink challenge.
+EAR_BLINK_THRESHOLD = 0.20
 
 _landmarker_singleton = None
 
@@ -53,13 +50,12 @@ def _get_landmarker():
 
 def _rotation_matrix_to_euler(matrix) -> tuple:
     r00, r02 = matrix[0][0], matrix[0][2]
-    r10, r11, r12 = matrix[1][0], matrix[1][1], matrix[1][2]
+    r11, r12 = matrix[1][1], matrix[1][2]
 
     yaw = math.atan2(r02, r00)
     pitch = math.atan2(-r12, r11)
-    roll = math.atan2(r10, math.sqrt(r00 * r00 + r02 * r02))
 
-    return math.degrees(yaw), math.degrees(pitch), math.degrees(roll)
+    return math.degrees(yaw), math.degrees(pitch)
 
 
 def _ear(landmarks: np.ndarray, points: tuple) -> Optional[float]:
@@ -82,9 +78,6 @@ def extract_landmark_features(
 
     Never raises: a frame that fails to process yields a "no face" entry.
     """
-    if not MEDIAPIPE_AVAILABLE:
-        return {"frames": [], "error": "mediapipe is not installed"}
-
     landmarker = _get_landmarker()
     frame_data = []
 
@@ -97,9 +90,6 @@ def extract_landmark_features(
             "face_present": False,
             "yaw": None,
             "pitch": None,
-            "roll": None,
-            "ear_left": None,
-            "ear_right": None,
             "ear": None,
             "mouth_open": None,
             "time_seconds": time_sec,
@@ -126,8 +116,6 @@ def extract_landmark_features(
 
             ear_left = _ear(px_landmarks, LEFT_EYE)
             ear_right = _ear(px_landmarks, RIGHT_EYE)
-            entry["ear_left"] = ear_left
-            entry["ear_right"] = ear_right
             if ear_left is not None and ear_right is not None:
                 entry["ear"] = (ear_left + ear_right) / 2.0
 
@@ -137,8 +125,7 @@ def extract_landmark_features(
                 entry["mouth_open"] = float(mouth_gap / face_height)
 
         if result.facial_transformation_matrixes:
-            yaw, pitch, roll = _rotation_matrix_to_euler(result.facial_transformation_matrixes[0])
-            entry["yaw"], entry["pitch"], entry["roll"] = yaw, pitch, roll
+            entry["yaw"], entry["pitch"] = _rotation_matrix_to_euler(result.facial_transformation_matrixes[0])
 
         frame_data.append(entry)
 
