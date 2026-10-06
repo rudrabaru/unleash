@@ -254,6 +254,27 @@ def _build_reason(
     )
 
 
+def _success_details(
+    passed, recognized_words, target_words, match_count, matched_pairs, avg_confidence,
+    transcript, word_timestamps, infer_duration, info, min_word_confidence,
+) -> Dict[str, Any]:
+    return {
+        "phrase_matched": passed,
+        "words_detected": [w for w, _ in recognized_words],
+        "target_words": target_words,
+        "match_count": match_count,
+        "matched_pairs": matched_pairs,
+        "average_confidence": round(avg_confidence, 3),
+        "transcript": transcript,
+        "word_timestamps": word_timestamps,
+        "inference_duration_seconds": infer_duration,
+        "language": getattr(info, "language", "en"),
+        "whisper_model": WHISPER_MODEL_NAME,
+        "compute_type": WHISPER_COMPUTE_TYPE,
+        "min_word_confidence": min_word_confidence,
+    }
+
+
 def run_phrase_compliance(
     wav_path: Path | str,
     challenge_phrase: str,
@@ -298,21 +319,10 @@ def run_phrase_compliance(
                 transcript, bool(recognized_words),
             ),
             error=None,
-            details={
-                "phrase_matched": passed,
-                "words_detected": [w for w, _ in recognized_words],
-                "target_words": target_words,
-                "match_count": match_count,
-                "matched_pairs": matched_pairs,
-                "average_confidence": round(avg_confidence, 3),
-                "transcript": transcript,
-                "word_timestamps": word_timestamps,
-                "inference_duration_seconds": infer_duration,
-                "language": getattr(info, "language", "en"),
-                "whisper_model": WHISPER_MODEL_NAME,
-                "compute_type": WHISPER_COMPUTE_TYPE,
-                "min_word_confidence": min_word_confidence,
-            },
+            details=_success_details(
+                passed, recognized_words, target_words, match_count, matched_pairs, avg_confidence,
+                transcript, word_timestamps, infer_duration, info, min_word_confidence,
+            ),
         )
     except Exception as e:  # noqa: BLE001 - a detector must never raise
         logger.exception("Unexpected error in run_phrase_compliance")
