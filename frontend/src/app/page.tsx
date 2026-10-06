@@ -36,6 +36,8 @@ export default function AudioCapturePrototype() {
   const [volumeLevel, setVolumeLevel] = useState<number>(0);
   const [frequencyData, setFrequencyData] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [isVoiceActive, setIsVoiceActive] = useState<boolean>(false);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>("");
 
   // Recording State
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -79,7 +81,7 @@ export default function AudioCapturePrototype() {
   }, []);
 
   // Request Microphone with Required Constraints (Project Plan Section 5.7)
-  const startAudioMonitoring = async () => {
+  const startAudioMonitoring = async (deviceId?: string) => {
     setPermission("requesting");
     setPermissionError(null);
 
@@ -92,11 +94,21 @@ export default function AudioCapturePrototype() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: audioConstraints,
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 }, facingMode: "user" },
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+          ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: "user" }),
+        },
       });
 
       mediaStreamRef.current = stream;
       setPermission("granted");
+
+      // Camera names are only available after access is granted
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      setCameras(devices.filter((d) => d.kind === "videoinput"));
+      setSelectedCameraId(stream.getVideoTracks()[0]?.getSettings().deviceId ?? "");
 
       // Initialize Web Audio API for Live Volume Metering
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -367,6 +379,26 @@ export default function AudioCapturePrototype() {
           style={{ width: "100%", maxHeight: "360px", background: "#000", borderRadius: "10px", display: permission === "granted" ? "block" : "none", transform: "scaleX(-1)" }}
         />
 
+        {permission === "granted" && cameras.length > 0 && (
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+            Camera
+            <select
+              value={selectedCameraId}
+              onChange={(e) => {
+                stopAudioMonitoring();
+                startAudioMonitoring(e.target.value);
+              }}
+              style={{ flex: 1, background: "var(--bg-card)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "6px", padding: "0.4rem" }}
+            >
+              {cameras.map((c, i) => (
+                <option key={c.deviceId} value={c.deviceId}>
+                  {c.label || `Camera ${i + 1}`}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         {/* Live Volume Meter & Equalizer Visualizer */}
         <div style={{ background: "var(--bg-card)", padding: "1.25rem", borderRadius: "10px", border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "1rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -412,7 +444,7 @@ export default function AudioCapturePrototype() {
         {/* Action Controls */}
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
           {permission !== "granted" ? (
-            <button className="btn-primary" onClick={startAudioMonitoring} disabled={permission === "requesting"} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <button className="btn-primary" onClick={() => startAudioMonitoring()} disabled={permission === "requesting"} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <Mic size={16} />
               {permission === "requesting" ? "Requesting access..." : "Enable Camera and Microphone"}
             </button>
