@@ -99,6 +99,25 @@ def update_session_status(session_id: str, status: str, updated_at: datetime) ->
         )
 
 
+def fail_orphaned_sessions(updated_at: datetime) -> int:
+    """
+    Mark every session still PROCESSING as FAILED. Analyses run inside the server process, so at
+    startup any PROCESSING session belongs to a process that has died (crash, restart, reload).
+    Returns how many were closed.
+    """
+    with _connect() as conn:
+        cursor = conn.execute(
+            "UPDATE sessions SET status = ?, decision_reason = ?, updated_at = ? WHERE status = ?",
+            (
+                "FAILED",
+                "The analysis was interrupted before it finished. Please try again.",
+                updated_at.isoformat(),
+                "PROCESSING",
+            ),
+        )
+        return cursor.rowcount
+
+
 def write_decision(
     session_id: str,
     status: str,

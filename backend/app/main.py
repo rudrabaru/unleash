@@ -1,4 +1,6 @@
+import logging
 import os
+from datetime import datetime, timezone
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,6 +11,9 @@ from app import db
 # Ensure temp uploads directory exists
 os.makedirs(settings.UPLOAD_TEMP_DIR, exist_ok=True)
 db.init_db()
+_orphaned = db.fail_orphaned_sessions(datetime.now(timezone.utc))
+if _orphaned:
+    logging.getLogger("unleash").warning("Closed %d session(s) left in PROCESSING by a previous run", _orphaned)
 
 app = FastAPI(
     title="Unleash Multimodal Human Verification API",

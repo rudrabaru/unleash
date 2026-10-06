@@ -3,7 +3,7 @@ import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, File, Form, Header, HTTPException, UploadFile, status
 
 from app import db, orchestrator
 from app.core.config import settings
@@ -68,7 +68,8 @@ def submit_session(
     session_id: str,
     background_tasks: BackgroundTasks,
     token: str = Form(...),
-    media: UploadFile = File(...)
+    media: UploadFile = File(...),
+    content_length: int | None = Header(default=None),
 ):
     """
     Submit the recorded single-blob .webm media for verification.
@@ -85,6 +86,14 @@ def submit_session(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Session {session_id} has already been submitted (status={session['status']})."
+        )
+
+    # Refused before the session is claimed, so an oversized upload does not use up the challenge.
+    too_large = (content_length or 0) > settings.MAX_UPLOAD_BYTES or (media.size or 0) > settings.MAX_UPLOAD_BYTES
+    if too_large:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=f"Recording is larger than the {settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit.",
         )
 
     is_valid, error_msg = verify_challenge_token(
