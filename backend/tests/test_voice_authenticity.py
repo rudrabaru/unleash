@@ -169,7 +169,7 @@ def test_pipeline_includes_the_voice_check(genuine_pipeline_result):
     assert isinstance(details["voice_authenticity_score"], float)
 
     # The reason mentions the voice check
-    assert "Stage 3 voice authenticity:" in res.reason
+    assert "Voice authenticity:" in res.reason
 
 
 def test_degraded_flag_set_when_heuristic_cannot_measure(tmp_path: Path):
@@ -190,8 +190,8 @@ def test_degraded_flag_set_when_heuristic_cannot_measure(tmp_path: Path):
     assert res.error is None
     assert res.score is not None
     assert res.details is not None
-    assert res.details["degraded"] is True
-    assert any("noise floor" in r for r in res.details["degraded_reasons"])
+    assert res.details["voice_degraded"] is True
+    assert any("noise floor" in r for r in res.details["voice_degraded_reasons"])
     assert res.details["metrics"]["noise"]["degraded"] is True
     # The heuristics that did measure must not be flagged.
     assert res.details["metrics"]["flux"]["degraded"] is False
@@ -210,8 +210,8 @@ def test_degraded_flag_absent_on_fully_measured_run(tmp_path: Path):
     res = run_voice_authenticity(wav_path, [{"start": 0.5, "end": 1.5}, {"start": 2.0, "end": 3.0}])
 
     assert res.details is not None
-    assert res.details["degraded"] is False
-    assert res.details["degraded_reasons"] == []
+    assert res.details["voice_degraded"] is False
+    assert res.details["voice_degraded_reasons"] == []
     assert "DEGRADED" not in res.reason
 
 

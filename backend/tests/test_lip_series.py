@@ -30,8 +30,8 @@ def test_lip_series_never_invents_a_time_from_fps(fps):
 
     assert all("time_seconds" not in entry for entry in data["series"])
     words = [{"word": "a", "start": 1.0, "end": 1.4, "probability": 0.9}]
-    res = run_av_alignment("x.wav", words, data)
-    assert res.score is None and res.details["degraded"] is True
+    res = run_av_alignment(words, data)
+    assert res.score is None and res.details["lip_sync_degraded"] is True
 
 
 def test_real_timestamps_flow_into_stage4_and_score():
@@ -41,6 +41,6 @@ def test_real_timestamps_flow_into_stage4_and_score():
         {"mouth_open": 0.25 if 0.7 <= t <= 1.7 else 0.03, "time_seconds": t, "original_index": i}
         for i, t in enumerate(times)
     ]}
-    res = run_av_alignment("x.wav", words, build_lip_series(feats, 1000.0))
+    res = run_av_alignment(words, build_lip_series(feats, 1000.0))
 
     assert res.score == 1.0

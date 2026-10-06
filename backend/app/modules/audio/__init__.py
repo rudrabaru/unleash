@@ -1,17 +1,21 @@
 """
-Audio Pipeline Module (Owned by Dev 1)
-- Stage 1: Speech Gate (silero-vad) [REAL]
-- Stage 2: Phrase Compliance (faster-whisper base.en word matching) [REAL]
-  Matches 5-word phrase challenges using word-level fuzzy matching + confidence thresholding.
-  Threshold: 4 of 5 words must match (Levenshtein distance-based).
-- Stage 3: Voice Authenticity (librosa spectral heuristics) [REAL]
-- Stage 4: AV Temporal Alignment (Whisper word timestamps x MediaPipe lip series) [REAL]
+Audio pipeline. Extracts the audio track, then runs four checks in order:
+- speech check (silero-vad): must pass
+- phrase check (faster-whisper base.en word matching, 4 of 5 words): must pass
+- voice-authenticity check (librosa spectral heuristics): advisory
+- lip-sync check (Whisper word times against the MediaPipe lip series): advisory
+
+A failed must-pass check stops the pipeline and returns passed=False.
 """
 from __future__ import annotations
 
 import logging
+import tempfile
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Callable, Dict, Optional, Tuple
+
 from app.core.config import settings
 from app.modules.audio._av_alignment import run_av_alignment, to_container_time
 from app.modules.audio._extraction import (
@@ -20,83 +24,167 @@ from app.modules.audio._extraction import (
     probe_media,
     verify_wav,
 )
-from app.modules.audio._phrase_compliance import run_phrase_compliance
+from app.modules.audio._phrase_compliance import CHALLENGE_WORD_COUNT, run_phrase_compliance
 from app.modules.audio._speech_gate import run_speech_gate
 from app.modules.audio._voice_authenticity import run_voice_authenticity
 from app.schemas.detector import DetectorResult
 
-from typing import Any, Dict, Optional, Tuple
-
 logger = logging.getLogger(__name__)
 
-
-# Audio advisory score weights (Stage 3: 10% + Stage 4: 10% in system fusion)
-# Within the audio module, each contributes equally to the advisory score field.
-_STAGE3_ADVISORY_WEIGHT: float = 0.5
-_STAGE4_ADVISORY_WEIGHT: float = 0.5
+# The two advisory checks contribute equally to the composite advisory score.
+_VOICE_CHECK_WEIGHT: float = 0.5
+_LIP_SYNC_WEIGHT: float = 0.5
 
 
-def _merge_stage_details(*stage_results: Optional[DetectorResult]) -> Dict[str, Any]:
-    """Merge details dictionary across multiple detector results in sequence."""
+def _failure(reason: str, error: Optional[str] = None, **details: Any) -> DetectorResult:
+    """A failed pipeline result: no score, passed=False, and the speech fields consumers expect."""
+    return DetectorResult(
+        score=None,
+        passed=False,
+        reason=reason,
+        error=error,
+        details={"speech_detected": False, "speech_duration_seconds": 0.0, **details},
+    )
+
+
+def _merge_details(*results: DetectorResult) -> Dict[str, Any]:
+    """Merge the details of several check results, later results winning on a repeated key."""
     merged: Dict[str, Any] = {}
-    for res in stage_results:
-        if res is not None and res.details:
-            merged.update(res.details)
+    for result in results:
+        if result.details:
+            merged.update(result.details)
     return merged
 
 
 def _compute_pipeline_score(
-    stage3_result: DetectorResult,
-    stage4_score: Optional[float] = None,
+    voice_result: DetectorResult,
+    lip_sync_score: Optional[float] = None,
 ) -> Tuple[Optional[float], str]:
     """
-    Derive composite pipeline advisory score and its formatted string representation.
-    Stage 3 and Stage 4 (when implemented) contribute to the advisory score.
+    Composite advisory score and the voice-check score as text. Only checks that produced a
+    score contribute; with none, the score is None.
     """
-    s3_score = stage3_result.score
-    active_weight = 0.0
-    weighted_sum = 0.0
-
-    if s3_score is not None:
-        weighted_sum += s3_score * _STAGE3_ADVISORY_WEIGHT
-        active_weight += _STAGE3_ADVISORY_WEIGHT
-
-    if stage4_score is not None:
-        weighted_sum += stage4_score * _STAGE4_ADVISORY_WEIGHT
-        active_weight += _STAGE4_ADVISORY_WEIGHT
-
-    if active_weight > 0:
-        combined_score = round(weighted_sum / active_weight, 3)
-        s3_str = f"{s3_score:.3f}" if s3_score is not None else "N/A"
-        return combined_score, s3_str
-
-    return None, "N/A"
+    parts = [(voice_result.score, _VOICE_CHECK_WEIGHT), (lip_sync_score, _LIP_SYNC_WEIGHT)]
+    measured = [(score, weight) for score, weight in parts if score is not None]
+    voice_text = f"{voice_result.score:.3f}" if voice_result.score is not None else "N/A"
+    if not measured:
+        return None, voice_text
+    total_weight = sum(weight for _, weight in measured)
+    return round(sum(score * weight for score, weight in measured) / total_weight, 3), voice_text
 
 
 def _build_pipeline_reason(
-    s1_details: Dict[str, Any],
-    s2_details: Dict[str, Any],
-    s3_str: str,
-    s4_reason: str,
+    speech_details: Dict[str, Any],
+    phrase_details: Dict[str, Any],
+    voice_text: str,
+    lip_sync_reason: str,
 ) -> str:
-    """Build standardized human-readable reason string when all mandatory stages pass."""
-    speech_dur = s1_details.get("speech_duration_seconds", 0.0)
-    match_count = s2_details.get("match_count", 0)
+    """Human-readable reason for a run in which both must-pass checks passed."""
+    speech_seconds = speech_details.get("speech_duration_seconds", 0.0)
+    matched = phrase_details.get("match_count", 0)
     return (
-        f"Stages 1+2 passed: {speech_dur:.2f}s speech detected, "
-        f"{match_count}/5 challenge words verified. "
-        f"Stage 3 voice authenticity: {s3_str}. Stage 4: {s4_reason}"
+        f"Speech and phrase checks passed: {speech_seconds:.2f}s speech detected, "
+        f"{matched}/{CHALLENGE_WORD_COUNT} challenge words verified. "
+        f"Voice authenticity: {voice_text}. Lip sync: {lip_sync_reason}"
     )
 
 
-def _cleanup_temp_file(file_path: Optional[Path]) -> None:
-    """Safely delete temporary intermediate file if it exists (Privacy NFR §10)."""
-    if file_path is not None:
-        try:
-            if file_path.exists():
-                file_path.unlink()
-        except OSError as e:
-            logger.warning(f"Could not delete temporary WAV file {file_path}: {e}")
+@dataclass
+class _Prepared:
+    """The extracted 16 kHz WAV and the container probe, or the failure that stopped extraction."""
+    wav_path: Optional[Path] = None
+    container_info: Optional[Dict[str, Any]] = None
+    failure: Optional[DetectorResult] = None
+
+
+def _prepare_wav(src_path: Path, workdir: Path) -> _Prepared:
+    """Probe the media, extract its audio to a 16 kHz mono WAV in `workdir` and verify the result."""
+    if not src_path.exists():
+        return _Prepared(failure=_failure(f"Media file does not exist: {src_path}", "Media file not found"))
+
+    info = probe_media(src_path)
+    if not info["ok"]:
+        return _Prepared(failure=_failure(
+            f"Failed to probe media file: {info.get('error')}", info.get("error") or "Media probe failed"
+        ))
+    if info.get("audio") is None:
+        return _Prepared(failure=_failure("No audio stream found in media container.", "No audio stream"))
+
+    wav_path = workdir / f"{src_path.stem}_16k.wav"
+    ok, error, _ = extract_wav(src_path, wav_path)
+    if not ok:
+        return _Prepared(failure=_failure(f"Failed to extract audio track: {error}", error or "Audio extraction failed"))
+
+    ok, description = verify_wav(wav_path)
+    if not ok:
+        return _Prepared(failure=_failure(f"Extracted audio failed format verification: {description}", description))
+
+    extracted = probe_media(wav_path).get("duration")
+    complete, truncation_error = check_extraction_completeness(info.get("duration"), extracted)
+    if not complete:
+        return _Prepared(failure=_failure(
+            f"Extraction truncation detected: {truncation_error}",
+            f"Extraction truncated ({truncation_error})",
+            extracted_duration=extracted,
+            claimed_duration=info.get("duration"),
+        ))
+    return _Prepared(wav_path=wav_path, container_info=info)
+
+
+def _timed(check: Callable[..., DetectorResult], *args: Any, **kwargs: Any) -> Tuple[DetectorResult, float]:
+    started = time.perf_counter()
+    result = check(*args, **kwargs)
+    return result, round(time.perf_counter() - started, 3)
+
+
+def _run_lip_sync(prepared: _Prepared, phrase: DetectorResult, lip_openness_data) -> DetectorResult:
+    """Lip-sync check on word times converted to the container clock the lip series uses."""
+    words = (phrase.details or {}).get("word_timestamps")
+    audio_start = prepared.container_info["audio"].get("start_time") or 0.0
+    result, seconds = _timed(
+        run_av_alignment,
+        word_timestamps=to_container_time(words, audio_start),
+        lip_openness_data=lip_openness_data,
+    )
+    result.details = {
+        **(result.details or {}),
+        "lip_sync_latency_seconds": seconds,
+        "audio_start_offset_seconds": round(max(0.0, audio_start), 3),
+    }
+    return result
+
+
+def _run_checks(prepared: _Prepared, challenge_phrase: str, lip_openness_data) -> DetectorResult:
+    speech = run_speech_gate(prepared.wav_path)
+    if speech.error is not None:
+        return speech
+    if not speech.passed:
+        return DetectorResult(score=None, passed=False, reason=speech.reason, error=None, details=speech.details)
+
+    phrase, phrase_seconds = _timed(run_phrase_compliance, prepared.wav_path, challenge_phrase)
+    phrase.details = {**(phrase.details or {}), "phrase_check_latency_seconds": phrase_seconds}
+    if phrase.error is not None or not phrase.passed:
+        return DetectorResult(
+            score=None, passed=False, reason=phrase.reason, error=phrase.error,
+            details=_merge_details(speech, phrase),
+        )
+
+    voice = run_voice_authenticity(prepared.wav_path, (speech.details or {}).get("segments"))
+    lip_sync = _run_lip_sync(prepared, phrase, lip_openness_data)
+
+    details = _merge_details(speech, phrase, voice, lip_sync)
+    for name, check in (("voice_check_error", voice), ("lip_sync_error", lip_sync)):
+        if check.error is not None:
+            details[name] = check.error  # advisory errors do not fail the run but must stay visible
+
+    score, voice_text = _compute_pipeline_score(voice, lip_sync_score=lip_sync.score)
+    return DetectorResult(
+        score=score,
+        passed=True,
+        reason=_build_pipeline_reason(speech.details or {}, phrase.details or {}, voice_text, lip_sync.reason),
+        error=None,
+        details=details,
+    )
 
 
 def process_audio_pipeline(
@@ -105,190 +193,22 @@ def process_audio_pipeline(
     lip_openness_data: Optional[Dict[str, Any]] = None,
 ) -> DetectorResult:
     """
-    Execute the audio pipeline stages in sequence:
-    1. Extract audio track from media container to 16kHz mono WAV in temp_uploads/
-    2. Verify extraction completeness and audio format contract
-    3. Stage 1 (Speech Gate - silero-vad): Hard gate on speech presence & duration >= 2.0s
-    4. Stage 2 (Phrase Compliance - faster-whisper base.en): Hard gate on >=4-of-5 challenge words match
-    5. Stage 3 (Voice Authenticity - librosa spectral heuristics): Advisory score (noise floor, flux, hf rolloff)
-    6. Stage 4 (AV Alignment): advisory; score is None when lip timing or word timestamps are unusable.
-    
-    Guarantees:
-    - Never raises an uncaught exception (complies with 4-key contract).
-    - Hard gate failure immediately stops pipeline execution and returns passed=False.
-    - Temporary extracted WAV is deleted post-analysis (Privacy NFR §10).
+    Run the audio checks on a recording and fold them into one DetectorResult.
+
+    The extracted WAV lives in a temporary folder that is always deleted afterwards, whether the
+    run passes, fails or raises. Never raises.
     """
-    wav_path: Optional[Path] = None
     try:
-        src_path = Path(media_path)
-        if not src_path.exists():
-            return DetectorResult(
-                score=None,
-                passed=False,
-                reason=f"Media file does not exist: {media_path}",
-                error="Media file not found",
-                details={"speech_detected": False, "speech_duration_seconds": 0.0},
-            )
-
-        # 1. Probe input container and audio streams
-        container_info = probe_media(src_path)
-        if not container_info["ok"]:
-            return DetectorResult(
-                score=None,
-                passed=False,
-                reason=f"Failed to probe media file: {container_info.get('error')}",
-                error=container_info.get("error") or "Media probe failed",
-                details={"speech_detected": False, "speech_duration_seconds": 0.0},
-            )
-
-        if container_info.get("audio") is None:
-            return DetectorResult(
-                score=None,
-                passed=False,
-                reason="No audio stream found in media container.",
-                error="No audio stream",
-                details={"speech_detected": False, "speech_duration_seconds": 0.0},
-            )
-
-        # 2. Setup output WAV path in temp_uploads/ (configured via settings.UPLOAD_TEMP_DIR)
-        temp_uploads_dir = Path(settings.UPLOAD_TEMP_DIR)
-        temp_uploads_dir.mkdir(parents=True, exist_ok=True)
-
-        stem = src_path.stem
-        wav_path = temp_uploads_dir / f"{stem}_16k.wav"
-
-        # 3. Extract to 16kHz mono WAV via ffmpeg subprocess
-        ok, extract_err, _ = extract_wav(src_path, wav_path)
-        if not ok:
-            return DetectorResult(
-                score=None,
-                passed=False,
-                reason=f"Failed to extract audio track: {extract_err}",
-                error=extract_err or "Audio extraction failed",
-                details={"speech_detected": False, "speech_duration_seconds": 0.0},
-            )
-
-        try:
-            # 4. Verify output WAV satisfies resample contract (16000Hz mono PCM)
-            vok, vdesc = verify_wav(wav_path)
-            if not vok:
-                return DetectorResult(
-                    score=None,
-                    passed=False,
-                    reason=f"Extracted audio failed format verification: {vdesc}",
-                    error=vdesc,
-                    details={"speech_detected": False, "speech_duration_seconds": 0.0},
-                )
-
-            # 5. Check extraction completeness (compare against container duration)
-            wav_info = probe_media(wav_path)
-            extracted_dur = wav_info.get("duration")
-            claimed_dur = container_info.get("duration")
-            is_complete, comp_err = check_extraction_completeness(claimed_dur, extracted_dur)
-            if not is_complete:
-                return DetectorResult(
-                    score=None,
-                    passed=False,
-                    reason=f"Extraction truncation detected: {comp_err}",
-                    error=f"Extraction truncated ({comp_err})",
-                    details={
-                        "speech_detected": False,
-                        "speech_duration_seconds": 0.0,
-                        "extracted_duration": extracted_dur,
-                        "claimed_duration": claimed_dur,
-                    },
-                )
-
-            # 6. Run Stage 1 Speech Gate (silero-vad)
-            stage1_result = run_speech_gate(wav_path)
-
-            # If Stage 1 produced an internal error or failed the hard gate, return immediately
-            if stage1_result.error is not None:
-                return stage1_result
-
-            if not stage1_result.passed:
-                return DetectorResult(
-                    score=None,
-                    passed=False,
-                    reason=stage1_result.reason,
-                    error=None,
-                    details=stage1_result.details,
-                )
-
-            # 7. Run Stage 2 Phrase Compliance (faster-whisper)
-            t_stage2_start = time.perf_counter()
-            stage2_result = run_phrase_compliance(wav_path, challenge_phrase)
-            stage2_elapsed = time.perf_counter() - t_stage2_start
-            if stage2_result.details is None:
-                stage2_result.details = {}
-            stage2_result.details["stage2_latency_seconds"] = round(stage2_elapsed, 3)
-
-            # If Stage 2 produced an internal error or failed the hard gate, return immediately
-            if stage2_result.error is not None:
-                return DetectorResult(
-                    score=None,
-                    passed=False,
-                    reason=stage2_result.reason,
-                    error=stage2_result.error,
-                    details=_merge_stage_details(stage1_result, stage2_result),
-                )
-
-            if not stage2_result.passed:
-                return DetectorResult(
-                    score=None,
-                    passed=False,
-                    reason=stage2_result.reason,
-                    error=None,
-                    details=_merge_stage_details(stage1_result, stage2_result),
-                )
-
-            # 8. Run Stage 3 Voice Authenticity (librosa spectral heuristics - advisory)
-            stage1_segments = stage1_result.details.get("segments") if stage1_result.details else None
-            stage3_result = run_voice_authenticity(wav_path, stage1_segments)
-
-            # 9. Run Stage 4 AV Temporal Alignment (Whisper word timestamps x lip data - advisory)
-            word_timestamps = stage2_result.details.get("word_timestamps") if stage2_result.details else None
-            audio_start = container_info["audio"].get("start_time") or 0.0
-            t_stage4_start = time.perf_counter()
-            stage4_result = run_av_alignment(
-                wav_path,
-                word_timestamps=to_container_time(word_timestamps, audio_start),
-                lip_openness_data=lip_openness_data,
-            )
-            stage4_elapsed = time.perf_counter() - t_stage4_start
-            if stage4_result.details is None:
-                stage4_result.details = {}
-            stage4_result.details["stage4_latency_seconds"] = round(stage4_elapsed, 3)
-            stage4_result.details["audio_start_offset_seconds"] = round(max(0.0, audio_start), 3)
-
-            # 10. Stages 1 & 2 Passed -> Fold into pipeline result
-            combined_details = _merge_stage_details(stage1_result, stage2_result, stage3_result, stage4_result)
-
-            combined_score, s3_str = _compute_pipeline_score(stage3_result, stage4_score=stage4_result.score)
-            pipeline_reason = _build_pipeline_reason(
-                stage1_result.details or {},
-                stage2_result.details or {},
-                s3_str,
-                stage4_result.reason,
-            )
-
-            return DetectorResult(
-                score=combined_score,
-                passed=True,
-                reason=pipeline_reason,
-                error=None,
-                details=combined_details,
-            )
-        finally:
-            _cleanup_temp_file(wav_path)
-
-    except Exception as e:
+        upload_dir = Path(settings.UPLOAD_TEMP_DIR)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=upload_dir, prefix="audio_") as workdir:
+            prepared = _prepare_wav(Path(media_path), Path(workdir))
+            if prepared.failure is not None:
+                return prepared.failure
+            return _run_checks(prepared, challenge_phrase, lip_openness_data)
+    except Exception as e:  # noqa: BLE001 - a detector must never raise
         logger.exception("Unexpected error in process_audio_pipeline")
-        return DetectorResult(
-            score=None,
-            passed=False,
-            reason=f"Audio pipeline failed with unexpected error: {type(e).__name__}: {e}",
-            error=f"{type(e).__name__}: {e}",
-            details={"speech_detected": False, "speech_duration_seconds": 0.0},
+        return _failure(
+            f"Audio pipeline failed with unexpected error: {type(e).__name__}: {e}",
+            f"{type(e).__name__}: {e}",
         )
-

@@ -1,34 +1,30 @@
 """
-Stage 4: Audio-Visual Temporal Alignment (Cross-Modal) [REAL]
+Lip-sync check (audio-visual temporal alignment), an advisory audio check.
 
-Interface finalized solo by Dev 1 (Dev 2 unavailable, user-authorized) in
-`.claude/context/audio-pipeline/av-alignment-interface.md` — read that file for the exact
-lip-series/word-timestamp shapes and the full design rationale before changing this module.
+It compares when each word was spoken with whether the lips were moving at that time; the exact
+lip-series and word-timestamp shapes are in `.claude/context/audio-pipeline/av-alignment-interface.md`.
 
-Timing comes ONLY from each lip sample's own `time_seconds` (decision B4/D-19). The old
-`frame_index / fps` conversion is gone: browser `.webm` reports a bogus 1000 fps and the
-indices count subsampled frames, so it either found no overlap or, worse, produced a
-plausible-looking but wrong score. A series without usable `time_seconds` now degrades to
-`score=None` (J5).
+Timing comes ONLY from each lip sample's own `time_seconds`, never from `frame_index / fps`:
+browser `.webm` reports a bogus 1000 fps and the indices count subsampled frames, so that
+conversion either found no overlap or produced a plausible-looking but wrong score. A series
+without usable `time_seconds` degrades to `score=None`.
 
-Advisory only: `passed` is always True regardless of score. Never fabricates a numeric
-score (J5) — missing or non-overlapping input degrades to `score=None` with a
-`degraded_reason`, not a plausible-looking number. Calibration status: [UNCALIBRATED] —
-see the interface doc and stage-specifications.md.
+Advisory only: `passed` is always True regardless of score. It never fabricates a score:
+missing or non-overlapping input degrades to `score=None` with a `lip_sync_degraded_reason`.
+Calibration status: [UNCALIBRATED] (see the interface doc).
 """
 from __future__ import annotations
 
 import logging
 import math
 import statistics
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.schemas.detector import DetectorResult
 
 logger = logging.getLogger(__name__)
 
-# ±300ms tolerance, already agreed in the project plan (Section 5.5).
+# ±300ms tolerance: speech and lip movement naturally differ by up to ~150 ms.
 ALIGNMENT_TOLERANCE_SECONDS = 0.3
 # Fraction of a word's overlapping samples that must show elevated lip opening for that
 # word to count as "aligned". [UNCALIBRATED] initial guess.
@@ -64,8 +60,8 @@ def _degraded_result(reason: str, word_count: int) -> DetectorResult:
         details={
             "av_alignment_score": None,
             "word_count": word_count,
-            "degraded": True,
-            "degraded_reason": reason,
+            "lip_sync_degraded": True,
+            "lip_sync_degraded_reason": reason,
         },
     )
 
@@ -120,13 +116,12 @@ def _build_scored_result(judged: List[bool], word_count: int, sample_count: int,
             "words_aligned": aligned,
             "lip_samples_used": sample_count,
             "open_threshold": round(open_threshold, 4),
-            "degraded": False,
+            "lip_sync_degraded": False,
         },
     )
 
 
 def run_av_alignment(
-    wav_path: Path | str,
     word_timestamps: Optional[List[Dict[str, Any]]] = None,
     lip_openness_data: Optional[Dict[str, Any]] = None,
 ) -> DetectorResult:
@@ -169,5 +164,5 @@ def run_av_alignment(
             passed=True,
             reason=f"AV alignment failed unexpectedly: {type(exc).__name__}: {exc}",
             error=str(exc),
-            details={"av_alignment_score": None, "word_count": word_count, "degraded": True},
+            details={"av_alignment_score": None, "word_count": word_count, "lip_sync_degraded": True},
         )

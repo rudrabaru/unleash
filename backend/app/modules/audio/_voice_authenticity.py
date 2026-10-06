@@ -1,5 +1,5 @@
 """
-Stage 3: Voice Authenticity (Spectral Heuristics) Implementation.
+Voice authenticity check (spectral heuristics), an advisory audio check.
 
 Evaluates audio authenticity via spectral heuristics to flag TTS audio injection
 and physical speaker replay. Computes an advisory score (0.0 - 1.0) based on:
@@ -7,25 +7,26 @@ and physical speaker replay. Computes an advisory score (0.0 - 1.0) based on:
 2. Spectral flux variance across voiced speech segments
 3. High-frequency energy rolloff ratio
 
-Note: Stage 3 is purely advisory and never hard-gates the verification session.
+It is purely advisory and never fails the verification session.
 
-CALIBRATION STATUS (Phase 4): [UNCALIBRATED]. The heuristics below are real computations on
-real audio -- nothing here is stubbed -- but every threshold, divisor and weight is an initial
-guess that has never been fitted to a labelled recording set. Measured against the only labelled
-fixtures available (2 genuine, 1 TTS), the composite produces NO separation between genuine and
-TTS speech, the spectral-flux term saturates to 1.0 on all of them, and the HF-rolloff term runs
-opposite to its documented direction. Treat this stage's score as unvalidated until the scenario
-1/2/3/7/8/10 recording set exists. Full evidence: docs/audio_pipeline_observations.md.
+CALIBRATION STATUS: [UNCALIBRATED]. The heuristics below are real computations on real audio --
+nothing here is stubbed -- but every threshold, divisor and weight is an initial guess that has
+never been fitted to a labelled recording set. Measured against the only labelled recordings
+that were available (2 genuine, 1 TTS), the composite produced NO separation between genuine
+and TTS speech, the spectral-flux term saturated to 1.0 on all of them, and the HF-rolloff term
+ran opposite to its documented direction. Treat the score as unvalidated until a labelled set of
+genuine, replayed and synthetic recordings exists.
 
 A sub-heuristic that cannot perform a real measurement returns score None and flags
-details["degraded"]=True with a reason; the composite uses only the heuristics that measured
-(weights renormalized). If none measured, Stage 3 returns score None with an error.
+details["voice_degraded"]=True with a reason; the composite uses only the heuristics that
+measured (weights renormalized). If none measured, the check returns score None with an error.
 """
 from __future__ import annotations
 
 import logging
 import time
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -35,13 +36,10 @@ from app.schemas.detector import DetectorResult
 
 logger = logging.getLogger(__name__)
 
-TARGET_SAMPLE_RATE = 16000
-
 # Composite weights (must sum to 1.0)
 # CALIBRATION STATUS: uncalibrated. These weights, and every divisor/bucket constant below,
-# are initial guesses that have never been fitted to a labelled recording set. See
-# docs/audio_pipeline_observations.md (Phase 4, Stage 3 calibration) for the measured evidence
-# that they currently produce no genuine-vs-TTS separation. Do not cite them as tuned values.
+# are initial guesses that have never been fitted to a labelled recording set; they currently
+# produce no genuine-vs-TTS separation. Do not cite them as tuned values.
 NOISE_WEIGHT = 0.30
 FLUX_WEIGHT = 0.45
 HF_RATIO_WEIGHT = 0.25
@@ -49,21 +47,19 @@ HF_RATIO_WEIGHT = 0.25
 # Minimum samples required for a 512-point STFT frame.
 MIN_STFT_SAMPLES = 512
 
-# librosa loaded at module init with graceful fallback
+# librosa is loaded at import with a graceful fallback. One STFT is run at import to remove
+# the ~4 s first-call penalty from the first request.
 _LIBROSA_AVAILABLE: bool = False
 _LIBROSA_LOAD_ERROR: Optional[str] = None
 try:
     import librosa
+    librosa.stft(np.zeros(512, dtype=np.float32), n_fft=512, hop_length=128)
     _LIBROSA_AVAILABLE = True
-    # Warm up librosa on first import to eliminate first-call penalty (~4s)
-    # This runs once at module init, not on every inference request
-    _warmup_audio = np.zeros(512, dtype=np.float32)
-    _ = librosa.stft(_warmup_audio, n_fft=512, hop_length=128)
     logger.info("librosa loaded and warmed up successfully")
-except Exception as _e:  # noqa: BLE001
-    _LIBROSA_LOAD_ERROR = f"{type(_e).__name__}: {_e}"
+except Exception as _exc:  # noqa: BLE001
+    _LIBROSA_LOAD_ERROR = f"{type(_exc).__name__}: {_exc}"
     librosa = None  # type: ignore
-    logger.warning(f"librosa import failed at module init: {_LIBROSA_LOAD_ERROR}")
+    logger.warning("librosa import failed at import: %s", _LIBROSA_LOAD_ERROR)
 
 
 def _degraded_meta(reason: str, **extra: Any) -> Dict[str, Any]:
@@ -96,6 +92,55 @@ def _collect_degradations(*metas: Dict[str, Any]) -> Tuple[bool, List[str]]:
     return bool(reasons), reasons
 
 
+MIN_SILENCE_GAP_S = 0.05  # silence shorter than this is too short to measure a noise floor
+
+
+def _silence_audio(
+    audio: np.ndarray, sr: int, speech_segments: List[Dict[str, float]], total_duration: float
+) -> np.ndarray:
+    """Concatenate the non-speech gaps (before, between and after the speech segments)."""
+    slices: List[np.ndarray] = []
+    previous_end = 0.0
+    for seg in sorted(speech_segments, key=lambda x: x.get("start", 0.0)):
+        start = max(0.0, seg.get("start", 0.0))
+        end = max(start, seg.get("end", start))
+        if start - previous_end >= MIN_SILENCE_GAP_S:
+            start_idx, end_idx = int(previous_end * sr), int(start * sr)
+            if end_idx > start_idx:
+                slices.append(audio[start_idx:end_idx])
+        previous_end = end
+
+    if total_duration - previous_end >= MIN_SILENCE_GAP_S:  # tail silence
+        start_idx, end_idx = int(previous_end * sr), min(len(audio), int(total_duration * sr))
+        if end_idx > start_idx:
+            slices.append(audio[start_idx:end_idx])
+    return np.concatenate(slices) if slices else np.array([], dtype=audio.dtype)
+
+
+def _rms_values(silence_audio: np.ndarray) -> np.ndarray:
+    """Short-term RMS in windows of 256 samples (~16 ms at 16 kHz), hop 128."""
+    window_size, hop_size = 256, 128
+    num_frames = (len(silence_audio) - window_size) // hop_size + 1
+    if num_frames <= 1:
+        return np.array([np.sqrt(np.mean(silence_audio ** 2) + 1e-12)])
+    shape = (num_frames, window_size)
+    strides = (silence_audio.strides[0] * hop_size, silence_audio.strides[0])
+    frames = np.lib.stride_tricks.as_strided(silence_audio, shape=shape, strides=strides)
+    return np.sqrt(np.mean(frames ** 2, axis=1) + 1e-12)
+
+
+def _noise_floor_points(mean_rms: float, cov: float) -> float:
+    """UNCALIBRATED mapping from the measured noise floor to a 0-1 score."""
+    if mean_rms < 1e-5:  # suspiciously zero digital noise
+        return 0.1
+    if cov < 0.05:  # perfectly flat constant noise floor
+        return 0.2
+    # Natural noise floor: scale smoothly with a healthy coefficient of variation and non-zero RMS
+    cov_norm = min(cov / 0.15, 1.0)
+    rms_norm = min(mean_rms / 1e-3, 1.0)
+    return float(0.2 + 0.8 * (0.6 * cov_norm + 0.4 * rms_norm))
+
+
 def compute_noise_floor_score(
     audio: np.ndarray,
     sr: int,
@@ -105,83 +150,30 @@ def compute_noise_floor_score(
     """
     Heuristic 1: Noise floor consistency.
     Analyzes silence/inter-speech regions for natural sensor noise vs. artificial digital silence.
-    
+
     Live microphone speech contains subtle, non-zero acoustic/sensor noise with natural variance.
     Pure TTS / synthetic injection often exhibits absolute digital silence or flat zeros between words.
     """
     if len(audio) == 0 or total_duration <= 0:
-        return None, _degraded_meta(
-            "no audio to measure a noise floor from",
-            mean_rms=0.0, cov=0.0, silence_samples=0
-        )
+        return None, _degraded_meta("no audio to measure a noise floor from", mean_rms=0.0, cov=0.0, silence_samples=0)
 
-    # Extract non-speech / silence slices sorted by start time
-    sorted_segs = sorted(speech_segments, key=lambda s: s.get("start", 0.0))
-    silence_slices: List[np.ndarray] = []
-    
-    prev_end = 0.0
-    for seg in sorted_segs:
-        start = max(0.0, seg.get("start", 0.0))
-        end = max(start, seg.get("end", start))
-        # Silence gap between prev_end and start
-        if start - prev_end >= 0.05:  # At least 50ms gap
-            start_idx = int(prev_end * sr)
-            end_idx = int(start * sr)
-            if end_idx > start_idx:
-                silence_slices.append(audio[start_idx:end_idx])
-        prev_end = end
-
-    # Tail silence
-    if total_duration - prev_end >= 0.05:
-        start_idx = int(prev_end * sr)
-        end_idx = min(len(audio), int(total_duration * sr))
-        if end_idx > start_idx:
-            silence_slices.append(audio[start_idx:end_idx])
-
-    if not silence_slices:
-        # No inter-speech silence to measure: this heuristic has nothing to look at.
+    silence_audio = _silence_audio(audio, sr, speech_segments, total_duration)
+    if len(silence_audio) == 0:
         return None, _degraded_meta(
             "no inter-speech silence gaps found (>=50ms) to measure a noise floor",
             mean_rms=0.0, cov=0.0, silence_samples=0
         )
-
-    silence_audio = np.concatenate(silence_slices)
-    if len(silence_audio) < int(0.05 * sr):  # < 50ms total silence
+    if len(silence_audio) < int(MIN_SILENCE_GAP_S * sr):
         return None, _degraded_meta(
             "total inter-speech silence under 50ms; too short to measure a noise floor",
             mean_rms=0.0, cov=0.0, silence_samples=len(silence_audio)
         )
 
-    # Compute short-term RMS in windows of 256 samples (~16ms at 16kHz)
-    window_size = 256
-    hop_size = 128
-    num_frames = (len(silence_audio) - window_size) // hop_size + 1
-    if num_frames <= 1:
-        rms_values = np.array([np.sqrt(np.mean(silence_audio ** 2) + 1e-12)])
-    else:
-        shape = (num_frames, window_size)
-        strides = (silence_audio.strides[0] * hop_size, silence_audio.strides[0])
-        frames = np.lib.stride_tricks.as_strided(silence_audio, shape=shape, strides=strides)
-        rms_values = np.sqrt(np.mean(frames ** 2, axis=1) + 1e-12)
-
+    rms_values = _rms_values(silence_audio)
     mean_rms = float(np.mean(rms_values))
     std_rms = float(np.std(rms_values))
     cov = std_rms / (mean_rms + 1e-9)
-
-    # Scoring evaluation:
-    # 1. Suspiciously zero digital noise (mean_rms < 1e-5) -> low score
-    if mean_rms < 1e-5:
-        score = 0.1
-    # 2. Perfectly flat constant noise floor (cov < 0.05) -> low score
-    elif cov < 0.05:
-        score = 0.2
-    else:
-        # Natural noise floor: scale smoothly with healthy CoV and non-zero mean RMS
-        cov_norm = min(cov / 0.15, 1.0)
-        rms_norm = min(mean_rms / 1e-3, 1.0)
-        score = float(0.2 + 0.8 * (0.6 * cov_norm + 0.4 * rms_norm))
-
-    score = min(max(score, 0.0), 1.0)
+    score = min(max(_noise_floor_points(mean_rms, cov), 0.0), 1.0)
     return round(score, 3), _measured_meta(
         mean_rms=round(mean_rms, 6),
         std_rms=round(std_rms, 6),
@@ -282,12 +274,12 @@ def compute_hf_rolloff_score(
     high_energy = float(np.mean(high_band))
     hf_ratio = high_energy / (low_energy + 1e-10)
 
-    # UNCALIBRATED divisor, and the band rationale above is contradicted by measurement:
-    # both genuine fixtures land at hf_ratio 0.0091 / 0.0117 -- below the 0.03 the comment
-    # attributes to speaker replay -- while the TTS fixture is the HIGHEST at 0.0223. On the
-    # data we have this term runs opposite to its stated direction. Left unchanged pending the
-    # scenario 7 (replay-through-speaker) recordings, which are the only class that actually
-    # exercises a speaker rolloff signature. See docs/audio_pipeline_observations.md.
+    # UNCALIBRATED divisor, and the band rationale above is contradicted by measurement: both
+    # genuine recordings had hf_ratio 0.009 / 0.012, below the 0.03 attributed to speaker replay,
+    # while the TTS recording was the highest (0.022), so on that data this term runs opposite to
+    # its stated direction. The 80-band split is also probably mislabelled: with librosa's default
+    # mel spacing band 80 is near 2.5 kHz, not 4 kHz. Left unchanged until recordings of audio
+    # replayed through a speaker exist, the only class that shows a speaker roll-off.
     score = min(max(hf_ratio / 0.15, 0.0), 1.0)
 
     return round(score, 3), _measured_meta(
@@ -344,10 +336,10 @@ def _build_advisory_error_result(
     segments_count: int = 0,
     elapsed: float = 0.0
 ) -> DetectorResult:
-    """Construct an advisory DetectorResult for error scenarios (passed=True, score=None)."""
+    """Advisory result for error cases (passed=True, score=None)."""
     return DetectorResult(
         score=None,
-        passed=True,  # Advisory only: never hard-fail session
+        passed=True,  # Advisory only: never fails the session
         reason=reason,
         error=error,
         details={
@@ -358,27 +350,31 @@ def _build_advisory_error_result(
             "speech_segments_analysed": segments_count,
             "analysis_duration_seconds": elapsed,
             # No measurement happened at all on this path; score is null, not a placeholder.
-            "degraded": True,
-            "degraded_reasons": [reason]
+            "voice_degraded": True,
+            "voice_degraded_reasons": [reason]
         }
     )
 
 
+@dataclass
+class _Measurements:
+    """What the three heuristics returned: score (None if unmeasurable) and metrics each."""
+    noise: Tuple[Optional[float], Dict[str, Any]]
+    flux: Tuple[Optional[float], Dict[str, Any]]
+    hf: Tuple[Optional[float], Dict[str, Any]]
+
+    def metas(self) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
+        return self.noise[1], self.flux[1], self.hf[1]
+
+
 def _build_advisory_success_result(
-    voice_authenticity_score: float,
-    noise_score: Optional[float],
-    flux_score: Optional[float],
-    hf_score: Optional[float],
-    segments_count: int,
-    elapsed: float,
-    noise_meta: Dict[str, Any],
-    flux_meta: Dict[str, Any],
-    hf_meta: Dict[str, Any]
+    score: float, m: _Measurements, segments_count: int, elapsed: float
 ) -> DetectorResult:
-    """Construct an advisory DetectorResult for successful spectral analysis."""
-    degraded, degraded_reasons = _collect_degradations(noise_meta, flux_meta, hf_meta)
+    """Advisory result for a successful analysis (at least one heuristic measured)."""
+    noise_score, flux_score, hf_score = m.noise[0], m.flux[0], m.hf[0]
+    degraded, degraded_reasons = _collect_degradations(*m.metas())
     reason = (
-        f"Voice authenticity score: {voice_authenticity_score:.3f} "
+        f"Voice authenticity score: {score:.3f} "
         f"(noise_floor={_fmt_score(noise_score)}, spectral_flux={_fmt_score(flux_score)}, hf_ratio={_fmt_score(hf_score)})."
     )
     if degraded:
@@ -388,31 +384,32 @@ def _build_advisory_success_result(
             f" and was excluded from the composite: {'; '.join(degraded_reasons)}."
         )
     return DetectorResult(
-        score=voice_authenticity_score,
+        score=score,
         passed=True,  # Advisory only
         reason=reason,
         error=None,
         details={
-            "voice_authenticity_score": voice_authenticity_score,
+            "voice_authenticity_score": score,
             "noise_floor_score": noise_score,
             "spectral_flux_score": flux_score,
             "hf_ratio_score": hf_score,
             "speech_segments_analysed": segments_count,
-            "heuristic_weights": {
-                "noise": NOISE_WEIGHT,
-                "flux": FLUX_WEIGHT,
-                "hf_ratio": HF_RATIO_WEIGHT
-            },
+            "heuristic_weights": {"noise": NOISE_WEIGHT, "flux": FLUX_WEIGHT, "hf_ratio": HF_RATIO_WEIGHT},
             "analysis_duration_seconds": elapsed,
-            # True when at least one sub-heuristic could not measure and was excluded from the composite.
-            "degraded": degraded,
-            "degraded_reasons": degraded_reasons,
-            "metrics": {
-                "noise": noise_meta,
-                "flux": flux_meta,
-                "hf": hf_meta
-            }
+            # True when at least one heuristic could not measure and was excluded from the composite.
+            "voice_degraded": degraded,
+            "voice_degraded_reasons": degraded_reasons,
+            "metrics": {"noise": m.noise[1], "flux": m.flux[1], "hf": m.hf[1]},
         }
+    )
+
+
+def _measure(audio: np.ndarray, sr: int, duration: float, segments: List[Dict[str, float]]) -> _Measurements:
+    speech_audio = _extract_speech_audio(audio, sr, segments)
+    return _Measurements(
+        noise=compute_noise_floor_score(audio, sr, segments, duration),
+        flux=compute_spectral_flux_score(speech_audio, sr),
+        hf=compute_hf_rolloff_score(speech_audio, sr),
     )
 
 
@@ -421,76 +418,45 @@ def run_voice_authenticity(
     speech_segments: Optional[List[Dict[str, float]]] = None
 ) -> DetectorResult:
     """
-    Execute Stage 3 Voice Authenticity analysis on a 16kHz mono WAV file.
-    
-    Guarantees:
-    - Never raises an uncaught exception.
-    - Always adheres to the 4-key DetectorResult contract.
-    - Stage 3 is advisory: returns passed=True on standard evaluation,
-      or passed=True with score=None and error populated on unexpected execution failure.
+    Run the voice-authenticity check on a 16kHz mono WAV file.
+
+    Never raises. It is advisory: passed=True on a normal run, and also on an unexpected
+    failure (then with score=None and the error populated).
     """
-    t_start = time.perf_counter()
+    started = time.perf_counter()
     path_obj = Path(wav_path)
+    segments = speech_segments or []
 
     if not path_obj.exists():
         return _build_advisory_error_result(
             reason=f"Audio file not found for voice authenticity analysis: {path_obj}",
             error="Audio file does not exist",
-            segments_count=0
         )
 
     try:
         audio, sr, duration = read_wav_numpy(path_obj)
         if len(audio) == 0:
             return _build_advisory_error_result(
-                reason="Audio file is empty for voice authenticity analysis.",
-                error="Empty audio file",
-                segments_count=0
+                reason="Audio file is empty for voice authenticity analysis.", error="Empty audio file"
             )
 
-        segments = speech_segments or []
-        speech_audio = _extract_speech_audio(audio, sr, segments)
-
-        # 1. Noise Floor Consistency
-        noise_score, noise_meta = compute_noise_floor_score(audio, sr, segments, duration)
-
-        # 2. Spectral Flux Variance
-        flux_score, flux_meta = compute_spectral_flux_score(speech_audio, sr)
-
-        # 3. High-Frequency Rolloff Ratio
-        hf_score, hf_meta = compute_hf_rolloff_score(speech_audio, sr)
-
-        # 4. Composite Scoring
-        voice_authenticity_score = _compute_composite_score(noise_score, flux_score, hf_score)
-        elapsed = round(time.perf_counter() - t_start, 3)
-
-        if voice_authenticity_score is None:
-            _, reasons = _collect_degradations(noise_meta, flux_meta, hf_meta)
+        measurements = _measure(audio, sr, duration, segments)
+        score = _compute_composite_score(measurements.noise[0], measurements.flux[0], measurements.hf[0])
+        elapsed = round(time.perf_counter() - started, 3)
+        if score is None:
+            _, reasons = _collect_degradations(*measurements.metas())
             return _build_advisory_error_result(
                 reason="No voice-authenticity heuristic could measure this audio: " + "; ".join(reasons),
                 error="No measurable heuristics",
                 segments_count=len(segments),
                 elapsed=elapsed,
             )
-
-        return _build_advisory_success_result(
-            voice_authenticity_score=voice_authenticity_score,
-            noise_score=noise_score,
-            flux_score=flux_score,
-            hf_score=hf_score,
-            segments_count=len(segments),
-            elapsed=elapsed,
-            noise_meta=noise_meta,
-            flux_meta=flux_meta,
-            hf_meta=hf_meta
-        )
-
-    except Exception as e:
+        return _build_advisory_success_result(score, measurements, len(segments), elapsed)
+    except Exception as e:  # noqa: BLE001 - a detector must never raise
         logger.exception("Unexpected error in run_voice_authenticity")
-        elapsed = round(time.perf_counter() - t_start, 3)
         return _build_advisory_error_result(
             reason=f"Voice authenticity analysis encountered unexpected error: {type(e).__name__}: {e}",
             error=f"{type(e).__name__}: {e}",
-            segments_count=len(speech_segments) if speech_segments else 0,
-            elapsed=elapsed
+            segments_count=len(segments),
+            elapsed=round(time.perf_counter() - started, 3),
         )
