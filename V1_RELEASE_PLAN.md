@@ -16,7 +16,7 @@ v1.0 is a **modular demo** (D-27): the audio, visual and anti-spoofing modules r
 | Fusion | Weights, must-pass checks, joint veto, null redistribution; 17 tests. | `VERIFIED` is unreachable with the current deepfake and replay scores (score cap about 0.79); the joint veto fires on genuine UP and DOWN clips; no minimum signal coverage (see below). |
 | Pipeline | One decode, one analysis entry (`analyze_media`), worker threads with a lock, atomic session claim, a development-only demo endpoint, a clip measurement tool. Warm analysis of a 5.5 s 1080p clip 12.8 s before the deepfake frame cap and 8-11 s per sample clip after; peak memory 1.6 GB. | Browser recordings (VP8/Opus, about 15 s) have not been measured. |
 | Tests and CI | 155 tests green; a fresh clone runs 134 with one skip (no checkpoint). CI is one job (ffmpeg, conflict-marker check, full suite); not yet run on GitHub. | |
-| Frontend | A recorder prototype (microphone only, shows the 5 words). | No camera, no upload, no result screen. |
+| Frontend | A recorder page (camera plus microphone, shows the action and 5 words, saves a VP8/Opus clip). | No upload, no result screen. |
 
 Sample-clip measurement (10 clips, `python tools/measure_clips.py`; phone-style H.264 files, so a smoke check only): challenge passes on all 8 real-face clips performing it; liveness 0.47-0.93; deepfake 0.23-0.49; replay 0.30-0.42; every verdict `FAILED`.
 
@@ -33,7 +33,7 @@ Sample-clip measurement (10 clips, `python tools/measure_clips.py`; phone-style 
 
 1. **Baseline table** with `tools/measure_clips.py` (done for the current code: above).
 2. **Deepfake face crop:** take the face box from the dense landmarks, map it to the 30 native frames (landmark coordinates are normalised, so no second MediaPipe run), skip frames with no face, signal `None` if none. Re-measure.
-3. **Recording slice of the browser flow:** extend the recorder page to camera plus microphone (about 720p, 30 fps), one VP8/Opus file, a "save clip" button.
+3. **Recording slice of the browser flow (built, not yet tried with a real camera):** extend the recorder page to camera plus microphone (about 720p, 30 fps), one VP8/Opus file, a "save clip" button.
 4. **Record a calibration set through it (needs the owner):** genuine face and 5-word takes (eventually at least 10 from at least 3 speakers) and attacks: phone-screen replay, printed or on-screen photo, synthetic voice with face, wrong phrase, silence, wrong head direction (5-10 each).
 5. **Detector decisions with data (*decision*):** deepfake retrain (same crop as runtime, split by source video, success = validation at least 0.85, genuine clips below 0.3 fake probability, `fake.webm` flagged, else reported but not scored); calibrate replay, voice authenticity and lip sync (lip sync needs a shuffled-audio control) and leave them unweighted until they separate; decide the joint veto, the weights and a minimum-coverage rule.
 6. **Phrase check (*decision*):** enforce order and cap extra words; pick the floor from human takes.

@@ -43,6 +43,7 @@ export default function AudioCapturePrototype() {
   const recordedChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recordStartTimeRef = useRef<number>(0);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
   // Initialize or fetch challenge session
   const fetchSession = async () => {
@@ -82,7 +83,7 @@ export default function AudioCapturePrototype() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: audioConstraints,
-        video: false,
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 }, facingMode: "user" },
       });
 
       mediaStreamRef.current = stream;
@@ -137,11 +138,11 @@ export default function AudioCapturePrototype() {
       console.error("Microphone capture failed:", err);
       setPermission("denied");
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        setPermissionError("Microphone access was denied. Please allow microphone permissions in your browser address bar.");
+        setPermissionError("Camera or microphone access was denied. Allow both in your browser address bar.");
       } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-        setPermissionError("No microphone device was detected on your computer.");
+        setPermissionError("No camera or microphone was detected on your computer.");
       } else {
-        setPermissionError(`Microphone error: ${err.message || err.name}`);
+        setPermissionError(`Camera or microphone error: ${err.message || err.name}`);
       }
     }
   };
@@ -166,6 +167,13 @@ export default function AudioCapturePrototype() {
     setPermission("idle");
   }, []);
 
+  // Show the live camera feed while the stream is connected
+  useEffect(() => {
+    if (videoPreviewRef.current) {
+      videoPreviewRef.current.srcObject = permission === "granted" ? mediaStreamRef.current : null;
+    }
+  }, [permission]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -183,11 +191,14 @@ export default function AudioCapturePrototype() {
     setRecordingDuration(0);
 
     try {
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm";
+      // One VP8 + Opus WebM file: the backend splits audio and video itself.
+      const mimeType = "video/webm;codecs=vp8,opus";
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        setPermissionError("This browser cannot record VP8 + Opus WebM. Use Chrome, Edge or Firefox.");
+        return;
+      }
 
-      const recorder = new MediaRecorder(mediaStreamRef.current, { mimeType });
+      const recorder = new MediaRecorder(mediaStreamRef.current, { mimeType, videoBitsPerSecond: 2_500_000 });
 
       recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
@@ -242,9 +253,9 @@ export default function AudioCapturePrototype() {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
             <span className="badge badge-verified">Recorder prototype</span>
-            <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Audio Vertical</span>
+            <span style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Calibration clips</span>
           </div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: "700" }}>Microphone Capture & Voice UI</h1>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: "700" }}>Camera and Microphone Recorder</h1>
         </div>
         <button className="btn-secondary" onClick={fetchSession} disabled={loadingSession} style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.85rem" }}>
           <RefreshCw size={14} className={loadingSession ? "spin" : ""} />
@@ -283,36 +294,49 @@ export default function AudioCapturePrototype() {
             Speak naturally: say the words, do not spell them
           </span>
           <span className="badge" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "var(--text-secondary)", fontSize: "0.75rem" }}>
-            Gate: ≥ 4 of 5 words match
+            Must-pass: at least 4 of 5 words match
           </span>
         </div>
       </section>
 
-      {/* Microphone Capture & Feedback Section */}
+      {/* Visual Challenge */}
+      <section className="card" style={{ textAlign: "center" }}>
+        <span style={{ fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--accent-cyan)", fontWeight: 600 }}>
+          Visual Challenge
+        </span>
+        <p style={{ fontSize: "1.4rem", fontWeight: 600, marginTop: "0.4rem" }}>
+          {session?.challenge.visual ? session.challenge.visual.replace(/_/g, " ").toLowerCase() : "•"}
+        </p>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
+          Do this while saying the words.
+        </p>
+      </section>
+
+      {/* Camera, Microphone & Feedback Section */}
       <section className="card" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
           <div>
             <h2 style={{ fontSize: "1.15rem", fontWeight: "600", display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <Mic size={18} color="var(--accent-cyan)" />
-              Microphone Stream & Live Volume Meter
+              Camera, Microphone and Level Meter
             </h2>
             <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginTop: "0.2rem" }}>
-              Constraints: echoCancellation, noiseSuppression, sampleRate: 16kHz
+              About 720p at 30 fps; echoCancellation, noiseSuppression
             </p>
           </div>
 
           <div>
             {permission === "granted" ? (
               <span className="badge badge-verified" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                <CheckCircle2 size={13} /> Mic Connected
+                <CheckCircle2 size={13} /> Camera and Mic Connected
               </span>
             ) : permission === "denied" ? (
               <span className="badge badge-failed" style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
-                <MicOff size={13} /> Mic Blocked
+                <MicOff size={13} /> Blocked
               </span>
             ) : (
               <span className="badge" style={{ background: "rgba(100,116,139,0.15)", color: "var(--text-muted)", border: "1px solid var(--border-color)" }}>
-                Mic Inactive
+                Inactive
               </span>
             )}
           </div>
@@ -325,6 +349,14 @@ export default function AudioCapturePrototype() {
             <span>{permissionError}</span>
           </div>
         )}
+
+        <video
+          ref={videoPreviewRef}
+          autoPlay
+          muted
+          playsInline
+          style={{ width: "100%", maxHeight: "360px", background: "#000", borderRadius: "10px", display: permission === "granted" ? "block" : "none", transform: "scaleX(-1)" }}
+        />
 
         {/* Live Volume Meter & Equalizer Visualizer */}
         <div style={{ background: "var(--bg-card)", padding: "1.25rem", borderRadius: "10px", border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -373,7 +405,7 @@ export default function AudioCapturePrototype() {
           {permission !== "granted" ? (
             <button className="btn-primary" onClick={startAudioMonitoring} disabled={permission === "requesting"} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <Mic size={16} />
-              {permission === "requesting" ? "Requesting Mic..." : "Enable Microphone"}
+              {permission === "requesting" ? "Requesting access..." : "Enable Camera and Microphone"}
             </button>
           ) : (
             <>
@@ -389,7 +421,7 @@ export default function AudioCapturePrototype() {
                 </button>
               )}
               <button className="btn-secondary" onClick={stopAudioMonitoring}>
-                Disconnect Mic
+                Disconnect
               </button>
             </>
           )}
@@ -402,7 +434,7 @@ export default function AudioCapturePrototype() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <h3 style={{ fontSize: "1rem", fontWeight: "600", color: "var(--accent-emerald)", display: "flex", alignItems: "center", gap: "0.4rem" }}>
               <ShieldCheck size={18} />
-              Captured Audio Blob Verification
+              Captured Clip
             </h3>
             <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
               {recordingBlobInfo?.duration}s • {(Number(recordingBlobInfo?.size || 0) / 1024).toFixed(1)} KB
@@ -410,18 +442,18 @@ export default function AudioCapturePrototype() {
           </div>
 
           <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-            Listen to the playback to confirm audible volume and no clipping before submitting to the backend audio pipeline:
+            Play it back to confirm your face is in frame and the voice is audible, then save the clip:
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            <audio src={recordedBlobUrl} controls style={{ width: "100%", borderRadius: "8px" }} />
+            <video src={recordedBlobUrl} controls playsInline style={{ width: "100%", borderRadius: "8px" }} />
             <button
               className="btn-primary"
               onClick={() => {
                 if (recordedBlobUrl) {
                   const link = document.createElement("a");
                   link.href = recordedBlobUrl;
-                  link.download = `recording-${Date.now()}.webm`;
+                  link.download = `clip-${session?.challenge.visual ?? "NONE"}-${Date.now()}.webm`;
                   document.body.appendChild(link);
                   link.click();
                   document.body.removeChild(link);
@@ -429,14 +461,14 @@ export default function AudioCapturePrototype() {
               }}
               style={{ alignSelf: "flex-start" }}
             >
-              ⬇ Download Recording
+              ⬇ Save Clip
             </button>
           </div>
 
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", gap: "1rem" }}>
             <span>MIME: {recordingBlobInfo?.type}</span>
-            <span>Channel: Mono Opus (Browser)</span>
-            <span>Server Resample Target: 16kHz WAV</span>
+            <span>Video VP8 + audio Opus (browser)</span>
+            <span>Server splits audio to 16kHz WAV</span>
           </div>
         </section>
       )}
