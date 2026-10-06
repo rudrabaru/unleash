@@ -19,13 +19,21 @@ uvicorn app.main:app --reload --port 8000
 
 - Health check: http://localhost:8000/health - interactive docs: http://localhost:8000/docs
 - The deepfake model checkpoint is not in git (about 250 MB). Put it at `backend/checkpoints/xception_deepfake_best.pth` or set `UNLEASH_XCEPTION_CHECKPOINT`. Without it the deepfake signal reports an error and is left out of the verdict. Expected SHA-256: `cb731a0a53dbdcaddb09ab6855039b24d6e633d723d951d08f566d79a9d1eb0b` (the file is not published yet).
-- The first start downloads the speech model (faster-whisper `base.en`) once.
+- The first start downloads the speech model (faster-whisper `base.en`) once. The face and deepfake models are loaded when the server starts, so the first request is not slow.
+- Settings are read from the environment or `backend/.env` (any folder you start from). Outside `ENVIRONMENT=development` the server refuses to start unless `SECRET_KEY` is a private value of at least 32 characters (for example `openssl rand -hex 32`). Uploads above `MAX_UPLOAD_BYTES` (25 MB) are refused with 413.
 
 **Module demo (development only):** open `/docs`, call `POST /api/v1/verify` with a recording, the visual action it contains and the 5 spoken words; the response lists every detector's score, pass/fail and reason, the verdict and the time of each step. To score a set of clips from the command line: `python tools/measure_clips.py` (clips are listed in `backend/eval/manifest.json`).
 
+**Your own recordings:** save clips from the recorder page (the file name carries the visual action and the 5 words), then add them to a local manifest and measure them. Recordings and that manifest stay out of git (they show faces and voices).
+
+```bash
+python tools/add_clips.py D:\Downloads --kind genuine --performed "front light, speaker A"   # kinds: genuine, replay, photo, synthetic_voice, wrong_phrase, silence, wrong_direction
+python tools/measure_clips.py --manifest eval/calibration.json
+```
+
 Tests: `cd backend && python -m pytest tests -q`.
 
-Frontend (a recorder prototype for now):
+Frontend: a recorder page. Choose the camera, press Start, and follow the three steps (read the words, say them facing the camera, then do the action that appears). It stops by itself after 13 s; **Analyse Clip** uploads the recording and shows the verdict with every signal, and **Save Clip** keeps the file. Start the backend first. Use an unmirrored camera feed (turn off any "mirror" option in a phone-as-webcam app): left and right are the person's own left and right as recorded.
 
 ```bash
 cd frontend
