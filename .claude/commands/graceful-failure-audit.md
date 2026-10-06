@@ -1,28 +1,18 @@
 ---
-description: Stress-test the audio pipeline's failure surface per-stage (corrupt/empty/wrong-sample-rate/non-audio/noise-only input) before any stage is called "implemented."
-argument-hint: "[optional: which stage to audit, e.g. 'Stage 2', defaults to all stages]"
+description: Stress-test each detector with corrupt, empty, wrong-format and non-speech/no-face input; report only.
+argument-hint: "[optional: one detector, defaults to all]"
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
-You are running the **graceful failure audit** named in the Unleash agentic development guide (Part 4, Automation #5). This is deliberately distinct from `/schema-check`: that command verifies the 4-key *shape* via a handful of malformed inputs at the top-level entrypoint. This command stress-tests the **audio-domain failure surface specifically**, per-stage, using the failure modes actually named in `.claude/context/audio-pipeline/known-tricky-spots.md` and `stage-specifications.md`.
+Find inputs that crash a detector or make it return something misleading. This is separate from `/schema-check`: that checks the result shape, this hunts for failure modes specific to audio and video.
 
-Scope: `$ARGUMENTS` (default: audit every stage that currently has real, non-stub code).
+## Inputs
 
-## Failure inputs to construct/use, per stage
+- Empty file (0 bytes); a text file named `.webm`; a valid file cut off after a few KB; a missing path.
+- Audio: wrong sample rate or stereo (the extraction must always force 16 kHz mono), silence, a tone, noise only, an audio-only file where video is expected.
+- Video: a video-only file where audio is expected, a clip with no face, a very small or very large frame size, a clip shorter than 1 s.
+- Call the real detector functions directly as well as the top-level `orchestrator.analyze_media`, so an outer `try/except` cannot hide a bug.
 
-- An empty file (0 bytes)
-- A non-audio file with an audio-like extension (e.g. a text file renamed `.wav` or `.webm`)
-- A corrupt/truncated audio file (a valid file with the last N bytes chopped off)
-- Wrong-sample-rate audio (e.g. 8kHz or 44.1kHz stereo) — per `known-tricky-spots.md` #5, the module must **always force-resample to 16kHz mono regardless of input**, so this specifically tests that assumption isn't silently violated
-- Noise-only / silence audio (relevant to Stage 1's speech gate specifically)
-- A missing/nonexistent file path
+## Report
 
-## What to do
-
-1. Read the current code for each in-scope stage (not just the top-level `process_audio_pipeline` entrypoint — call into the actual stage function where feasible, since a bug caught only at the top level might be masked by an outer try/except).
-2. Run each failure input against each in-scope stage. Confirm the ffmpeg subprocess call (if reached) fails gracefully rather than crashing the process, and that any exception is caught and translated into a valid schema result — never a raised, uncaught exception.
-3. For any stage that isn't real code yet (still returning a stub value), say so explicitly rather than reporting a false PASS.
-
-## Output format
-
-A table: stage × failure-input → PASS (valid schema returned, `error` populated, `score` null) / FAIL (crashed, or returned a numeric score alongside an error, or silently gave a "normal" result) / N/A (stage not real yet). Do not add a broad `try/except: return default` as an unrequested fix for any FAIL — report which specific input breaks which specific stage and wait for direction, since masking the failure could hide a real bug rather than fix it.
+A table: detector x input -> PASS (valid result, `error` set, `score` `None`, no hang) / FAIL (raised, hung, or a numeric score together with an error, or a normal-looking result for garbage input). Mark detectors that cannot run in this environment as such, not as PASS. Do not add a blanket `try/except` as a fix; report which input breaks which detector and wait.

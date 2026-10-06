@@ -1,25 +1,22 @@
-# Audio Pipeline — Test Scenarios
+# Audio test scenarios
 
-Source of truth: Project Plan v2.1, Section 7 Phase 4. These are the scenarios the audio vertical must be validated against before evaluation sign-off. Run at least 8–10 recordings per scenario for the full evaluation (v1.1; the v1.0 one-day release runs the reduced 28-session set in `V1_RELEASE_PLAN.md`); log results to CSV; compute TAR/FAR/FRR from the results (see root `CLAUDE.md` Section F for targets).
+The scenarios the audio checks must be evaluated against with recorded clips (8-10 recordings per scenario from at least 3 speakers for the full evaluation). Log results to a CSV and compute TAR/FAR/FRR from it (targets in `CLAUDE.md`). No recordings for the scenarios below exist yet except the single genuine take, so `/scenario-runner` and `/threshold-sweep` cannot be run meaningfully until they are recorded.
 
-| # | Scenario | How to Generate | Expected Result |
+| # | Scenario | How to generate | Expected result |
 |---|---|---|---|
-| 1 | Genuine speech — correct phrase | Say the session's actual 5-word challenge phrase clearly during the challenge window | `VERIFIED` (Stages 1 & 2 pass) |
-| 2 | Genuine speech — accent variant | A different speaker (different accent) says the correct phrase | `VERIFIED` — if this fails, it's evidence for threshold tuning, not a code bug |
-| 3 | Genuine speech — quiet or fast | Speak the correct phrase quickly or quietly | `VERIFIED`; tune Stage 1 duration threshold or Stage 2 matching if it fails |
-| 4 | Silence — mic muted | Complete the visual challenge, say nothing | `FAILED` at Stage 1 (speech gate) |
-| 5 | Wrong phrase | Say 5 different words from the vocabulary instead of the session's phrase | `FAILED` at Stage 2 (phrase compliance) |
-| 6 | Background TV / podcast | Sit silently; play speech from a phone speaker near the mic | `FAILED` at Stage 2 (wrong words relative to *this* session's challenge) |
-| 7 | Replay with ambient audio | Play a pre-recorded video with speech in the background | `FAILED` at Stage 2 — the replayed phrase won't match this session's freshly-issued 5-word challenge |
-| 8 | TTS injection | Play a TTS clip speaking the *correct* phrase into the mic | Stage 2 may legitimately pass (the correct words were said). Stage 3 (voice authenticity) should flag it as advisory-low. **Document the actual result honestly — do not force Stage 2 to fail just to make the scenario "look right."** |
-| 9 | Non-speech audio | Play music near the mic | `FAILED` at Stage 1 (no speech detected) |
-| 10 | Whisper / very low volume | Whisper the correct phrase very quietly | Document the actual result; tune Stage 1's threshold if it's incorrectly gating out genuine quiet speech |
+| 1 | Genuine speech, correct phrase | Say the session's actual 5-word challenge clearly | passes the speech and phrase checks |
+| 2 | Genuine speech, accent variant | A different speaker (different accent) says the phrase | passes; a failure here is evidence for threshold tuning, not necessarily a code bug |
+| 3 | Genuine speech, quiet or fast | Speak the phrase quickly or quietly | passes; tune the speech duration threshold or the matching if it fails |
+| 4 | Silence | Complete the visual challenge, say nothing | fails the speech check |
+| 5 | Wrong phrase | Say 5 other words from the vocabulary | fails the phrase check |
+| 6 | Background TV or podcast | Sit silently while speech plays near the microphone | fails the phrase check (wrong words for this session) |
+| 7 | Replay with ambient audio | Play a recorded video with speech in the background | fails the phrase check (the replayed phrase will not match this session's challenge) |
+| 8 | Text-to-speech injection | Play a synthetic voice saying the *correct* phrase into the microphone | the phrase check may legitimately pass. Report the actual result of the phrase check and the voice check honestly; do not force a failure |
+| 9 | Non-speech audio | Play music near the microphone | fails the speech check |
+| 10 | Whisper or very low volume | Whisper the correct phrase | report the actual result; tune the speech threshold if genuine quiet speech is gated out |
 
-**Honesty requirement:** For scenario 8 in particular, and for any scenario where results are marginal, log what actually happened rather than what "should" happen. The Phase 4 deliverable is an honest TAR/FAR/FRR table with documented threshold-tuning decisions, not a scenario table forced to look perfect. This directly informs how Stage 3's spectral heuristic is judged for the technical summary.
+**Honesty requirement:** for scenario 8 and any marginal result, log what actually happened rather than what should happen. The deliverable is an honest results table with documented threshold decisions, not a table forced to look perfect.
 
-**Threshold tuning driven by these results (Phase 4, Dev 1's responsibility):**
-- Stage 1 `speech_duration` threshold (currently 2.0s)
-- Stage 2 matching: the 4-of-5 word count, the 0.8 per-word similarity and the per-word confidence floor (currently 0.5; direction to lower it agreed in decision D-04, value pending the probes)
-- Stage 3 spectral threshold, if it's incorrectly flagging genuine speech as inauthentic
+**Thresholds these results tune** (change only with recorded evidence, and update `audio-checks.md` and the decision log in the same commit): the speech duration (2.0 s), the phrase check's 4-of-5 count, 0.8 similarity and 0.5 per-word confidence, and the voice-authenticity heuristics (still uncalibrated).
 
-Document every threshold change here (update the corresponding value in `stage-specifications.md`) and, if it changes hard-gate behavior, in the root `CLAUDE.md` too.
+**Checks every audio change must keep passing:** the result has exactly the 4 keys; `error` set means `score` is `None`; a corrupt or empty file returns a valid result instead of raising; a failed must-pass check sets `passed=False` and skips the later checks.

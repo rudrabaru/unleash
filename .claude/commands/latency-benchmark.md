@@ -1,29 +1,21 @@
 ---
-description: Time each audio stage and the combined Stage 1-3 path against the project's latency budgets, and check for the known per-request-model-load bug class.
-argument-hint: "[optional: which stage(s) to benchmark, defaults to the full pipeline]"
+description: Time each analysis step and the whole request against the latency budgets; report only.
+argument-hint: "[optional: a clip path, defaults to the manifest clips]"
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
-You are running the **model latency benchmark** named in the Unleash agentic development guide (Part 4, Automation #3). On shared CPU, latency problems discovered late in the project are expensive — this exists to catch them per-stage, early.
+Measure, do not guess.
 
-Scope: `$ARGUMENTS` (default: the full audio pipeline).
+## Budgets (from `CLAUDE.md`)
 
-## Budgets to check against
-
-Read root `CLAUDE.md` Section F and `.claude/context/audio-pipeline/stage-specifications.md` for the authoritative numbers before assuming these are still current:
-- Stage 1 (VAD): ~0.5s
-- Stage 2 (STT): ~4–6s
-- Stage 3 (spectral): ~1s
-- **Stages 1–3 combined: < 10 seconds**
-- Full pipeline (incl. Stage 4 once real): end-to-end analysis < 20 seconds
+Whole analysis (submission to result) under 20 s; speech plus phrase checks under 10 s.
 
 ## What to do
 
-1. Read the current audio module code to find the actual stage functions and the top-level entrypoint.
-2. **Before timing anything, check for the known bug class first** (see `.claude/context/audio-pipeline/known-tricky-spots.md` items #1 and #4): is the faster-whisper model instantiated inside the request-handling path, or at module/process import time? If it's loaded per-call, flag this immediately as the likely root cause of any latency failure — fix-worthiness matters more than the raw number in that case.
-3. Run a real timing pass: wall-clock each stage individually (`time.perf_counter()` around the actual call, not an estimate) against a real or synthetic audio sample, then time the combined Stage 1–3 (and full 1–4 if Stage 4 is no longer a stub) path.
-4. If no test audio fixture exists to time against, say so explicitly and either construct a minimal synthetic WAV for timing purposes or ask before fabricating one that might not represent real speech characteristics.
+1. Check the known bug class first: models (Whisper, silero-vad, MediaPipe landmarker, Xception) must be created at import or once, not inside a request path.
+2. Run `cd backend && .venv\Scripts\python.exe tools/measure_clips.py` (or `orchestrator.analyze_media` on one clip, whose `timings` dict has the time of every step) twice: the first run is cold, the second warm. Report the warm numbers per step: frames, landmarks, audio, visual_liveness, visual_challenge, deepfake, replay, fusion, total.
+3. Report peak memory if you can measure it.
 
-## Output format
+## Report
 
-A table: stage → measured time → budget → PASS/FAIL, plus a combined-path row. If a stage fails, state explicitly whether the likely cause is (a) the per-request model-load bug, (b) genuine inference cost, or (c) unclear — and what evidence supports that read. Do not change model choice, add caching, or adjust timeouts to make numbers look better — report and wait for direction.
+A table: step -> seconds -> note, with the total against the 20 s budget. If the budget fails, say whether the cause is a per-request model load, genuine inference cost (the deepfake model dominates), or unclear. Do not change models, add caching or adjust timeouts to improve the numbers; report and wait.
