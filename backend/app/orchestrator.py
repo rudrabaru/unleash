@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Dict
 
 from app import db, fusion
+from app.media.face_crop import crop_faces
 from app.media.frames import DENSE_MAX_EDGE, load_frames
 from app.modules.audio import process_audio_pipeline
 from app.modules.antispoof import detect_deepfake, detect_replay_attack
@@ -115,10 +116,12 @@ def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> 
     timed("audio", step)
 
     if frames or visual_frames:
+        # The deepfake classifier sees the face only: crops come from the shared landmarks.
+        face_crops = crop_faces(frames, bundle.sparse_indices, landmark_features)
         for name, detector, args, kwargs in (
             ("visual_liveness", detect_visual_liveness, (visual_frames,), {"features": landmark_features}),
             ("visual_challenge", verify_challenge_compliance, (visual_frames, visual_challenge), {"features": landmark_features}),
-            ("deepfake", detect_deepfake, (frames,), {}),
+            ("deepfake", detect_deepfake, (face_crops,), {}),
             ("replay", detect_replay_attack, (frames,), {}),
         ):
             step = time.perf_counter()

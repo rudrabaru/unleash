@@ -6,8 +6,8 @@ published; it is read from UNLEASH_XCEPTION_CHECKPOINT or, by default, from
 backend/checkpoints/xception_deepfake_best.pth. Without a real file this module returns an
 honest error result, never a fabricated score.
 
-The classifier sees whole frames: face cropping is not implemented yet (the earlier Haar-cascade
-crop silently did nothing because OpenCV 5 ships without its data files).
+The classifier expects face crops (see `app/media/face_crop.py`, built from the MediaPipe
+landmarks); the caller crops, this module only resizes and scores what it is given.
 """
 from pathlib import Path
 from typing import List

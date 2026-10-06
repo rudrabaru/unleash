@@ -10,14 +10,14 @@ from app.modules.antispoof._replay import REPLAY_PASS_THRESHOLD, score_replay
 
 def detect_deepfake(frames: list) -> DetectorResult:
     """
-    Self-trained Xception deepfake classifier, forced to CPU.
+    Self-trained Xception deepfake classifier, forced to CPU. `frames` are RGB face crops.
 
     The trained checkpoint is not stored in git. Without a file at the default path or at
     UNLEASH_XCEPTION_CHECKPOINT this returns an honest null-score error result, never a
     fabricated pass/fail.
     """
     if not frames:
-        return DetectorResult(score=None, passed=False, reason="No video frames available.", error="empty frame list")
+        return DetectorResult(score=None, passed=False, reason="No face crops available.", error="no face found in any sampled frame")
 
     try:
         prediction, confidence, frame_probabilities = classifier.predict_video(frames)
