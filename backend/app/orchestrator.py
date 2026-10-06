@@ -9,6 +9,7 @@ broken module never takes the whole analysis down.
 import logging
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -91,71 +92,88 @@ def analyze_media(media_path: Path, visual_challenge: str, verbal_challenge: str
         return _analyze(media_path, visual_challenge, verbal_challenge)
 
 
-def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
-    timings: Dict[str, float] = {}
-    started = time.perf_counter()
+def _shared_landmarks(bundle):
+    """
+    MediaPipe runs once and the result is shared by liveness, challenge compliance and the lip
+    series instead of each re-running it over the same frames. None when it fails: the visual
+    detectors then each retry on their own.
+    """
+    if not bundle.dense:
+        return None
+    try:
+        return extract_landmark_features(
+            bundle.dense,
+            timestamps=bundle.dense_times,
+            original_indices=bundle.dense_indices,
+        )
+    except Exception:  # noqa: BLE001 - fall back to per-detector extraction
+        logger.exception("Shared landmark extraction failed; detectors will each retry")
+        return None
 
-    def timed(name: str, since: float) -> None:
-        timings[name] = round(time.perf_counter() - since, 3)
+
+def _run_video_detectors(bundle, landmark_features, visual_challenge: str, timer: "_Timer") -> Dict[str, DetectorResult]:
+    if not (bundle.sparse or bundle.dense):
+        error = bundle.error or "No video frames available."
+        return {name: _failed_result(reason="No video frames available", error=error) for name in VIDEO_SIGNALS}
+
+    # The deepfake classifier sees the face only: crops come from the shared landmarks.
+    face_crops = crop_faces(bundle.sparse, bundle.sparse_indices, landmark_features)
+    signals: Dict[str, DetectorResult] = {}
+    for name, detector, args, kwargs in (
+        ("visual_liveness", detect_visual_liveness, (bundle.dense,), {"features": landmark_features}),
+        ("visual_challenge", verify_challenge_compliance, (bundle.dense, visual_challenge), {"features": landmark_features}),
+        ("deepfake", detect_deepfake, (face_crops,), {}),
+        ("replay", detect_replay_attack, (bundle.sparse,), {}),
+    ):
+        with timer.step(name):
+            signals[name] = _safe_call(name, detector, *args, **kwargs)
+    return signals
+
+
+class _Timer:
+    """Records how long each named step of one analysis takes, in seconds."""
+
+    def __init__(self) -> None:
+        self.timings: Dict[str, float] = {}
+        self._started = time.perf_counter()
+
+    @contextmanager
+    def step(self, name: str):
+        began = time.perf_counter()
+        try:
+            yield
+        finally:
+            self.timings[name] = round(time.perf_counter() - began, 3)
+
+    def finish(self) -> Dict[str, float]:
+        self.timings["total"] = round(time.perf_counter() - self._started, 3)
+        return self.timings
+
+
+def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
+    timer = _Timer()
 
     # One decode gives ~120 timestamped frames for the visual detectors (a blink lasts 0.1-0.3 s)
     # and the lip series, and ~30 native-resolution frames (a subset) for deepfake and replay.
-    step = time.perf_counter()
-    bundle = load_frames(media_path, dense_max_edge=DENSE_MAX_EDGE)
-    frames = bundle.sparse
-    visual_frames = bundle.dense
-    timed("frames", step)
-
-    # MediaPipe runs once and the result is shared by liveness, challenge compliance and the
-    # lip series instead of each re-running it over the same frames.
-    step = time.perf_counter()
-    landmark_features = None
-    if visual_frames:
-        try:
-            landmark_features = extract_landmark_features(
-                visual_frames,
-                timestamps=bundle.dense_times,
-                original_indices=bundle.dense_indices,
-            )
-        except Exception:  # noqa: BLE001 - fall back to per-detector extraction
-            logger.exception("Shared landmark extraction failed; detectors will each retry")
-            landmark_features = None
-    timed("landmarks", step)
+    with timer.step("frames"):
+        bundle = load_frames(media_path, dense_max_edge=DENSE_MAX_EDGE)
+    with timer.step("landmarks"):
+        landmark_features = _shared_landmarks(bundle)
 
     signals: Dict[str, DetectorResult] = {}
+    with timer.step("audio"):
+        signals["audio_pipeline"] = _safe_call(
+            "audio_pipeline",
+            process_audio_pipeline,
+            str(media_path),
+            verbal_challenge,
+            lip_openness_data=_lip_series(landmark_features, bundle.fps),
+        )
+    signals.update(_run_video_detectors(bundle, landmark_features, visual_challenge, timer))
 
-    step = time.perf_counter()
-    signals["audio_pipeline"] = _safe_call(
-        "audio_pipeline",
-        process_audio_pipeline,
-        str(media_path),
-        verbal_challenge,
-        lip_openness_data=_lip_series(landmark_features, bundle.fps),
-    )
-    timed("audio", step)
-
-    if frames or visual_frames:
-        # The deepfake classifier sees the face only: crops come from the shared landmarks.
-        face_crops = crop_faces(frames, bundle.sparse_indices, landmark_features)
-        for name, detector, args, kwargs in (
-            ("visual_liveness", detect_visual_liveness, (visual_frames,), {"features": landmark_features}),
-            ("visual_challenge", verify_challenge_compliance, (visual_frames, visual_challenge), {"features": landmark_features}),
-            ("deepfake", detect_deepfake, (face_crops,), {}),
-            ("replay", detect_replay_attack, (frames,), {}),
-        ):
-            step = time.perf_counter()
-            signals[name] = _safe_call(name, detector, *args, **kwargs)
-            timed(name, step)
-    else:
-        error = bundle.error or "No video frames available."
-        for name in VIDEO_SIGNALS:
-            signals[name] = _failed_result(reason="No video frames available", error=error)
-
-    step = time.perf_counter()
-    result = fusion.evaluate(signals)
-    timed("fusion", step)
-    timed("total", started)
-    return AnalysisResult(signals=signals, fusion=result, timings=timings)
+    with timer.step("fusion"):
+        result = fusion.evaluate(signals)
+    return AnalysisResult(signals=signals, fusion=result, timings=timer.finish())
 
 
 def run_verification(session_id: str, media_path: Path, visual_challenge: str, verbal_challenge: str) -> None:

@@ -82,9 +82,6 @@ def extract_landmark_features(
     frame_data = []
 
     for i, frame_rgb in enumerate(frames):
-        time_sec = timestamps[i] if timestamps and i < len(timestamps) else None
-        orig_idx = original_indices[i] if original_indices and i < len(original_indices) else i
-
         entry: Dict[str, Any] = {
             "landmarks": None,
             "face_present": False,
@@ -92,10 +89,9 @@ def extract_landmark_features(
             "pitch": None,
             "ear": None,
             "mouth_open": None,
-            "time_seconds": time_sec,
-            "original_index": orig_idx,
+            "time_seconds": timestamps[i] if timestamps and i < len(timestamps) else None,
+            "original_index": original_indices[i] if original_indices and i < len(original_indices) else i,
         }
-
         try:
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
             result = landmarker.detect(mp_image)
@@ -104,29 +100,30 @@ def extract_landmark_features(
             continue
 
         if result.face_landmarks:
-            landmarks = np.array(
-                [[lm.x, lm.y] for lm in result.face_landmarks[0]], dtype=np.float32
-            )
-            entry["landmarks"] = landmarks
-            entry["face_present"] = True
-
-            # Convert to pixel coordinates for aspect-ratio invariant geometry (EAR & mouth)
-            h, w = frame_rgb.shape[:2]
-            px_landmarks = landmarks * np.array([w, h], dtype=np.float32)
-
-            ear_left = _ear(px_landmarks, LEFT_EYE)
-            ear_right = _ear(px_landmarks, RIGHT_EYE)
-            if ear_left is not None and ear_right is not None:
-                entry["ear"] = (ear_left + ear_right) / 2.0
-
-            face_height = np.linalg.norm(px_landmarks[FACE_TOP] - px_landmarks[FACE_CHIN])
-            mouth_gap = np.linalg.norm(px_landmarks[MOUTH_TOP] - px_landmarks[MOUTH_BOTTOM])
-            if face_height > 1e-6:
-                entry["mouth_open"] = float(mouth_gap / face_height)
-
+            _fill_face_metrics(entry, result.face_landmarks[0], frame_rgb.shape[:2])
         if result.facial_transformation_matrixes:
             entry["yaw"], entry["pitch"] = _rotation_matrix_to_euler(result.facial_transformation_matrixes[0])
-
         frame_data.append(entry)
 
     return {"frames": frame_data, "error": None}
+
+
+def _fill_face_metrics(entry: Dict[str, Any], face_landmarks, frame_shape) -> None:
+    """Store the normalised landmarks and the eye and mouth measures of one detected face."""
+    landmarks = np.array([[lm.x, lm.y] for lm in face_landmarks], dtype=np.float32)
+    entry["landmarks"] = landmarks
+    entry["face_present"] = True
+
+    # Pixel coordinates keep the eye and mouth ratios independent of the frame's aspect ratio
+    h, w = frame_shape
+    px_landmarks = landmarks * np.array([w, h], dtype=np.float32)
+
+    ear_left = _ear(px_landmarks, LEFT_EYE)
+    ear_right = _ear(px_landmarks, RIGHT_EYE)
+    if ear_left is not None and ear_right is not None:
+        entry["ear"] = (ear_left + ear_right) / 2.0
+
+    face_height = np.linalg.norm(px_landmarks[FACE_TOP] - px_landmarks[FACE_CHIN])
+    mouth_gap = np.linalg.norm(px_landmarks[MOUTH_TOP] - px_landmarks[MOUTH_BOTTOM])
+    if face_height > 1e-6:
+        entry["mouth_open"] = float(mouth_gap / face_height)

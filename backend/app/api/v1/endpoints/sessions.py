@@ -3,6 +3,7 @@ import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, File, Form, Header, HTTPException, UploadFile, status
 
 from app import db, orchestrator
@@ -63,34 +64,19 @@ def create_session():
     )
 
 
-@router.post("/{session_id}/submit", response_model=SessionSubmitResponse, status_code=status.HTTP_202_ACCEPTED)
-def submit_session(
-    session_id: str,
-    background_tasks: BackgroundTasks,
-    token: str = Form(...),
-    media: UploadFile = File(...),
-    content_length: int | None = Header(default=None),
-):
-    """
-    Submit the recorded single-blob .webm media for verification.
-    Validates the HMAC token and starts the analysis (all detectors, then fusion) in the background.
-    """
-    session = db.get_session(session_id)
+def _check_submission(session: Optional[dict], session_id: str, token: str, media: UploadFile, content_length: Optional[int]) -> dict:
+    """Everything that can refuse a submit before the session is claimed; returns the session row."""
     if session is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Session {session_id} not found."
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found.")
 
     if session["status"] != VerificationStatus.CREATED.value:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Session {session_id} has already been submitted (status={session['status']})."
+            detail=f"Session {session_id} has already been submitted (status={session['status']}).",
         )
 
     # Refused before the session is claimed, so an oversized upload does not use up the challenge.
-    too_large = (content_length or 0) > settings.MAX_UPLOAD_BYTES or (media.size or 0) > settings.MAX_UPLOAD_BYTES
-    if too_large:
+    if (content_length or 0) > settings.MAX_UPLOAD_BYTES or (media.size or 0) > settings.MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=f"Recording is larger than the {settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit.",
@@ -99,13 +85,42 @@ def submit_session(
     is_valid, error_msg = verify_challenge_token(
         token=token,
         expected_session_id=session_id,
-        secret_key=settings.SECRET_KEY
+        secret_key=settings.SECRET_KEY,
     )
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Security verification failed: {error_msg}"
+            detail=f"Security verification failed: {error_msg}",
         )
+    return session
+
+
+def _save_upload(session_id: str, media: UploadFile) -> Path:
+    temp_dir = Path(settings.UPLOAD_TEMP_DIR)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    media_path = temp_dir / f"{session_id}.webm"
+    try:
+        with open(media_path, "wb") as buffer:
+            shutil.copyfileobj(media.file, buffer)
+    except OSError:
+        db.update_session_status(session_id, VerificationStatus.FAILED.value, datetime.now(timezone.utc))
+        raise
+    return media_path
+
+
+@router.post("/{session_id}/submit", response_model=SessionSubmitResponse, status_code=status.HTTP_202_ACCEPTED)
+def submit_session(
+    session_id: str,
+    background_tasks: BackgroundTasks,
+    token: str = Form(...),
+    media: UploadFile = File(...),
+    content_length: Optional[int] = Header(default=None),
+):
+    """
+    Submit the recorded single-blob .webm media for verification.
+    Validates the HMAC token and starts the analysis (all detectors, then fusion) in the background.
+    """
+    session = _check_submission(db.get_session(session_id), session_id, token, media, content_length)
 
     # One atomic UPDATE decides which request owns the session: a concurrent second submit loses.
     if not db.claim_for_processing(session_id, datetime.now(timezone.utc)):
@@ -114,17 +129,7 @@ def submit_session(
             detail=f"Session {session_id} has already been submitted.",
         )
 
-    temp_dir = Path(settings.UPLOAD_TEMP_DIR)
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    media_path = temp_dir / f"{session_id}.webm"
-
-    try:
-        with open(media_path, "wb") as buffer:
-            shutil.copyfileobj(media.file, buffer)
-    except OSError:
-        db.update_session_status(session_id, VerificationStatus.FAILED.value, datetime.now(timezone.utc))
-        raise
-
+    media_path = _save_upload(session_id, media)
     background_tasks.add_task(
         _run_and_cleanup,
         session_id,
@@ -136,7 +141,7 @@ def submit_session(
     return SessionSubmitResponse(
         session_id=session_id,
         status=VerificationStatus.PROCESSING,
-        message="Media uploaded. Verification analysis running in background."
+        message="Media uploaded. Verification analysis running in background.",
     )
 
 
