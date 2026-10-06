@@ -1,8 +1,12 @@
 import json
-from typing import List, Union
-from pydantic import field_validator, model_validator
+from pathlib import Path
+from typing import List, Optional, Union
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
+# .env is read from backend/ whatever directory the server is started from.
+_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 DEFAULT_SECRET_KEY = "dev_secret_unleash_verification_key_change_in_prod"
 MIN_SECRET_KEY_LENGTH = 32
@@ -28,6 +32,13 @@ class Settings(BaseSettings):
     # A 15 s browser recording at about 2.5 Mbps is about 5 MB; anything far above that is refused.
     MAX_UPLOAD_BYTES: int = 25 * 1024 * 1024
 
+    # Deepfake model (environment names kept from before; also readable from backend/.env)
+    XCEPTION_CHECKPOINT: Optional[str] = Field(default=None, validation_alias="UNLEASH_XCEPTION_CHECKPOINT")
+    XCEPTION_MODEL_NAME: str = Field(default="xception", validation_alias="UNLEASH_XCEPTION_MODEL_NAME")
+    FAKE_THRESHOLD: float = Field(default=0.5, validation_alias="UNLEASH_FAKE_THRESHOLD")
+    IMAGE_SIZE: int = Field(default=299, validation_alias="UNLEASH_IMAGE_SIZE")
+    FAKE_CLASS_INDEX: int = Field(default=1, validation_alias="UNLEASH_FAKE_CLASS_INDEX")
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
@@ -49,7 +60,7 @@ class Settings(BaseSettings):
         return self
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore"
