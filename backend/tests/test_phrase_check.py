@@ -10,7 +10,7 @@ import pytest
 from app.modules.audio import _phrase_compliance as _pc
 from app.modules.audio import process_audio_pipeline
 from app.modules.audio._extraction import extract_wav
-from app.modules.audio.vocabulary_builder import CHALLENGE_VOCABULARY
+from app.modules.audio.vocabulary import CHALLENGE_VOCABULARY
 from app.modules.audio._phrase_compliance import (
     _WHISPER_MODEL,
     levenshtein_distance,

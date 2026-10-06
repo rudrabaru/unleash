@@ -8,7 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Uploa
 from app import db, orchestrator
 from app.core.config import settings
 from app.core.security import generate_challenge_token, verify_challenge_token
-from app.modules.audio.vocabulary_builder import CHALLENGE_VOCABULARY
+from app.modules.audio.vocabulary import CHALLENGE_VOCABULARY
 from app.schemas.session import (
     ChallengePayload,
     SessionCreateResponse,

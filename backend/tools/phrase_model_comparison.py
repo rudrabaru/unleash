@@ -41,7 +41,7 @@ from faster_whisper import WhisperModel  # noqa: E402
 from app.modules.audio import _phrase_compliance as _pc  # noqa: E402
 from app.modules.audio._extraction import extract_wav  # noqa: E402
 from app.modules.audio._phrase_compliance import MIN_WORD_SIMILARITY, match_words_fuzzy  # noqa: E402
-from app.modules.audio.vocabulary_builder import CHALLENGE_VOCABULARY  # noqa: E402
+from app.modules.audio.vocabulary import CHALLENGE_VOCABULARY  # noqa: E402
 
 # Thousands of random-challenge probes repeat the same word pairs; cache the (pure) similarity.
 _pc.word_similarity_score = functools.lru_cache(maxsize=None)(_pc.word_similarity_score)
