@@ -1,19 +1,19 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import type { SessionChallenge, SessionResult } from "./types";
 import { Mic, MicOff, Volume2, Play, Square, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck } from "lucide-react";
 
 type PermissionStatus = "idle" | "requesting" | "granted" | "denied" | "error";
 
-interface SessionChallenge {
-  session_id: string;
-  challenge: {
-    visual: string;
-    verbal: string;
-  };
-  token: string;
-  expires_at: number;
-}
+// Steps of one recording: read the words, say them facing the camera, then do the action.
+const READ_SECONDS = 3;
+const SPEAK_SECONDS = 5;
+const ACT_SECONDS = 5;
+const TOTAL_SECONDS = READ_SECONDS + SPEAK_SECONDS + ACT_SECONDS;
+// A session token lives 120 s; get a fresh challenge when less than this is left.
+const MIN_TOKEN_SECONDS_LEFT = 45;
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
 // Left and right are the person's own left and right (the backend reads an unmirrored recording).
 const VISUAL_INSTRUCTIONS: Record<string, string> = {
@@ -29,6 +29,11 @@ export default function AudioCapturePrototype() {
   const [session, setSession] = useState<SessionChallenge | null>(null);
   const [loadingSession, setLoadingSession] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const sessionRef = useRef<SessionChallenge | null>(null);
+  const recordedBlobRef = useRef<Blob | null>(null);
+  const [analysis, setAnalysis] = useState<
+    { phase: "idle" } | { phase: "uploading" } | { phase: "processing" } | { phase: "done"; result: SessionResult } | { phase: "error"; message: string }
+  >({ phase: "idle" });
 
   // Audio & Hardware State
   const [permission, setPermission] = useState<PermissionStatus>("idle");
@@ -57,20 +62,24 @@ export default function AudioCapturePrototype() {
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
   // Initialize or fetch challenge session
-  const fetchSession = async () => {
+  const fetchSession = async (): Promise<SessionChallenge | null> => {
     setLoadingSession(true);
     setSessionError(null);
+    setAnalysis({ phase: "idle" });
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
-      const res = await fetch(`${apiBase}/sessions`, { method: "POST" });
+      const res = await fetch(`${API_BASE}/sessions`, { method: "POST" });
       if (!res.ok) {
         throw new Error(`Failed to create session (${res.status}: ${res.statusText})`);
       }
       const data: SessionChallenge = await res.json();
       setSession(data);
+      sessionRef.current = data;
+      return data;
     } catch (err: any) {
       setSession(null);
+      sessionRef.current = null;
       setSessionError(`Backend unreachable: ${err.message}. Start the API on port 8000 and click New Challenge.`);
+      return null;
     } finally {
       setLoadingSession(false);
     }
@@ -79,6 +88,23 @@ export default function AudioCapturePrototype() {
   useEffect(() => {
     fetchSession();
   }, []);
+
+  // The browser only says "device in use"; try each device alone to say which one is busy.
+  const findBusyDevices = async (): Promise<string> => {
+    const busy: string[] = [];
+    for (const [label, constraints] of [
+      ["The camera", { video: true }],
+      ["The microphone", { audio: true }],
+    ] as [string, MediaStreamConstraints][]) {
+      try {
+        const probe = await navigator.mediaDevices.getUserMedia(constraints);
+        probe.getTracks().forEach((t) => t.stop());
+      } catch {
+        busy.push(label);
+      }
+    }
+    return busy.length ? busy.join(" and ") : "The camera or microphone";
+  };
 
   // Request Microphone with Required Constraints (Project Plan Section 5.7)
   const startAudioMonitoring = async (deviceId?: string) => {
@@ -156,9 +182,12 @@ export default function AudioCapturePrototype() {
 
       updateVolume();
     } catch (err: any) {
-      console.error("Microphone capture failed:", err);
+      console.error("Camera or microphone capture failed:", err);
       setPermission("denied");
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        const busy = await findBusyDevices();
+        setPermissionError(`${busy} is in use by another program or browser tab. Close it (or stop and restart DroidCam) and try again.`);
+      } else if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         setPermissionError("Camera or microphone access was denied. Allow both in your browser address bar.");
       } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
         setPermissionError("No camera or microphone was detected on your computer.");
@@ -204,9 +233,16 @@ export default function AudioCapturePrototype() {
   }, [stopAudioMonitoring]);
 
   // Start MediaRecorder Capture
-  const startRecording = () => {
+  const startRecording = async () => {
     if (!mediaStreamRef.current) return;
+    // The words are shown from the start of the clip, so a nearly expired challenge is replaced first.
+    const current = sessionRef.current;
+    if (!current || current.expires_at - Date.now() / 1000 < MIN_TOKEN_SECONDS_LEFT) {
+      if (!(await fetchSession())) return;
+    }
     recordedChunksRef.current = [];
+    recordedBlobRef.current = null;
+    setAnalysis({ phase: "idle" });
     setRecordedBlobUrl(null);
     setRecordingBlobInfo(null);
     setRecordingDuration(0);
@@ -229,6 +265,7 @@ export default function AudioCapturePrototype() {
 
       recorder.onstop = () => {
         const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+        recordedBlobRef.current = blob;
         const url = URL.createObjectURL(blob);
         const elapsed = (Date.now() - recordStartTimeRef.current) / 1000;
         setRecordedBlobUrl(url);
@@ -245,7 +282,7 @@ export default function AudioCapturePrototype() {
       setIsRecording(true);
 
       recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration((prev) => Number((prev + 0.1).toFixed(1)));
+        setRecordingDuration(Number(((Date.now() - recordStartTimeRef.current) / 1000).toFixed(1)));
       }, 100);
     } catch (err: any) {
       console.error("Failed to start MediaRecorder:", err);
@@ -261,6 +298,57 @@ export default function AudioCapturePrototype() {
         clearInterval(recordingTimerRef.current);
         recordingTimerRef.current = null;
       }
+    }
+  };
+
+  // Stop by itself at the end of the last step
+  useEffect(() => {
+    if (isRecording && recordingDuration >= TOTAL_SECONDS) stopRecording();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRecording, recordingDuration]);
+
+  const step: "idle" | "read" | "speak" | "act" = !isRecording
+    ? "idle"
+    : recordingDuration < READ_SECONDS
+    ? "read"
+    : recordingDuration < READ_SECONDS + SPEAK_SECONDS
+    ? "speak"
+    : "act";
+  const STEP_TEXT = {
+    read: "1 of 3 · Read the words and face the camera",
+    speak: "2 of 3 · Say the words, facing the camera",
+    act: "3 of 3 · Now do the action",
+  } as const;
+
+  // Send the recording and wait for the verdict
+  const analyseClip = async () => {
+    const blob = recordedBlobRef.current;
+    const current = sessionRef.current;
+    if (!blob || !current) return;
+    setAnalysis({ phase: "uploading" });
+    try {
+      const form = new FormData();
+      form.append("token", current.token);
+      form.append("media", blob, "recording.webm");
+      const res = await fetch(`${API_BASE}/sessions/${current.session_id}/submit`, { method: "POST", body: form });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.detail ?? `Upload failed (${res.status})`);
+      }
+      setAnalysis({ phase: "processing" });
+      for (let i = 0; i < 80; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const poll = await fetch(`${API_BASE}/sessions/${current.session_id}`);
+        if (!poll.ok) throw new Error(`Could not read the result (${poll.status})`);
+        const result: SessionResult = await poll.json();
+        if (result.status !== "PROCESSING") {
+          setAnalysis({ phase: "done", result });
+          return;
+        }
+      }
+      throw new Error("The analysis did not finish in time.");
+    } catch (err: any) {
+      setAnalysis({ phase: "error", message: err.message });
     }
   };
 
@@ -305,7 +393,7 @@ export default function AudioCapturePrototype() {
           className="challenge-word-box"
           style={{ letterSpacing: "normal", fontSize: "1.9rem", flexWrap: "wrap", gap: "0.5rem 1.25rem", textTransform: "lowercase" }}
         >
-          {verbalWords.length > 0
+          {verbalWords.length > 0 && step !== "act"
             ? verbalWords.map((word, i) => <span key={`${word}-${i}`}>{word}</span>)
             : "• • • • •"}
         </div>
@@ -326,10 +414,12 @@ export default function AudioCapturePrototype() {
           Visual Challenge
         </span>
         <p style={{ fontSize: "1.4rem", fontWeight: 600, marginTop: "0.4rem" }}>
-          {session?.challenge.visual ? (VISUAL_INSTRUCTIONS[session.challenge.visual] ?? session.challenge.visual) : "•"}
+          {session?.challenge.visual && (step === "act" || (step === "idle" && recordedBlobUrl))
+            ? (VISUAL_INSTRUCTIONS[session.challenge.visual] ?? session.challenge.visual)
+            : "Shown at step 3"}
         </p>
         <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-          Do this while saying the words.
+          Read and say the words first, then do the action when it appears.
         </p>
       </section>
 
@@ -368,6 +458,24 @@ export default function AudioCapturePrototype() {
           <div style={{ padding: "0.85rem 1rem", background: "rgba(244, 63, 94, 0.12)", border: "1px solid var(--accent-rose)", borderRadius: "8px", color: "#fca5a5", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <AlertTriangle size={18} color="var(--accent-rose)" />
             <span>{permissionError}</span>
+          </div>
+        )}
+
+        {step !== "idle" && (
+          <div
+            role="status"
+            style={{
+              padding: "0.75rem 1rem",
+              borderRadius: "8px",
+              border: "1px solid var(--accent-cyan)",
+              background: "rgba(6, 182, 212, 0.1)",
+              display: "flex",
+              justifyContent: "space-between",
+              fontWeight: 600,
+            }}
+          >
+            <span>{STEP_TEXT[step]}</span>
+            <span>{Math.max(0, Math.ceil(TOTAL_SECONDS - recordingDuration))}s left</span>
           </div>
         )}
 
@@ -483,7 +591,7 @@ export default function AudioCapturePrototype() {
           </div>
 
           <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-            Play it back to confirm your face is in frame and the voice is audible, then save the clip:
+            Play it back to confirm your face is in frame and the voice is audible, then analyse it here or save it for the evaluation set:
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -494,7 +602,8 @@ export default function AudioCapturePrototype() {
                 if (recordedBlobUrl) {
                   const link = document.createElement("a");
                   link.href = recordedBlobUrl;
-                  link.download = `clip-${session?.challenge.visual ?? "NONE"}-${Date.now()}.webm`;
+                  const words = (session?.challenge.verbal ?? "").split(/\s+/).filter(Boolean).join("_");
+                  link.download = `clip-${session?.challenge.visual ?? "NONE"}-${words}-${Date.now()}.webm`;
                   document.body.appendChild(link);
                   link.click();
                   document.body.removeChild(link);
@@ -504,7 +613,63 @@ export default function AudioCapturePrototype() {
             >
               ⬇ Save Clip
             </button>
+            <button
+              className="btn-primary"
+              onClick={analyseClip}
+              disabled={analysis.phase === "uploading" || analysis.phase === "processing"}
+              style={{ alignSelf: "flex-start" }}
+            >
+              {analysis.phase === "uploading"
+                ? "Uploading..."
+                : analysis.phase === "processing"
+                ? "Analysing..."
+                : "Analyse Clip"}
+            </button>
           </div>
+
+          {analysis.phase === "error" && (
+            <div role="alert" style={{ color: "#fca5a5", fontSize: "0.9rem" }}>
+              {analysis.message}
+            </div>
+          )}
+
+          {analysis.phase === "done" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+                <span
+                  className={`badge ${
+                    analysis.result.status === "VERIFIED"
+                      ? "badge-verified"
+                      : analysis.result.status === "SUSPICIOUS"
+                      ? "badge-suspicious"
+                      : "badge-failed"
+                  }`}
+                >
+                  {analysis.result.status}
+                </span>
+                {analysis.result.confidence !== null && (
+                  <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                    score {analysis.result.confidence.toFixed(2)}
+                  </span>
+                )}
+              </div>
+              <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>{analysis.result.decision_reason}</p>
+              <table style={{ width: "100%", fontSize: "0.8rem", borderCollapse: "collapse" }}>
+                <tbody>
+                  {Object.entries(analysis.result.signals ?? {}).map(([name, signal]) => (
+                    <tr key={name} style={{ borderTop: "1px solid var(--border-color)", verticalAlign: "top" }}>
+                      <td style={{ padding: "0.4rem 0.5rem 0.4rem 0", whiteSpace: "nowrap", fontWeight: 600 }}>{name}</td>
+                      <td style={{ padding: "0.4rem 0.5rem", whiteSpace: "nowrap" }}>
+                        {signal.error ? "error" : signal.score === null ? "-" : signal.score.toFixed(2)}{" "}
+                        {signal.error ? "" : signal.passed ? "✓" : "✗"}
+                      </td>
+                      <td style={{ padding: "0.4rem 0", color: "var(--text-secondary)" }}>{signal.error ?? signal.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "flex", gap: "1rem" }}>
             <span>MIME: {recordingBlobInfo?.type}</span>
