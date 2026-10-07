@@ -85,13 +85,16 @@ def _pose_corrupts_blink(frame, pitch_baseline, yaw_baseline) -> bool:
 def _blink_twice(frames) -> Dict[str, Any]:
     """Count closed-eye stretches (EAR below threshold) as blinks.
 
-    A stretch is judged as a whole: if the head is looking down or turned far at ANY frame of it,
-    it is not a blink. Judging only the first frame let a downward glance count, because the eyes
-    start to read as closed before the head has visibly moved.
+    A blink requires an open→closed→open transition: a recording that starts with the eyes
+    already closed does not count the initial stretch. A stretch is judged as a whole: if the
+    head is looking down or turned far at ANY frame of it, it is not a blink. Judging only the
+    first frame let a downward glance count, because the eyes start to read as closed before
+    the head has visibly moved.
     """
     events = 0
     in_dip = False
     dip_corrupted = False
+    seen_open = False  # require at least one open-eye frame before counting a dip
     valid_frames = 0
 
     pitch_baseline = _baseline(frames, "pitch")
@@ -104,14 +107,19 @@ def _blink_twice(frames) -> Dict[str, Any]:
         valid_frames += 1
 
         if value < EAR_BLINK_THRESHOLD:
-            in_dip = True
-            dip_corrupted = dip_corrupted or _pose_corrupts_blink(frame, pitch_baseline, yaw_baseline)
-        elif in_dip:
-            events += 0 if dip_corrupted else 1
-            in_dip = False
-            dip_corrupted = False
+            # Only enter a dip if the eyes were open at some point before
+            if seen_open:
+                in_dip = True
+                dip_corrupted = dip_corrupted or _pose_corrupts_blink(frame, pitch_baseline, yaw_baseline)
+        else:
+            seen_open = True
+            if in_dip:
+                events += 0 if dip_corrupted else 1
+                in_dip = False
+                dip_corrupted = False
 
-    if in_dip and not dip_corrupted:  # clip ended with the eyes still closed
+    # Clip ended with eyes still closed: only count if there was a preceding open state
+    if in_dip and not dip_corrupted:
         events += 1
 
     return {

@@ -221,3 +221,19 @@ def test_pipeline_skips_the_voice_check_when_the_speech_check_fails(silence_webm
 
     assert res.passed is False
     assert "voice_authenticity_score" not in (res.details or {})
+
+
+def test_run_voice_authenticity_rejects_non_16k(tmp_path: Path):
+    """Audio with non-16kHz sample rate fails gracefully with advisory error result."""
+    sr = 44100
+    data = np.zeros(sr, dtype=np.float32)
+    wav_path = tmp_path / "non_16k.wav"
+    sf.write(str(wav_path), data, sr)
+
+    res = run_voice_authenticity(wav_path)
+    assert isinstance(res, DetectorResult)
+    assert res.passed is True  # Advisory never fails pipeline
+    assert res.score is None
+    assert res.error is not None
+    assert "Expected sample rate 16000Hz" in res.error
+

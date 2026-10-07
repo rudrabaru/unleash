@@ -84,3 +84,7 @@ Thumbs.db
 # local calibration recordings (faces and voices) and their manifest
 backend/eval/recordings/
 backend/eval/calibration.json
+
+#certificates required for cross local testing
+frontend/certificates/
+
