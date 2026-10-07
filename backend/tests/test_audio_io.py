@@ -66,3 +66,21 @@ def test_read_wav_torch_invalid_sample_rate(tmp_path: Path):
 
     with pytest.raises(ValueError, match=f"Expected sample rate {TARGET_SAMPLE_RATE}Hz"):
         read_wav_torch(wav_path)
+
+
+def test_read_wav_numpy_require_16k(tmp_path: Path):
+    """Test that read_wav_numpy with require_16k=True enforces 16kHz."""
+    sr = 44100
+    data = np.zeros(sr, dtype=np.float32)
+    wav_path = tmp_path / "non_16k.wav"
+    sf.write(str(wav_path), data, sr)
+
+    # Permissive by default
+    arr, read_sr, _ = read_wav_numpy(wav_path, require_16k=False)
+    assert read_sr == 44100
+    assert len(arr) == 44100
+
+    # Strict when require_16k=True
+    with pytest.raises(ValueError, match=f"Expected sample rate {TARGET_SAMPLE_RATE}Hz"):
+        read_wav_numpy(wav_path, require_16k=True)
+

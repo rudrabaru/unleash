@@ -16,15 +16,21 @@ import torch
 from app.modules.audio._constants import TARGET_SAMPLE_RATE
 
 
-def read_wav_numpy(path: Path | str) -> Tuple[np.ndarray, int, float]:
+def read_wav_numpy(
+    path: Path | str,
+    require_16k: bool = False,
+) -> Tuple[np.ndarray, int, float]:
     """
     Read WAV audio into float32 1D numpy array.
     
     Converts multi-channel to mono via channel averaging.
+    If require_16k is True, raises ValueError if sample rate is not TARGET_SAMPLE_RATE.
     Returns:
         (audio_data, sample_rate, duration_seconds)
     """
     data, sr = sf.read(str(path), dtype="float32", always_2d=False)
+    if require_16k and sr != TARGET_SAMPLE_RATE:
+        raise ValueError(f"Expected sample rate {TARGET_SAMPLE_RATE}Hz, got {sr}Hz")
     if data.ndim > 1:
         data = np.mean(data, axis=1)
     duration = len(data) / float(sr) if sr > 0 else 0.0
@@ -40,8 +46,6 @@ def read_wav_torch(path: Path | str) -> Tuple[torch.Tensor, float]:
     Returns:
         (audio_tensor, duration_seconds)
     """
-    data, sr, duration = read_wav_numpy(path)
-    if sr != TARGET_SAMPLE_RATE:
-        raise ValueError(f"Expected sample rate {TARGET_SAMPLE_RATE}Hz, got {sr}Hz")
+    data, _, duration = read_wav_numpy(path, require_16k=True)
     tensor = torch.from_numpy(np.ascontiguousarray(data))
     return tensor, duration

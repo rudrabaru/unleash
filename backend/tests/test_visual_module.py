@@ -126,3 +126,23 @@ def test_lip_series_generation_real_video():
     assert len(lip_data["series"]) > 0
     assert "lip_openness_ratio" in lip_data["series"][0]
     assert 0.0 <= lip_data["series"][0]["lip_openness_ratio"] <= 1.0
+
+
+def test_blink_twice_ignores_initial_closed_eyes_without_prior_open():
+    """Verify that a recording starting with closed eyes does not count them as a blink (BUG-5)."""
+    from app.modules.visual._pose import _blink_twice
+
+    # 1. Closed from the very start to the end (no prior open frame) -> 0 blinks
+    closed_all = [{"ear": 0.12, "pitch": 0.0, "yaw": 0.0} for _ in range(30)]
+    assert _blink_twice(closed_all)["blink_events"] == 0
+
+    # 2. Open first, then 2 distinct closed dips -> 2 blinks
+    two_blinks = (
+        [{"ear": 0.30, "pitch": 0.0, "yaw": 0.0} for _ in range(5)] +
+        [{"ear": 0.12, "pitch": 0.0, "yaw": 0.0} for _ in range(4)] +
+        [{"ear": 0.30, "pitch": 0.0, "yaw": 0.0} for _ in range(5)] +
+        [{"ear": 0.12, "pitch": 0.0, "yaw": 0.0} for _ in range(4)] +
+        [{"ear": 0.30, "pitch": 0.0, "yaw": 0.0} for _ in range(5)]
+    )
+    assert _blink_twice(two_blinks)["blink_events"] == 2
+

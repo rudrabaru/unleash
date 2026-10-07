@@ -147,7 +147,7 @@ def match_words_fuzzy(
                 best_idx = i
                 best_sim = similarity
 
-        if best_idx >= 0:
+        if best_idx != -1:
             rec_word, confidence = recognized_words[best_idx]
             matched += 1
             used_indices.add(best_idx)

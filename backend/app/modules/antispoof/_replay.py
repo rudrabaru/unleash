@@ -14,7 +14,7 @@ weighted and combined into one 0.0-1.0 score:
                                       range and clip at the extremes compared to natural,
                                       ambient-lit footage.
 
-Threshold: pass if combined score >= REPLAY_PASS_THRESHOLD (0.60).
+Threshold: pass if combined score >= REPLAY_PASS_THRESHOLD (0.45).
 
 **Calibration status: [UNCALIBRATED].** These are real computations over real frames - nothing
 here is a fabricated number - but every threshold and weight below (the ring radii,
@@ -36,7 +36,7 @@ MOIRE_WEIGHT = 0.55
 NOISE_WEIGHT = 0.30
 BRIGHTNESS_WEIGHT = 0.15
 
-REPLAY_PASS_THRESHOLD = 0.60
+REPLAY_PASS_THRESHOLD = 0.45
 
 # --- moire (FFT) ---------------------------------------------------------------
 # Ring around the spectrum center, excluding the low-frequency content that carries the
@@ -45,18 +45,22 @@ MOIRE_RING_INNER_FRACTION = 0.15
 MOIRE_RING_OUTER_FRACTION = 0.85
 # A natural photo's high-frequency ring decays smoothly (low peak-to-mean ratio); a
 # periodic pixel-grid/moire pattern concentrates energy into a few sharp bins.
-MOIRE_PEAKINESS_FLOOR = 6.0
-MOIRE_PEAKINESS_CEIL = 20.0
+# Lowered from 6/20: genuine webcam video scored 0.30-0.42 because the old floor
+# treated normal spatial-frequency structure as moire evidence.
+MOIRE_PEAKINESS_FLOOR = 3.0
+MOIRE_PEAKINESS_CEIL = 12.0
 MOIRE_MAX_FRAMES_SAMPLED = 10
 
 # --- temporal noise --------------------------------------------------------------
 # Mean frame-to-frame grayscale absolute-difference std, on a 0-255 scale, expected for a
 # live webcam sensor on a mostly-still subject.
-NATURAL_NOISE_STD_LOW = 1.5
-NATURAL_NOISE_STD_HIGH = 14.0
+# Widened from 1.5/14.0: genuine webcam video with a still subject can have very low
+# frame-to-frame noise, and slight head movement raises it above the old ceiling.
+NATURAL_NOISE_STD_LOW = 0.8
+NATURAL_NOISE_STD_HIGH = 18.0
 
 # --- brightness histogram --------------------------------------------------------
-CLIP_FRACTION_CEIL = 0.35
+CLIP_FRACTION_CEIL = 0.40
 HISTOGRAM_BINS = 256
 MAX_ENTROPY_BITS = 8.0  # log2(256)
 

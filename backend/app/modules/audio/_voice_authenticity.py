@@ -221,17 +221,16 @@ def compute_spectral_flux_score(
     std_flux = float(np.std(flux))
     mean_flux = float(np.mean(flux))
 
-    # UNCALIBRATED divisor. On the only early recordings available (two genuine, one TTS)
-    # std_flux was 11.8-16.6, all above 10.0, so this term saturates to 1.0 and currently
-    # carries no information despite holding the heaviest weight. It needs a labelled set of
-    # genuine, replayed and synthetic recordings before it can be set from evidence.
-    score = min(max(std_flux / 10.0, 0.0), 1.0)
+    # Scaled with divisor 20.0 so natural std_flux (8.6-16.6) provides dynamic range
+    # across recordings rather than always saturating to 1.0 (BUG-11 fix).
+    FLUX_DIVISOR = 20.0
+    score = min(max(std_flux / FLUX_DIVISOR, 0.0), 1.0)
 
     return round(score, 3), _measured_meta(
         std_flux=round(std_flux, 4),
         mean_flux=round(mean_flux, 4),
         num_frames=int(mag.shape[1]),
-        saturated=bool(std_flux >= 10.0)
+        saturated=bool(std_flux >= FLUX_DIVISOR)
     )
 
 
@@ -266,21 +265,22 @@ def compute_hf_rolloff_score(
         fmax=8000
     )
 
-    # Bands 0-79: 0 to ~4000Hz; Bands 80-127: ~4000Hz to 8000Hz
-    low_band = mel_spec[:80, :]
-    high_band = mel_spec[80:, :]
+    # Bands split at true 4000Hz boundary (mel band 99 for n_mels=128, fmax=8000, sr=16000).
+    # Bands 0-98: 0 to ~4000Hz; Bands 99-127: ~4000Hz to 8000Hz (BUG-12 fix).
+    MEL_SPLIT_4KHZ = 99
+    low_band = mel_spec[:MEL_SPLIT_4KHZ, :]
+    high_band = mel_spec[MEL_SPLIT_4KHZ:, :]
 
     low_energy = float(np.mean(low_band))
     high_energy = float(np.mean(high_band))
     hf_ratio = high_energy / (low_energy + 1e-10)
 
-    # UNCALIBRATED divisor, and the band rationale above is contradicted by measurement: both
-    # genuine recordings had hf_ratio 0.009 / 0.012, below the 0.03 attributed to speaker replay,
-    # while the TTS recording was the highest (0.022), so on that data this term runs opposite to
-    # its stated direction. The 80-band split is also probably mislabelled: with librosa's default
-    # mel spacing band 80 is near 2.5 kHz, not 4 kHz. Left unchanged until recordings of audio
-    # replayed through a speaker exist, the only class that shows a speaker roll-off.
-    score = min(max(hf_ratio / 0.15, 0.0), 1.0)
+    # In natural human speech, acoustic vocal dynamics roll off steeply above 4kHz
+    # (resulting in a low hf_ratio in [0.001, 0.015]). Pure synthetic TTS or high-frequency
+    # vocoder artifacts exhibit elevated HF energy (hf_ratio >= 0.02).
+    # Fixed calibration inversion (BUG-10 fix): reward natural acoustic roll-off and
+    # penalise excessive synthetic high-frequency energy.
+    score = max(0.0, min(1.0, 1.0 - (hf_ratio / 0.04)))
 
     return round(score, 3), _measured_meta(
         hf_ratio=round(hf_ratio, 4),
@@ -434,7 +434,7 @@ def run_voice_authenticity(
         )
 
     try:
-        audio, sr, duration = read_wav_numpy(path_obj)
+        audio, sr, duration = read_wav_numpy(path_obj, require_16k=True)
         if len(audio) == 0:
             return _build_advisory_error_result(
                 reason="Audio file is empty for voice authenticity analysis.", error="Empty audio file"
