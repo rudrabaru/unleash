@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import List, Optional, Set, Union
 
 import av
+import cv2
 import numpy as np
 
 from app.media.sampling import sample_indices
@@ -108,11 +109,16 @@ def _decode(path: str, total: int, dense_ids: List[int], sparse_ids: Set[int], m
     return out
 
 
-def load_frames(video_source: Union[str, Path], dense_max_edge: Optional[int] = None) -> FrameBundle:
+def load_frames(
+    video_source: Union[str, Path],
+    dense_max_edge: Optional[int] = None,
+    flip_horizontal: bool = False,
+) -> FrameBundle:
     """
     Decode `video_source` once. `dense_max_edge` downscales the dense frames so their long edge
-    is at most that many pixels; the sparse frames always stay native. Never raises: a missing,
-    corrupt or audio-only file returns a bundle with `error` set and no frames.
+    is at most that many pixels; the sparse frames always stay native. `flip_horizontal` mirrors
+    all extracted frames horizontally (used for user-facing selfie video capture). Never raises:
+    a missing, corrupt or audio-only file returns a bundle with `error` set and no frames.
     """
     path = str(video_source)
     try:
@@ -149,11 +155,17 @@ def load_frames(video_source: Union[str, Path], dense_max_edge: Optional[int] = 
         duration = (decoded.last_time - decoded.first_time) if decoded.timed > 1 else 0.0
         fps = round((decoded.timed - 1) / duration, 2) if duration > 0 else 0.0
 
+        dense_frames = [kept[i][2] for i in dense_ids]
+        sparse_frames = [kept[i][1] for i in sparse_ids]
+        if flip_horizontal:
+            dense_frames = [cv2.flip(img, 1) for img in dense_frames]
+            sparse_frames = [cv2.flip(img, 1) for img in sparse_frames]
+
         return FrameBundle(
-            dense=[kept[i][2] for i in dense_ids],
+            dense=dense_frames,
             dense_times=times,
             dense_indices=dense_ids,
-            sparse=[kept[i][1] for i in sparse_ids],
+            sparse=sparse_frames,
             sparse_times=[kept[i][0] for i in sparse_ids],
             sparse_indices=sparse_ids,
             fps=fps,

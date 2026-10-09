@@ -132,3 +132,17 @@ def test_missing_and_garbage_files_never_raise(tmp_path):
     empty = tmp_path / "empty.webm"
     empty.write_bytes(b"")
     assert load_frames(empty).error
+
+
+def test_load_frames_flip_horizontal_mirrors_frames(tmp_path):
+    clip = _write_video(tmp_path / "test_flip.mp4", frame_count=5, fps=30)
+    bundle_normal = load_frames(clip, flip_horizontal=False)
+    bundle_flipped = load_frames(clip, flip_horizontal=True)
+
+    assert bundle_normal.error is None
+    assert bundle_flipped.error is None
+    assert len(bundle_normal.dense) == len(bundle_flipped.dense)
+    # Validate that horizontal flip mirrors the frame along axis 1 (columns)
+    for orig, flip in zip(bundle_normal.dense, bundle_flipped.dense):
+        np.testing.assert_array_equal(flip, np.fliplr(orig))
+
