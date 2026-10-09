@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  AlertCircle,
   RefreshCw,
   Video,
   Mic,
@@ -46,6 +47,14 @@ const VISUAL_ACTIONS: Record<VisualChallenge, { text: string; icon: any }> = {
   BLINK_TWICE: { text: "Blink your eyes TWICE naturally", icon: Eye },
 };
 
+const ANALYSIS_CHECKLIST = [
+  { label: "Encrypted Recording Upload", sub: "WebM payload validated" },
+  { label: "Speech & Audio Authenticity", sub: "Silero-VAD & Whisper transcription" },
+  { label: "Head Pose & Gesture Check", sub: "MediaPipe 3D landmark tracking" },
+  { label: "Replay & Anti-Spoof Detection", sub: "Moiré 2D FFT & sensor noise variance" },
+  { label: "Neural Classification & Fusion", sub: "Joint weighted decision engine" },
+];
+
 type ModalPhase = "INTRO" | "RECORDING" | "ANALYZING" | "RESULT";
 
 export default function UnleashApp() {
@@ -78,6 +87,10 @@ export default function UnleashApp() {
   const recordStartTimeRef = useRef<number>(0);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Dynamic Analysis Progress & Step Ticks
+  const [analysisProgress, setAnalysisProgress] = useState<number>(0);
+  const [completedAnalysisSteps, setCompletedAnalysisSteps] = useState<number[]>([0]);
+
   // Final Result State
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -96,7 +109,15 @@ export default function UnleashApp() {
     } catch (err: any) {
       setSession(null);
       sessionRef.current = null;
-      setSessionError(`Backend connection failed: ${err.message}. Ensure FastAPI is running on port 8000.`);
+      let msg = "Could not connect to the verification service.";
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        msg = "No internet connection detected. Please check your network.";
+      } else if (err.message && (err.message.includes("Failed to fetch") || err.message.includes("NetworkError"))) {
+        msg = "Bad connection: Unable to reach verification server. Ensure backend is running.";
+      } else if (err.message) {
+        msg = err.message;
+      }
+      setSessionError(msg);
       return null;
     } finally {
       setLoadingSession(false);
@@ -107,16 +128,32 @@ export default function UnleashApp() {
     fetchNewSession();
   }, []);
 
-  // Request Hardware Media Access (Camera + Mic)
-  const initMedia = async () => {
+  // Request Hardware Media Access (Camera + Mic) with Precise Hardware Diagnostics
+  const initMedia = async (): Promise<MediaStream | null> => {
+    // If stream is already active, reuse it (one-time permission, retained across retries)
+    if (mediaStreamRef.current && mediaStreamRef.current.active) {
+      setPermission("granted");
+      return mediaStreamRef.current;
+    }
+
     setPermission("requesting");
     setPermissionError(null);
+
+    // Browser support guard
+    if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setPermission("denied");
+      setPermissionError("Camera & microphone access is not supported on this browser or connection. Verification requires a secure HTTPS connection.");
+      return null;
+    }
+
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Primary attempt: high-quality ideal settings with front-facing camera
+      stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          facingMode: "user",
+          facingMode: { ideal: "user" },
           frameRate: { ideal: 30 },
         },
         audio: {
@@ -125,11 +162,67 @@ export default function UnleashApp() {
           sampleRate: 16000,
         },
       });
+    } catch (firstErr: any) {
+      // Fallback for older webcams that reject resolution/facingMode constraints
+      if (firstErr.name === "OverconstrainedError") {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        } catch {
+          // Handled below
+        }
+      }
 
-      mediaStreamRef.current = stream;
-      setPermission("granted");
+      if (!stream) {
+        setPermission("denied");
+        let friendlyMsg = "Camera or microphone access failed.";
 
-      // Audio volume monitoring for visual feedback
+        // Diagnostic probe: inspect connected hardware via enumerateDevices
+        try {
+          if (navigator.mediaDevices.enumerateDevices) {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const hasCamera = devices.some((d) => d.kind === "videoinput");
+            const hasMic = devices.some((d) => d.kind === "audioinput");
+
+            if (!hasCamera && !hasMic) {
+              friendlyMsg = "No camera and microphone found. Please connect a webcam and microphone to proceed.";
+            } else if (!hasCamera) {
+              friendlyMsg = "Camera / webcam not found. Please connect a camera to proceed with identity verification.";
+            } else if (!hasMic) {
+              friendlyMsg = "Microphone not found. Please connect a microphone to proceed with the speech challenge.";
+            }
+          }
+        } catch {
+          // Fall back to error name inspection
+        }
+
+        // If specific device absence was not confirmed, parse WebRTC error codes
+        if (friendlyMsg === "Camera or microphone access failed.") {
+          if (firstErr.name === "NotFoundError" || firstErr.name === "DevicesNotFoundError") {
+            friendlyMsg = "Camera or microphone not found. Please check that your camera and microphone are plugged in and enabled.";
+          } else if (firstErr.name === "NotAllowedError" || firstErr.name === "PermissionDeniedError") {
+            friendlyMsg = "Camera or microphone permission was blocked. Please allow camera and microphone access in your browser or device settings.";
+          } else if (firstErr.name === "NotReadableError" || firstErr.name === "TrackStartError") {
+            friendlyMsg = "Camera or microphone is currently in use by another application (e.g. Zoom, Teams, or another browser tab). Please close other apps and try again.";
+          } else if (firstErr.name === "OverconstrainedError") {
+            friendlyMsg = "Your camera does not support the required video resolution.";
+          } else if (firstErr.name === "SecurityError") {
+            friendlyMsg = "Media access is restricted. Verification requires a secure HTTPS connection.";
+          } else if (firstErr.message && firstErr.message !== "Requested device not found") {
+            friendlyMsg = firstErr.message;
+          }
+        }
+
+        setPermissionError(friendlyMsg);
+        return null;
+      }
+    }
+
+    mediaStreamRef.current = stream;
+    setPermission("granted");
+    setPermissionError(null);
+
+    // Audio volume monitoring for visual feedback
+    try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioCtx();
       audioContextRef.current = audioCtx;
@@ -150,10 +243,10 @@ export default function UnleashApp() {
         animFrameIdRef.current = requestAnimationFrame(updateMeter);
       };
       updateMeter();
-    } catch (err: any) {
-      setPermission("denied");
-      setPermissionError(err.message || "Camera or microphone permission was denied.");
+    } catch {
+      // Audio level meter is decorative; ignore failure if AudioContext is unsupported
     }
+    return stream;
   };
 
   const stopMedia = useCallback(() => {
@@ -184,11 +277,14 @@ export default function UnleashApp() {
 
   // Execute Recording
   const startVerificationProcess = async () => {
-    if (permission !== "granted") {
-      await initMedia();
+    let stream = mediaStreamRef.current;
+    if (!stream || !stream.active || permission !== "granted") {
+      stream = await initMedia();
     }
+    if (!stream) return;
+
     const currentSession = sessionRef.current || (await fetchNewSession());
-    if (!currentSession || !mediaStreamRef.current) return;
+    if (!currentSession) return;
 
     recordedChunksRef.current = [];
     setElapsedSeconds(0);
@@ -197,7 +293,7 @@ export default function UnleashApp() {
 
     try {
       const mimeType = "video/webm;codecs=vp8,opus";
-      const recorder = new MediaRecorder(mediaStreamRef.current, {
+      const recorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported(mimeType) ? mimeType : "video/webm",
         videoBitsPerSecond: 2_500_000,
       });
@@ -236,6 +332,19 @@ export default function UnleashApp() {
   const submitToBackend = async (blob: Blob, currentSession: SessionChallenge) => {
     setModalPhase("ANALYZING");
     setAnalysisError(null);
+    setAnalysisProgress(15);
+    setCompletedAnalysisSteps([0]); // Step 0: Upload complete
+
+    // Progressive step animation timer
+    const progressTimer = setInterval(() => {
+      setAnalysisProgress((prev) => {
+        const next = Math.min(prev + (prev < 50 ? 2.8 : prev < 80 ? 1.6 : 0.5), 94);
+        if (next >= 35) setCompletedAnalysisSteps((s) => (s.includes(1) ? s : [...s, 1]));
+        if (next >= 60) setCompletedAnalysisSteps((s) => (s.includes(2) ? s : [...s, 2]));
+        if (next >= 82) setCompletedAnalysisSteps((s) => (s.includes(3) ? s : [...s, 3]));
+        return next;
+      });
+    }, 180);
 
     try {
       const form = new FormData();
@@ -252,25 +361,40 @@ export default function UnleashApp() {
         throw new Error(errJson?.detail || `Upload rejected (${submitRes.status})`);
       }
 
-      // Poll results every 1.5s (max 60 attempts = 90s)
+      // Poll results every 1.2s (max 60 attempts = 72s)
       for (let i = 0; i < 60; i++) {
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 1200));
         const res = await fetch(`${API_BASE}/sessions/${currentSession.session_id}`);
         if (!res.ok) continue;
 
         const data: SessionResult = await res.json();
         if (data.status !== "PROCESSING") {
+          clearInterval(progressTimer);
+          setAnalysisProgress(100);
+          setCompletedAnalysisSteps([0, 1, 2, 3, 4]);
+
+          // Smooth brief pause at 100% so the user sees completion before results reveal
+          await new Promise((r) => setTimeout(r, 450));
+
           setSessionResult(data);
           setModalPhase("RESULT");
           if (data.status === "VERIFIED") {
             setIsSiteUnlocked(true);
+            stopMedia();
           }
           return;
         }
       }
       throw new Error("Verification timed out waiting for backend models.");
     } catch (err: any) {
-      setAnalysisError(err.message || "Failed to complete verification.");
+      clearInterval(progressTimer);
+      let friendly = err.message || "Failed to complete verification.";
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        friendly = "Network connection lost. Please check your internet connection.";
+      } else if (err.message && (err.message.includes("Failed to fetch") || err.message.includes("NetworkError"))) {
+        friendly = "Bad connection: Failed to reach the verification server during upload.";
+      }
+      setAnalysisError(friendly);
       setModalPhase("RESULT");
     }
   };
@@ -566,44 +690,42 @@ export default function UnleashApp() {
                   </div>
                 </div>
 
-                {/* Device Status */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "0.75rem 1rem",
-                    background: "var(--bg-card)",
-                    borderRadius: "10px",
-                    marginBottom: "1.5rem",
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <Video size={16} color="var(--accent-cyan)" />
-                    <Mic size={16} color="var(--accent-cyan)" />
-                    <span>Camera & Microphone Access</span>
+                {/* Permission Denied Warning (if any) */}
+                {permissionError && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                      padding: "0.75rem 1rem",
+                      background: "rgba(244, 63, 94, 0.12)",
+                      border: "1px solid rgba(244, 63, 94, 0.35)",
+                      borderRadius: "10px",
+                      marginBottom: "1.2rem",
+                      color: "#fda4af",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    <AlertCircle size={16} color="var(--accent-rose)" />
+                    <span>{permissionError}</span>
                   </div>
-                  {permission === "granted" ? (
-                    <span style={{ color: "var(--accent-emerald)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                      <CheckCircle2 size={15} /> Ready
-                    </span>
-                  ) : (
-                    <button className="btn-secondary" onClick={initMedia} style={{ padding: "0.35rem 0.75rem", fontSize: "0.8rem" }}>
-                      Grant Access
-                    </button>
-                  )}
-                </div>
+                )}
 
                 {/* Start Button */}
                 <button
                   className="btn-primary"
                   onClick={startVerificationProcess}
-                  disabled={loadingSession || !session}
+                  disabled={loadingSession || !session || permission === "requesting"}
                   style={{ width: "100%", justifyContent: "center", padding: "1rem" }}
                 >
-                  {loadingSession ? <RefreshCw className="spin" size={18} /> : <ShieldCheck size={18} />}
-                  Start 13-Second Verification
+                  {loadingSession || permission === "requesting" ? (
+                    <RefreshCw className="spin" size={18} />
+                  ) : (
+                    <ShieldCheck size={18} />
+                  )}
+                  {permission === "requesting"
+                    ? "Requesting Camera & Mic..."
+                    : "Start 13-Second Verification"}
                 </button>
               </div>
             )}
@@ -673,7 +795,12 @@ export default function UnleashApp() {
                     autoPlay
                     playsInline
                     muted
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      transform: "scaleX(-1)",
+                    }}
                   />
                   <div className="camera-reticle" />
 
@@ -775,45 +902,118 @@ export default function UnleashApp() {
             --------------------------------------------------------------------- */}
             {modalPhase === "ANALYZING" && (
               <div style={{ textAlign: "center", padding: "2.5rem 1rem" }}>
-                <div
-                  style={{
-                    width: "80px",
-                    height: "80px",
-                    borderRadius: "50%",
-                    border: "3px solid var(--border-color)",
-                    borderTopColor: "var(--accent-cyan)",
-                    borderRightColor: "var(--accent-indigo)",
-                    animation: "spin 1s linear infinite",
-                    margin: "0 auto 1.5rem",
-                  }}
-                />
+                {/* Radial Spinner with Percentage */}
+                <div style={{ position: "relative", width: "88px", height: "88px", margin: "0 auto 1.5rem" }}>
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: "50%",
+                      border: "3px solid rgba(255, 255, 255, 0.08)",
+                      borderTopColor: "var(--accent-cyan)",
+                      borderRightColor: "var(--accent-emerald)",
+                      animation: "spin 1.2s linear infinite",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "JetBrains Mono, monospace",
+                      fontSize: "1.05rem",
+                      fontWeight: 700,
+                      color: "var(--accent-cyan)",
+                    }}
+                  >
+                    {Math.round(analysisProgress)}%
+                  </div>
+                </div>
+
                 <h3 style={{ fontSize: "1.35rem", fontWeight: 700 }}>Processing Multimodal Biometrics</h3>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginTop: "0.4rem" }}>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginTop: "0.35rem" }}>
                   Running local AI models across audio, pose, replay, and deepfake signals...
                 </p>
 
-                {/* Progress Checklist */}
-                <div style={{ maxWidth: "340px", margin: "2rem auto 0", textAlign: "left", display: "flex", flexDirection: "column", gap: "0.6rem", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <CheckCircle2 size={16} color="var(--accent-emerald)" />
-                    <span>Encrypted recording uploaded</span>
+                {/* Progress Bar */}
+                <div style={{ maxWidth: "380px", margin: "1.5rem auto 1.2rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.45rem", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                    <span>Pipeline Progress</span>
+                    <span style={{ color: "var(--accent-cyan)", fontWeight: 700, fontFamily: "JetBrains Mono, monospace" }}>
+                      {Math.round(analysisProgress)}%
+                    </span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <RefreshCw size={14} className="spin" color="var(--accent-cyan)" />
-                    <span>Silero-VAD & Whisper Base transcription</span>
+                  <div style={{ height: "6px", background: "rgba(255, 255, 255, 0.08)", borderRadius: "999px", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${analysisProgress}%`,
+                        background: "linear-gradient(90deg, #06b6d4, #10b981)",
+                        borderRadius: "999px",
+                        transition: "width 0.25s ease",
+                        boxShadow: "0 0 12px rgba(6, 182, 212, 0.4)",
+                      }}
+                    />
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <RefreshCw size={14} className="spin" color="var(--accent-cyan)" />
-                    <span>MediaPipe 3D Landmark & Head pose analysis</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <RefreshCw size={14} className="spin" color="var(--accent-cyan)" />
-                    <span>Moiré FFT & Sensor noise replay check</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <RefreshCw size={14} className="spin" color="var(--accent-cyan)" />
-                    <span>Joint Weighted Fusion engine</span>
-                  </div>
+                </div>
+
+                {/* Dynamic Checklist */}
+                <div style={{ maxWidth: "380px", margin: "1.2rem auto 0", textAlign: "left", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {ANALYSIS_CHECKLIST.map((step, idx) => {
+                    const isDone = completedAnalysisSteps.includes(idx);
+                    const isCurrent = !isDone && completedAnalysisSteps.length === idx;
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "0.55rem 0.85rem",
+                          borderRadius: "10px",
+                          background: isCurrent ? "rgba(6, 182, 212, 0.08)" : isDone ? "rgba(16, 185, 129, 0.04)" : "rgba(255, 255, 255, 0.02)",
+                          border: isCurrent ? "1px solid rgba(6, 182, 212, 0.25)" : "1px solid transparent",
+                          transition: "all 0.3s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                          {isDone ? (
+                            <CheckCircle2 size={16} color="var(--accent-emerald)" />
+                          ) : isCurrent ? (
+                            <RefreshCw size={14} className="spin" color="var(--accent-cyan)" />
+                          ) : (
+                            <div style={{ width: "14px", height: "14px", borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)" }} />
+                          )}
+                          <div>
+                            <span
+                              style={{
+                                display: "block",
+                                fontSize: "0.85rem",
+                                color: isDone ? "#fff" : isCurrent ? "var(--accent-cyan)" : "var(--text-muted)",
+                                fontWeight: isCurrent ? 600 : 400,
+                              }}
+                            >
+                              {step.label}
+                            </span>
+                            <span style={{ display: "block", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                              {step.sub}
+                            </span>
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "0.72rem",
+                            fontWeight: 600,
+                            color: isDone ? "var(--accent-emerald)" : isCurrent ? "var(--accent-cyan)" : "rgba(255, 255, 255, 0.25)",
+                          }}
+                        >
+                          {isDone ? "✓ Done" : isCurrent ? "Running..." : "Queued"}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -960,7 +1160,10 @@ export default function UnleashApp() {
                   {sessionResult.status === "VERIFIED" ? (
                     <button
                       className="btn-primary"
-                      onClick={() => setIsModalOpen(false)}
+                      onClick={() => {
+                        stopMedia();
+                        setIsModalOpen(false);
+                      }}
                       style={{ flex: 1, justifyContent: "center" }}
                     >
                       <Unlock size={18} /> Enter Protected Website
