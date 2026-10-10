@@ -78,8 +78,8 @@ export default function Home() {
         {screen === "welcome" && <Welcome onNext={() => setScreen("prescan")} />}
         {screen === "prescan" && <PreScan recorder={recorder} onNext={() => setScreen("challenge")} />}
         {screen === "challenge" && <Challenge recorder={recorder} onFinished={analyse} onCancel={() => setScreen("prescan")} />}
-        {screen === "uploading" && <Processing stage="uploading" />}
-        {screen === "analysing" && <Processing stage="analysing" />}
+        {screen === "uploading" && <Processing stage="uploading" onCancel={startOver} />}
+        {screen === "analysing" && <Processing stage="analysing" onCancel={startOver} />}
         {screen === "result" && <Result result={result} problem={problem} blob={blob} session={session} onRetry={startOver} />}
       </main>
     </div>

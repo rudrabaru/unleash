@@ -25,16 +25,16 @@ export function Welcome({ onNext }: { onNext: () => void }) {
       </div>
 
       <div className="facts">
-        <div className="fact">🎥<br />One short recording</div>
-        <div className="fact">🗑️<br />Recording deleted after analysis</div>
-        <div className="fact">🚫<br />Not an identity check</div>
+        <div className="fact"><span aria-hidden="true">🎥</span><br />One short recording</div>
+        <div className="fact"><span aria-hidden="true">🗑️</span><br />Recording deleted after analysis</div>
+        <div className="fact"><span aria-hidden="true">🚫</span><br />Not an identity check</div>
       </div>
 
       <button className="btn-primary" onClick={onNext}>
         Start verification →
       </button>
       <p className="fine">
-        This needs camera and microphone access. Only the scores are kept. Prototype: some checks are not calibrated yet, so results are for evaluation.
+        This needs camera and microphone access. The recording is deleted as soon as it has been analysed. We keep the result and a few counts, for example how many of the words matched; we do not keep the recording or what you said. Prototype: some checks are not calibrated yet, so results are for evaluation.
       </p>
     </div>
   );

@@ -1,3 +1,4 @@
+import "@fontsource-variable/inter"; // the page font, served from this site (no request to a font host)
 import "./globals.css";
 import type { Metadata } from "next";
 
