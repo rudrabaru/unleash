@@ -73,6 +73,37 @@ def _lip_series(landmark_features, fps: float):
         return None
 
 
+# What the last warm-up could not load (model name -> error), kept for /ready.
+_WARMUP_FAILURES: Dict[str, str] = {}
+
+
+def model_status() -> Dict[str, Optional[str]]:
+    """
+    For each model, None when it is loaded and ready, else the reason it is not. The speech
+    detector and recognizer load when the audio module is imported; the face landmarker and the
+    deepfake classifier load in `warm_up`. Only the deepfake classifier is optional: without it
+    fusion leaves that signal out.
+    """
+    from app.modules.audio import _phrase_compliance, _speech_gate
+    from app.modules.visual import _landmarks
+
+    return {
+        "speech_detector": None if _speech_gate._VAD_MODEL is not None else _speech_gate._VAD_LOAD_ERROR or "not loaded",
+        "speech_recognizer": None if _phrase_compliance._WHISPER_MODEL is not None else _phrase_compliance._WHISPER_LOAD_ERROR or "not loaded",
+        "face_landmarker": _WARMUP_FAILURES.get("face_landmarker") or (None if _landmarks._landmarker_singleton is not None else "not loaded"),
+        "deepfake": _WARMUP_FAILURES.get("deepfake") or (None if _deepfake_loaded() else "not loaded"),
+    }
+
+
+REQUIRED_MODELS = ("speech_detector", "speech_recognizer", "face_landmarker")
+
+
+def _deepfake_loaded() -> bool:
+    from app.modules.antispoof._deepfake import classifier
+
+    return classifier.model is not None
+
+
 def warm_up() -> Dict[str, str]:
     """
     Load the models that are otherwise created on the first request (the audio models already
@@ -89,6 +120,8 @@ def warm_up() -> Dict[str, str]:
         except Exception as exc:  # noqa: BLE001 - a missing checkpoint must not block startup
             failures[name] = str(exc)
             logger.warning("Warm-up of %s failed: %s", name, exc)
+    _WARMUP_FAILURES.clear()
+    _WARMUP_FAILURES.update(failures)
     return failures
 
 

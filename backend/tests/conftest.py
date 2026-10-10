@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 _SANDBOX = Path(tempfile.mkdtemp(prefix="unleash_tests_"))
+os.environ["ENVIRONMENT"] = "development"  # the production default would refuse to start without a real secret
 os.environ["DATABASE_URL"] = "sqlite:///" + (_SANDBOX / "unleash.db").as_posix()
 os.environ["UPLOAD_TEMP_DIR"] = str(_SANDBOX / "uploads")
 # Tests upload a recording right after creating its session; the "too early" refusal has its own tests.

@@ -10,8 +10,9 @@ from typing import Dict
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
-from app import orchestrator
+from app import orchestrator, quality
 from app.core.config import settings
+from app.media.probe import probe_streams
 from app.protocol import PROTOCOL_V1
 from app.schemas.session import VerifyResponse, VisualChallengeType
 
@@ -45,6 +46,9 @@ def verify_clip(
     try:
         with open(media_path, "wb") as buffer:
             shutil.copyfileobj(video.file, buffer)
+        refusal = quality.upload_rejection(probe_streams(media_path, limit_seconds=quality.HARD_MAX_SECONDS))
+        if refusal:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=refusal)
         analysis = orchestrator.analyze_media(
             media_path, visual_challenge.value, verbal_challenge, phases=PROTOCOL_V1 if protocol else None
         )

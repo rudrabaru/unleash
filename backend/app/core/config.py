@@ -5,8 +5,10 @@ from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# .env is read from backend/ whatever directory the server is started from.
-_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+# .env is read from backend/ whatever directory the server is started from, and so are the database
+# and the upload folder when they are given as relative paths.
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
+_ENV_FILE = _BACKEND_DIR / ".env"
 
 DEFAULT_SECRET_KEY = "dev_secret_unleash_verification_key_change_in_prod"
 MIN_SECRET_KEY_LENGTH = 32
@@ -16,8 +18,10 @@ class Settings(BaseSettings):
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000
-    ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    # Safe by default: forgetting to set these on a server must not leave the weak development key or
+    # the unauthenticated /verify demo switched on. Local work sets ENVIRONMENT=development in backend/.env.
+    ENVIRONMENT: str = "production"
+    DEBUG: bool = False
 
     # Security
     SECRET_KEY: str = DEFAULT_SECRET_KEY
@@ -42,6 +46,21 @@ class Settings(BaseSettings):
     IMAGE_SIZE: int = Field(default=299, validation_alias="UNLEASH_IMAGE_SIZE")
     FAKE_CLASS_INDEX: int = Field(default=1, validation_alias="UNLEASH_FAKE_CLASS_INDEX")
 
+    @field_validator("UPLOAD_TEMP_DIR")
+    @classmethod
+    def anchor_upload_dir(cls, v: str) -> str:
+        path = Path(v)
+        return str(path if path.is_absolute() else (_BACKEND_DIR / path).resolve())
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def anchor_sqlite_path(cls, v: str) -> str:
+        prefix = "sqlite:///"
+        if not v.startswith(prefix):
+            return v
+        path = Path(v[len(prefix):])
+        return prefix + (path if path.is_absolute() else (_BACKEND_DIR / path).resolve()).as_posix()
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
@@ -58,7 +77,8 @@ class Settings(BaseSettings):
         ):
             raise ValueError(
                 f"SECRET_KEY must be set to a private value of at least {MIN_SECRET_KEY_LENGTH} characters "
-                f"when ENVIRONMENT is '{self.ENVIRONMENT}' (e.g. openssl rand -hex 32)."
+                f"when ENVIRONMENT is '{self.ENVIRONMENT}' (e.g. openssl rand -hex 32). "
+                "For local work copy .env.example to .env, which sets ENVIRONMENT=development."
             )
         return self
 
