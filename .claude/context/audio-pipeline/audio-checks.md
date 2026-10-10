@@ -2,7 +2,7 @@
 
 What `backend/app/modules/audio/` does and the numbers it uses. If this file and the code disagree, the code is right; fix this file.
 
-**Entry point:** `process_audio_pipeline(media_path, challenge_phrase, lip_openness_data=None) -> DetectorResult` in `backend/app/modules/audio/__init__.py`. A plain (blocking) function. The orchestrator calls only this function, never the individual checks.
+**Entry point:** `process_audio_pipeline(media_path, challenge_phrase, lip_openness_data=None, phases=None, recording_start=None) -> DetectorResult` in `backend/app/modules/audio/__init__.py`. A plain (blocking) function. The orchestrator calls only this function, never the individual checks.
 
 ```
 recording (.webm/.mp4) -> ffmpeg extraction -> 16 kHz mono WAV (temporary folder, always deleted)
@@ -11,6 +11,8 @@ recording (.webm/.mp4) -> ffmpeg extraction -> 16 kHz mono WAV (temporary folder
   -> voice authenticity  (librosa heuristics) advisory
   -> lip sync            (word times x lip series) advisory
 ```
+
+**Windows.** With `phases` (the protocol windows, `app/protocol.py`) the speech, phrase and lip-sync checks use the **Speak window only**: the recording's time 3-8 s widened by the 0.4 s guard before and 0.7 s after (container `[2.6, 8.7]` for a recording that starts at 0). `_speak_crop.py` cuts that part out of the extracted WAV and converts between the three clocks (recording, container, WAV); `details["speak_window"]` says what was listened to. The voice-authenticity check keeps the whole recording. Without `phases` (the `/verify` demo default, older clips) everything is judged as before.
 
 A failed must-pass check stops the pipeline and returns `passed=False` without running the later checks. The advisory checks never change `passed`; they only feed `score` and the fusion engine's weighted score.
 
@@ -28,9 +30,9 @@ A failed must-pass check stops the pipeline and returns `passed=False` without r
 ## Phrase check (`_phrase_compliance.py`)
 
 - faster-whisper **`base.en`**, int8, CPU, loaded once at import. Plain transcription with word timestamps; **no vocabulary `initial_prompt`** (it made Whisper emit vocabulary words on noise and tones, a way for non-speech to pass).
-- Matching: each target word takes the best unused recognized word. A recognized word counts if its similarity is **at least 0.8** (edit distance divided by the longer word's length, case and punctuation stripped; dividing by twice the length let about 90% of unrelated sentences pass) **and** its Whisper probability is **at least 0.5**. **4 of 5** target words must match. Each spoken word can satisfy only one target.
-- Known limits: order is not enforced and extra spoken words are not penalised (reading many vocabulary words covers a challenge by chance: about 0.8% at 30 distinct words, 2.6% at 40, 11.8% at 60 from the 136-word pool). Lowering the 0.5 floor needs at least 10 genuine takes from at least 3 speakers (`backend/tools/phrase_model_comparison.py`). On a synthetic text-to-speech proxy (not human speech) base.en plain passed 51/60 at floor 0.5 and 56/60 at 0.3, with 0% false accepts on 2,000 random challenges.
-- Details: `phrase_matched`, `words_detected`, `target_words`, `match_count`, `matched_pairs`, `average_confidence`, `transcript`, `word_timestamps` (`{word, start, end, probability}`), `phrase_check_latency_seconds`.
+- Matching (`_phrase_align.py`): an **ordered** alignment (longest common subsequence): the target words must be heard in the challenge's order, each heard word and each target word is used at most once. A recognized word counts if its similarity is **at least 0.8** (edit distance divided by the longer word's length, case and punctuation stripped; dividing by twice the length let about 90% of unrelated sentences pass) **and** its Whisper probability is **at least 0.5**. **4 of 5** target words must match, in order, and **at most 3 heard words may match no target word** (`insertions`; a starting value, to be re-set from the 99th percentile of genuine takes).
+- Known limits: reading 40 random vocabulary words in a row no longer covers a challenge (it did 2.6% of the time with a bag of words; 0 of 2,000 now). Isolated rare nouns are still recognised unreliably: the genuine take scores 4/5 at normal pace and 2/5 when sped up 1.25x ("Lenton", "Napole"), which is why the vocabulary is being replaced. Lowering the 0.5 floor needs at least 10 genuine takes from at least 3 speakers (`backend/tools/phrase_model_comparison.py`). On a synthetic text-to-speech proxy (not human speech) base.en plain passed 51/60 at floor 0.5 and 56/60 at 0.3, with 0% false accepts on 2,000 random challenges.
+- Details: `phrase_matched`, `words_detected`, `target_words`, `match_count`, `matched_pairs`, `average_confidence`, `insertions`, `max_insertions`, `transcript`, `word_timestamps` (`{word, start, end, probability}`, relative to the checked audio), `phrase_check_latency_seconds`, `speak_window`.
 
 ## Voice authenticity (`_voice_authenticity.py`) - advisory, UNCALIBRATED
 

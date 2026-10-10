@@ -51,33 +51,48 @@ def _submit(session_id: str, token: str, media_path):
         )
 
 
-def test_session_lifecycle_with_real_audio_verification():
+def test_session_lifecycle_judges_a_protocol_recording_through_every_check(protocol_take):
     """
-    Full session creation, submit and background analysis with a genuine take of the 5-word
-    challenge. `genuine_5word_noface_video.webm` pairs that audio with a video track that has
-    no face, so the session correctly comes back FAILED through the visual challenge check
-    even though every audio-side assertion passes. A VERIFIED case needs a recording with a
-    compliant face.
+    Full session creation, submit and background analysis on a recording that follows the protocol: a
+    real face that turns left, holds and returns in Act, and a real spoken 5-word take in Speak. Both
+    must-pass checks pass, so the verdict is decided by the weighted signals (a VERIFIED case is not
+    asserted: the anti-spoofing scores are uncalibrated).
     """
+    session_id, token = _create_session_with_phrase(GENUINE_5WORD_PHRASE)
+    with db._connect() as conn:  # the face in the recording turns left
+        conn.execute("UPDATE sessions SET visual_challenge = ? WHERE session_id = ?", ("TURN_HEAD_LEFT", session_id))
+    token, _ = generate_challenge_token(
+        session_id=session_id, visual_challenge="TURN_HEAD_LEFT", verbal_challenge=GENUINE_5WORD_PHRASE,
+        secret_key=settings.SECRET_KEY, expiry_seconds=60,
+    )
+
+    assert _submit(session_id, token, protocol_take).status_code == 202
+
+    # TestClient runs background tasks synchronously
+    res_data = client.get(f"/api/v1/sessions/{session_id}").json()
+
+    signals = res_data["signals"]
+    assert signals["audio_pipeline"]["passed"] is True, signals["audio_pipeline"]["reason"]
+    assert signals["audio_pipeline"]["details"]["phrase_matched"] is True
+    assert signals["audio_pipeline"]["details"]["speak_window"] is not None  # judged inside the window
+    assert signals["visual_challenge"]["passed"] is True, signals["visual_challenge"]["reason"]
+    assert signals["visual_challenge"]["details"]["phase_aware"] is True
+    assert isinstance(signals["audio_pipeline"]["details"]["voice_authenticity_score"], float)
+    assert res_data["status"] != VerificationStatus.FAILED or "must-pass" not in res_data["decision_reason"]
+
+
+def test_session_with_no_face_in_the_recording_fails_the_visual_challenge():
+    """The older unshaped take, whose video has no face: audio on its own cannot pass a session."""
     media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
     session_id, token = _create_session_with_phrase(GENUINE_5WORD_PHRASE)
 
     assert _submit(session_id, token, media).status_code == 202
 
-    # TestClient runs background tasks synchronously
-    result_resp = client.get(f"/api/v1/sessions/{session_id}")
-    assert result_resp.status_code == 200
-    res_data = result_resp.json()
-
+    res_data = client.get(f"/api/v1/sessions/{session_id}").json()
     assert res_data["status"] == VerificationStatus.FAILED
-    assert res_data["signals"]["audio_pipeline"]["passed"] is True
-    assert res_data["signals"]["audio_pipeline"]["details"]["phrase_matched"] is True
     assert res_data["signals"]["visual_challenge"]["passed"] is False
-
-    audio_details = res_data["signals"]["audio_pipeline"]["details"]
-    assert isinstance(audio_details["voice_authenticity_score"], float)
     # a video track with no face gives no lip series, so the lip-sync check has no score
-    assert audio_details.get("av_alignment_score") is None
+    assert res_data["signals"]["audio_pipeline"]["details"].get("av_alignment_score") is None
 
 
 def test_session_lifecycle_with_wrong_challenge_fails():

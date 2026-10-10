@@ -38,13 +38,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from faster_whisper import WhisperModel  # noqa: E402
 
-from app.modules.audio import _phrase_compliance as _pc  # noqa: E402
+from app.modules.audio import _phrase_align as _pa  # noqa: E402
 from app.modules.audio._extraction import extract_wav  # noqa: E402
-from app.modules.audio._phrase_compliance import MIN_WORD_SIMILARITY, match_words_fuzzy  # noqa: E402
+from app.modules.audio._phrase_align import MAX_INSERTED_WORDS, MIN_WORD_SIMILARITY, align_words  # noqa: E402
 from app.modules.audio.vocabulary import CHALLENGE_VOCABULARY  # noqa: E402
 
 # Thousands of random-challenge probes repeat the same word pairs; cache the (pure) similarity.
-_pc.word_similarity_score = functools.lru_cache(maxsize=None)(_pc.word_similarity_score)
+_pa.word_similarity_score = functools.lru_cache(maxsize=None)(_pa.word_similarity_score)
 
 MODELS = ["tiny", "tiny.en", "base.en"]
 PROMPT_MODES = ["plain", "prompt"]  # prompt = vocabulary initial_prompt + condition_on_previous_text=False
@@ -92,8 +92,8 @@ def false_accept_rate(words: List[Tuple[str, float]], floor: float, rng: random.
     hits = 0
     for _ in range(N_RANDOM_CHALLENGES):
         challenge = rng.sample(CHALLENGE_VOCABULARY, 5)
-        n, _, _ = match_words_fuzzy(words, challenge, min_word_confidence=floor, min_word_similarity=MIN_WORD_SIMILARITY)
-        hits += n >= REQUIRED_WORDS
+        found = align_words(words, challenge, min_word_confidence=floor, min_word_similarity=MIN_WORD_SIMILARITY)
+        hits += found.match_count >= REQUIRED_WORDS and found.insertions <= MAX_INSERTED_WORDS
     return hits / N_RANDOM_CHALLENGES
 
 
@@ -125,10 +125,10 @@ def main() -> int:
                 counts, missed = [], {}
                 for g, words, _ in g_tr:
                     target = g["challenge"].split()
-                    n, pairs, _ = match_words_fuzzy(words, target, min_word_confidence=floor,
-                                                    min_word_similarity=MIN_WORD_SIMILARITY)
-                    counts.append(n)
-                    hit = {p.split(" -> ")[1] for p in pairs}
+                    found = align_words(words, target, min_word_confidence=floor,
+                                        min_word_similarity=MIN_WORD_SIMILARITY)
+                    counts.append(found.match_count if found.insertions <= MAX_INSERTED_WORDS else 0)
+                    hit = {p.split(" -> ")[1] for p in found.pairs}
                     for t in target:
                         if t not in hit:
                             missed[t] = missed.get(t, 0) + 1

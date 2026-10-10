@@ -29,6 +29,11 @@ MAX_RECORDING_SECONDS = 16.0
 # on-screen flash and beep at t=3 s and t=8 s against where they land in the file).
 WINDOW_GUARD_SECONDS = 0.4
 
+# A slow reader may still be saying the last word after Speak nominally ends (the words stay on
+# screen until Act starts), so the speech is judged a little past the end of its window. A
+# starting value: the pilot recordings show how long people actually take.
+SPEAK_TRAILING_SECONDS = 0.7
+
 
 @dataclass(frozen=True)
 class Phase:
@@ -58,6 +63,10 @@ class PhaseWindows:
         """(start, end) of a phase in recording seconds, widened by `before` and `after` and never before 0."""
         phase = self.phase(name)
         return max(0.0, phase.start - before), phase.end + after
+
+    def speech_window(self) -> Tuple[float, float]:
+        """Where the spoken phrase is looked for: Speak, widened by the guard before and the trailing allowance after."""
+        return self.window("speak", before=WINDOW_GUARD_SECONDS, after=SPEAK_TRAILING_SECONDS)
 
     def phase_at(self, seconds: float) -> Optional[str]:
         """The phase a moment on the recording falls in, or None before the start and after the end."""

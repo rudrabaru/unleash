@@ -125,6 +125,21 @@ def _shared_landmarks(bundle):
         return None
 
 
+def _frontal_frames(bundle, phases: Optional[PhaseWindows], recording_start: Optional[float]):
+    """
+    The native-resolution frames for deepfake and replay and their stream positions. With the
+    protocol windows only frames before the head action are kept (up to the end of the speech
+    window); if that leaves none, all of them, so a short recording is still judged.
+    """
+    if phases is None:
+        return bundle.sparse, bundle.sparse_indices
+    limit = (recording_start or 0.0) + phases.speech_window()[1]
+    keep = [i for i, t in enumerate(bundle.sparse_times) if t < limit]
+    if not keep:
+        return bundle.sparse, bundle.sparse_indices
+    return [bundle.sparse[i] for i in keep], [bundle.sparse_indices[i] for i in keep]
+
+
 def _run_video_detectors(
     bundle,
     landmark_features,
@@ -137,8 +152,11 @@ def _run_video_detectors(
         error = bundle.error or "No video frames available."
         return {name: _failed_result(reason="No video frames available", error=error) for name in VIDEO_SIGNALS}
 
-    # The deepfake classifier sees the face only: crops come from the shared landmarks.
-    face_crops = crop_faces(bundle.sparse, bundle.sparse_indices, landmark_features)
+    # The deepfake classifier sees the face only: crops come from the shared landmarks. With the
+    # protocol windows the anti-spoofing frames are the frontal part of the recording (before the
+    # head action), so a head turned to the side is never judged as a face.
+    sparse, sparse_indices = _frontal_frames(bundle, phases, recording_start)
+    face_crops = crop_faces(sparse, sparse_indices, landmark_features)
     signals: Dict[str, DetectorResult] = {}
     for name, detector, args, kwargs in (
         ("visual_liveness", detect_visual_liveness, (bundle.dense,), {"features": landmark_features}),
@@ -149,7 +167,7 @@ def _run_video_detectors(
             {"features": landmark_features, "phases": phases, "recording_start": recording_start},
         ),
         ("deepfake", detect_deepfake, (face_crops,), {}),
-        ("replay", detect_replay_attack, (bundle.sparse,), {}),
+        ("replay", detect_replay_attack, (sparse,), {}),
     ):
         with timer.step(name):
             signals[name] = _safe_call(name, detector, *args, **kwargs)
@@ -202,6 +220,8 @@ def _analyze(
             str(media_path),
             verbal_challenge,
             lip_openness_data=_lip_series(landmark_features, bundle.fps),
+            phases=phases,
+            recording_start=recording_start,
         )
     signals.update(_run_video_detectors(bundle, landmark_features, visual_challenge, timer, phases, recording_start))
 

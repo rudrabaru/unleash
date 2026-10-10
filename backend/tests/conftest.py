@@ -179,3 +179,46 @@ def phased_turn_clip(tmp_path_factory):
         return out
 
     return make
+
+
+@pytest.fixture(scope="session")
+def phased_speech_clip(tmp_path_factory):
+    """
+    Factory for an Opus/WebM clip of the genuine 5-word take placed on a protocol timeline: silent
+    until `start` seconds, then the take at its own pace, then silent until `total` seconds. The take
+    has about a second of silence before its first word and runs 6.1 s, so `start=2.0` puts its speech
+    in the Speak window (3-8 s). `keep` cuts the take to its first `keep` seconds. Audio only. (The take
+    is not sped up: at 1.25x the recognizer already drops it from 4 to 2 of 5 words.)
+    """
+    from _paths import GENUINE_5WORD_WEBM, require
+
+    folder = tmp_path_factory.mktemp("phased_speech")
+    source = require(GENUINE_5WORD_WEBM)
+
+    def make(start: float, keep: float = None, total: float = 16.0) -> Path:
+        out = folder / f"take_at_{start}_keep_{keep}.webm"
+        if not out.exists():
+            trim = f"atrim=end={keep}," if keep else ""
+            _ffmpeg(
+                "-i", str(source), "-ac", "1", "-af",
+                f"{trim}adelay={int(round(start * 1000))},apad=whole_dur={total}", "-c:a", "libopus", str(out),
+            )
+        return out
+
+    return make
+
+
+@pytest.fixture(scope="session")
+def protocol_take(phased_turn_clip, phased_speech_clip, tmp_path_factory):
+    """
+    A 13 s recording that follows the protocol: a REAL face that turns left in Act (video from
+    `phased_turn_clip`) and a REAL spoken 5-word take in Speak (audio from `phased_speech_clip`),
+    muxed into one WebM like a browser recording. The face and the voice are different people's
+    samples, so lip sync means nothing here; every other part of the pipeline is real.
+    """
+    out = tmp_path_factory.mktemp("protocol_take") / "protocol_take.webm"
+    _ffmpeg(
+        "-i", str(phased_turn_clip(8.0)), "-i", str(phased_speech_clip(2.0, total=13.3)),
+        "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "copy", "-shortest", str(out),
+    )
+    return out
