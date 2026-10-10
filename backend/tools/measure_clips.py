@@ -24,6 +24,7 @@ import argparse
 import json
 import shutil
 import subprocess
+import os
 import sys
 import tempfile
 import time
@@ -32,6 +33,7 @@ from typing import Any, Dict, List
 
 BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND))
+os.environ.setdefault("ENVIRONMENT", "development")  # a tool is a development program; the app defaults to production
 
 from app import orchestrator  # noqa: E402
 from app.protocol import PROTOCOL_V1  # noqa: E402

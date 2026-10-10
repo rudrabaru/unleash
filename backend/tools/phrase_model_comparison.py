@@ -25,6 +25,7 @@ from __future__ import annotations
 import functools
 import json
 import random
+import os
 import sys
 import tempfile
 import time
@@ -35,6 +36,7 @@ import numpy as np
 import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+os.environ.setdefault("ENVIRONMENT", "development")  # a tool is a development program; the app defaults to production
 
 from faster_whisper import WhisperModel  # noqa: E402
 

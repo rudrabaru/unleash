@@ -6,8 +6,12 @@ The clips are copied to eval/recordings/ and listed in eval/calibration.json. Bo
 git (they show people's faces and voices); the committed sample set stays in eval/manifest.json.
 Measure them with:  python tools/measure_clips.py --manifest eval/calibration.json
 
+Every clip is listed with "protocol": true: a recorder clip follows the read/speak/act protocol, so
+measure_clips judges it against the windows, as a session does. `--speaker` and `--device` are kept
+with each clip because the calibration is only meaningful per speaker and per camera.
+
 Usage (from backend/):
-    .venv\\Scripts\\python.exe tools/add_clips.py D:\\Downloads --kind genuine --performed "front light, speaker A"
+    .venv\\Scripts\\python.exe tools/add_clips.py D:\\Downloads --kind genuine --speaker A --device laptop --performed "front light"
     .venv\\Scripts\\python.exe tools/add_clips.py clip-LOOK_UP-a_b_c_d_e-1.webm --kind replay --performed "phone screen"
 
 `--kind` is what the clip is, not what you expect the system to say: genuine, replay, photo,
@@ -49,7 +53,7 @@ def _find_clips(sources: List[Path]) -> List[Path]:
 
 
 def add_clips(sources: List[Path], kind: str, performed: str, manifest_path: Path = CALIBRATION_MANIFEST,
-              recordings_dir: Path = RECORDINGS) -> Dict[str, List[str]]:
+              recordings_dir: Path = RECORDINGS, speaker: str = "", device: str = "") -> Dict[str, List[str]]:
     manifest: Dict[str, Any] = (
         json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest_path.exists()
@@ -74,6 +78,9 @@ def add_clips(sources: List[Path], kind: str, performed: str, manifest_path: Pat
             "path": destination.relative_to(BACKEND).as_posix() if destination.is_relative_to(BACKEND) else str(destination),
             "kind": kind,
             "performed": performed,
+            "protocol": True,
+            **({"speaker": speaker} if speaker else {}),
+            **({"device": device} if device else {}),
             **parsed,
         })
         known.add(clip.name)
@@ -88,10 +95,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("sources", nargs="+", type=Path, help="clip files, or folders searched for clip-*.webm")
     parser.add_argument("--kind", required=True, choices=KINDS)
-    parser.add_argument("--performed", default="", help="a short note: lighting, speaker, how the attack was made")
+    parser.add_argument("--performed", default="", help="a short note: lighting, how the attack was made")
+    parser.add_argument("--speaker", default="", help="who is in the clip (a letter or name; the calibration is leave-one-speaker-out)")
+    parser.add_argument("--device", default="", help="the camera and browser used, e.g. 'laptop webcam, Chrome'")
     args = parser.parse_args()
 
-    report = add_clips(args.sources, args.kind, args.performed)
+    report = add_clips(args.sources, args.kind, args.performed, speaker=args.speaker, device=args.device)
     for label, names in report.items():
         for name in names:
             print(f"{label.replace('_', ' ')}: {name}")

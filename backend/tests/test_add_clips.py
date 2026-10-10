@@ -35,5 +35,6 @@ def test_adds_copies_and_does_not_duplicate(tmp_path):
     assert second["added"] == [] and second["already_listed"] == [GOOD]
 
     clips = json.loads(manifest.read_text(encoding="utf-8"))["clips"]
+    assert all(clip["protocol"] is True for clip in clips)  # recorder clips are judged against the windows
     assert len(clips) == 1
     assert clips[0]["kind"] == "genuine" and clips[0]["phrase"] == "paddle envelope carpet dolphin quarry"
