@@ -32,18 +32,17 @@ import {
 // Config: Relative /api/v1 uses Next.js rewrites to proxy to backend, avoiding Mixed Content on mobile HTTPS
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "/api/v1";
 
-// STRICT Timing Sequence (Seconds)
-const SCAN_SECONDS = 3.0; // 0s - 3s: Passive face scan (nothing displayed)
-const SPEAK_SECONDS = 5.0; // 3s - 8s: Say the 5 words (5s duration)
-const ACT_SECONDS = 5.0; // 8s - 13s: Perform visual gesture (5s duration)
-const TOTAL_SECONDS = SCAN_SECONDS + SPEAK_SECONDS + ACT_SECONDS; // 13.0s total
+// Redesigned Timing Sequence (13 Seconds Total)
+const SPEAK_SECONDS = 8.0; // 0s - 8s: Display words from starting 0th second; user speaks at their own pace
+const ACT_SECONDS = 5.0; // 8s - 13s: Perform visual gesture challenge
+const TOTAL_SECONDS = SPEAK_SECONDS + ACT_SECONDS; // 13.0s total
 
 const VISUAL_ACTIONS: Record<VisualChallenge, { text: string; icon: any }> = {
-  TURN_HEAD_LEFT: { text: "Turn your head to your LEFT", icon: ArrowLeft },
-  TURN_HEAD_RIGHT: { text: "Turn your head to your RIGHT", icon: ArrowRight },
-  LOOK_UP: { text: "Look UP towards the top", icon: ArrowUp },
-  LOOK_DOWN: { text: "Look DOWN towards the bottom", icon: ArrowDown },
-  BLINK_TWICE: { text: "Blink your eyes TWICE naturally", icon: Eye },
+  TURN_HEAD_LEFT: { text: "Slowly turn your head to your LEFT", icon: ArrowLeft },
+  TURN_HEAD_RIGHT: { text: "Slowly turn your head to your RIGHT", icon: ArrowRight },
+  LOOK_UP: { text: "Slowly look UP towards the top", icon: ArrowUp },
+  LOOK_DOWN: { text: "Slowly look DOWN towards the bottom", icon: ArrowDown },
+  BLINK_TWICE: { text: "Slowly blink your eyes TWICE naturally", icon: Eye },
 };
 
 const ANALYSIS_CHECKLIST = [
@@ -398,9 +397,8 @@ export default function UnleashApp() {
     }
   };
 
-  // Computed Step State during 13s Recording
-  const currentStep =
-    elapsedSeconds < SCAN_SECONDS ? "SCAN" : elapsedSeconds < SCAN_SECONDS + SPEAK_SECONDS ? "SPEAK" : "ACT";
+  // Computed Step State during 13s Recording (0s-8s: Speak Words, 8s-13s: Gesture Action)
+  const currentStep = elapsedSeconds < SPEAK_SECONDS ? "SPEAK" : "ACT";
 
   const challengeWords = session?.challenge.verbal ? session.challenge.verbal.split(/\s+/).filter(Boolean) : [];
   const actionInfo = session?.challenge.visual ? VISUAL_ACTIONS[session.challenge.visual] : null;
@@ -445,7 +443,7 @@ export default function UnleashApp() {
               <ShieldCheck color="#fff" size={20} />
             </div>
             <div>
-              <span style={{ fontWeight: 800, fontSize: "1.2rem", letterSpacing: "-0.02em" }}>APEX VAULT</span>
+              <span style={{ fontWeight: 800, fontSize: "1.2rem", letterSpacing: "-0.02em" }}>UNLEASH</span>
               <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block" }}>Enterprise Portal</span>
             </div>
           </div>
@@ -577,13 +575,13 @@ export default function UnleashApp() {
             >
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <span className="badge badge-info">Unleash Verification</span>
+                  <span className="badge badge-info">Unleash</span>
                   <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontFamily: "JetBrains Mono" }}>
                     v1.0 Demo
                   </span>
                 </div>
                 <h2 style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: "0.4rem" }}>
-                  Human Identity Verification
+                  Unleash Verification
                 </h2>
               </div>
               {isSiteUnlocked && (
@@ -626,7 +624,7 @@ export default function UnleashApp() {
               <div>
                 <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", lineHeight: "1.5" }}>
                   To ensure you are a live human in front of the camera, you will complete a <strong>13-second</strong> active
-                  challenge. Please follow the instructions as they appear on screen:
+                  verification across <strong>2 simple steps</strong>:
                 </p>
 
                 {/* Bullet Points */}
@@ -643,9 +641,9 @@ export default function UnleashApp() {
                   >
                     <span style={{ fontWeight: 700, color: "var(--accent-cyan)", minWidth: "24px" }}>1.</span>
                     <div>
-                      <strong style={{ display: "block", fontSize: "0.92rem" }}>First 3 Seconds — Passive Face Scan</strong>
+                      <strong style={{ display: "block", fontSize: "0.92rem" }}>First 8 Seconds — Verbal Phrase Challenge (0s – 8s)</strong>
                       <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                        Face the camera naturally without moving. The system captures your baseline biometric geometry.
+                        5 challenge words will be displayed immediately from second zero. Take your time to read them and speak them aloud however you want over the next 8 seconds.
                       </span>
                     </div>
                   </div>
@@ -662,28 +660,9 @@ export default function UnleashApp() {
                   >
                     <span style={{ fontWeight: 700, color: "var(--accent-cyan)", minWidth: "24px" }}>2.</span>
                     <div>
-                      <strong style={{ display: "block", fontSize: "0.92rem" }}>Next 5 Seconds — Verbal Challenge</strong>
+                      <strong style={{ display: "block", fontSize: "0.92rem" }}>Next 5 Seconds — Visual Gesture Challenge (8s – 13s)</strong>
                       <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                        5 random challenge words will appear. Read them aloud facing the camera.
-                      </span>
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "0.85rem",
-                      background: "rgba(255, 255, 255, 0.03)",
-                      padding: "0.85rem 1rem",
-                      borderRadius: "10px",
-                    }}
-                  >
-                    <span style={{ fontWeight: 700, color: "var(--accent-cyan)", minWidth: "24px" }}>3.</span>
-                    <div>
-                      <strong style={{ display: "block", fontSize: "0.92rem" }}>Final 5 Seconds — Active Gesture</strong>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-                        The words will disappear and an action instruction will appear (head turn, look up/down, or blink).
+                        The words will disappear and an action prompt will appear. Slowly perform the instructed gesture facing the camera.
                       </span>
                     </div>
                   </div>
@@ -743,23 +722,11 @@ export default function UnleashApp() {
                         borderRadius: "6px",
                         fontSize: "0.75rem",
                         fontWeight: 600,
-                        background: currentStep === "SCAN" ? "var(--accent-cyan)" : "var(--bg-card)",
-                        color: currentStep === "SCAN" ? "#000" : "var(--text-muted)",
-                      }}
-                    >
-                      1. Scan (3s)
-                    </span>
-                    <span
-                      style={{
-                        padding: "0.25rem 0.6rem",
-                        borderRadius: "6px",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
                         background: currentStep === "SPEAK" ? "var(--accent-cyan)" : "var(--bg-card)",
                         color: currentStep === "SPEAK" ? "#000" : "var(--text-muted)",
                       }}
                     >
-                      2. Speak (5s)
+                      1. Speak Words (8s)
                     </span>
                     <span
                       style={{
@@ -771,7 +738,7 @@ export default function UnleashApp() {
                         color: currentStep === "ACT" ? "#000" : "var(--text-muted)",
                       }}
                     >
-                      3. Action (5s)
+                      2. Visual Action (5s)
                     </span>
                   </div>
 
@@ -840,37 +807,33 @@ export default function UnleashApp() {
                     style={{
                       width: `${Math.min(100, (elapsedSeconds / TOTAL_SECONDS) * 100)}%`,
                       background:
-                        currentStep === "SCAN"
+                        currentStep === "SPEAK"
                           ? "var(--accent-cyan)"
-                          : currentStep === "SPEAK"
-                          ? "var(--accent-blue)"
                           : "var(--accent-indigo)",
                     }}
                   />
                 </div>
 
-                {/* DYNAMIC PROMPT BOX STRICTLY FOLLOWING THE 3 STEPS */}
+                {/* DYNAMIC PROMPT BOX STRICTLY FOLLOWING THE 2 STEPS */}
                 <div style={{ marginTop: "1.25rem", minHeight: "110px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                  {/* STEP 1: 0s - 3s (Neutral Face Scan) */}
-                  {currentStep === "SCAN" && (
-                    <div style={{ textAlign: "center", animation: "fadeIn 0.25s ease" }}>
-                      <span className="badge badge-info" style={{ marginBottom: "0.5rem" }}>
-                        Step 1 · Neutral Face Scan
-                      </span>
-                      <h3 style={{ fontSize: "1.25rem", fontWeight: 700 }}>Face the camera naturally</h3>
-                      <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "0.25rem" }}>
-                        Looking straight ahead. Calibrating facial landmarks & ambient lighting...
-                      </p>
-                    </div>
-                  )}
-
-                  {/* STEP 2: 3s - 8s (Verbal Challenge) */}
+                  {/* STEP 1: 0s - 8s (Verbal Challenge) */}
                   {currentStep === "SPEAK" && (
                     <div style={{ textAlign: "center", animation: "fadeIn 0.25s ease" }}>
-                      <span className="badge badge-info" style={{ marginBottom: "0.5rem", background: "rgba(245, 158, 11, 0.15)", color: "var(--accent-amber)", borderColor: "rgba(245, 158, 11, 0.3)" }}>
-                        Step 2 · Say the 5 Words Aloud
+                      <span
+                        className="badge badge-info"
+                        style={{
+                          marginBottom: "0.4rem",
+                          background: "rgba(6, 182, 212, 0.15)",
+                          color: "var(--accent-cyan)",
+                          borderColor: "rgba(6, 182, 212, 0.3)",
+                        }}
+                      >
+                        Step 1 · Speak Challenge Words (0s – 8s)
                       </span>
-                      <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+                      <p style={{ color: "var(--text-muted)", fontSize: "0.82rem", marginBottom: "0.6rem" }}>
+                        Take your time to read and speak these 5 words aloud at your own pace:
+                      </p>
+                      <div style={{ display: "flex", justifyContent: "center", gap: "0.5rem", flexWrap: "wrap" }}>
                         {challengeWords.map((word, i) => (
                           <span key={i} className="word-pill">
                             {word}
@@ -880,13 +843,24 @@ export default function UnleashApp() {
                     </div>
                   )}
 
-                  {/* STEP 3: 8s - 13s (Active Gesture) */}
+                  {/* STEP 2: 8s - 13s (Active Gesture) */}
                   {currentStep === "ACT" && (
                     <div style={{ textAlign: "center", animation: "fadeIn 0.25s ease" }}>
-                      <span className="badge badge-info" style={{ marginBottom: "0.5rem", background: "rgba(99, 102, 241, 0.15)", color: "var(--accent-indigo)", borderColor: "rgba(99, 102, 241, 0.3)" }}>
-                        Step 3 · Perform Visual Gesture
+                      <span
+                        className="badge badge-info"
+                        style={{
+                          marginBottom: "0.5rem",
+                          background: "rgba(99, 102, 241, 0.15)",
+                          color: "var(--accent-indigo)",
+                          borderColor: "rgba(99, 102, 241, 0.3)",
+                        }}
+                      >
+                        Step 2 · Perform Visual Gesture (8s – 13s)
                       </span>
-                      <div className="action-box" style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem", margin: "0 auto" }}>
+                      <p style={{ color: "var(--text-muted)", fontSize: "0.82rem", marginBottom: "0.6rem" }}>
+                        Slowly perform the action facing the camera:
+                      </p>
+                      <div className="action-box" style={{ display: "inline-flex", alignItems: "center", gap: "0.75rem", margin: "0.25rem auto 0" }}>
                         <ActionIcon size={28} color="var(--accent-cyan)" />
                         <span style={{ fontSize: "1.25rem", fontWeight: 800 }}>{actionInfo?.text}</span>
                       </div>
@@ -1023,136 +997,317 @@ export default function UnleashApp() {
             {modalPhase === "RESULT" && sessionResult && (
               <div>
                 {/* Verdict Card */}
-                <div
-                  className="card"
-                  style={{
-                    textAlign: "center",
-                    padding: "1.5rem",
-                    marginBottom: "1.5rem",
-                    borderColor:
-                      sessionResult.status === "VERIFIED"
-                        ? "rgba(16, 185, 129, 0.4)"
-                        : sessionResult.status === "SUSPICIOUS"
-                        ? "rgba(245, 158, 11, 0.4)"
-                        : "rgba(244, 63, 94, 0.4)",
-                    background:
-                      sessionResult.status === "VERIFIED"
-                        ? "linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.05))"
-                        : sessionResult.status === "SUSPICIOUS"
-                        ? "linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(244, 63, 94, 0.05))"
-                        : "linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(244, 63, 94, 0.05))",
-                  }}
-                >
-                  <div style={{ marginBottom: "0.5rem" }}>
-                    {sessionResult.status === "VERIFIED" && <ShieldCheck size={44} color="var(--accent-emerald)" />}
-                    {sessionResult.status === "SUSPICIOUS" && <AlertTriangle size={44} color="var(--accent-amber)" />}
-                    {sessionResult.status === "FAILED" && <ShieldAlert size={44} color="var(--accent-rose)" />}
-                  </div>
-
-                  <span
-                    className={
-                      sessionResult.status === "VERIFIED"
-                        ? "badge badge-verified"
-                        : sessionResult.status === "SUSPICIOUS"
-                        ? "badge badge-suspicious"
-                        : "badge badge-failed"
+                {(() => {
+                  let finalScorePercent = "0%";
+                  if (sessionResult.confidence !== null && sessionResult.confidence !== undefined) {
+                    finalScorePercent = `${(sessionResult.confidence * 100).toFixed(0)}%`;
+                  } else if (sessionResult.signals) {
+                    const validScores = Object.values(sessionResult.signals)
+                      .map((s) => s?.score)
+                      .filter((s): s is number => typeof s === "number" && !isNaN(s));
+                    if (validScores.length > 0) {
+                      const avg = validScores.reduce((a, b) => a + b, 0) / validScores.length;
+                      finalScorePercent = `${(avg * 100).toFixed(0)}%`;
                     }
-                    style={{ fontSize: "0.95rem", padding: "0.4rem 1rem" }}
-                  >
-                    VERDICT: {sessionResult.status}
-                  </span>
+                  }
 
-                  <p style={{ marginTop: "0.75rem", fontSize: "0.95rem", color: "var(--text-primary)" }}>
-                    {sessionResult.decision_reason || "Verification analysis complete."}
-                  </p>
-                  {sessionResult.confidence !== null && (
-                    <span style={{ fontSize: "0.85rem", color: "var(--text-muted)", display: "block", marginTop: "0.25rem" }}>
-                      Overall Confidence: {(sessionResult.confidence * 100).toFixed(0)}%
-                    </span>
-                  )}
-                </div>
+                  const isPassed = sessionResult.status === "VERIFIED";
+                  const isSuspicious = sessionResult.status === "SUSPICIOUS";
+
+                  return (
+                    <div
+                      className="card"
+                      style={{
+                        textAlign: "center",
+                        padding: "1.75rem 1.5rem",
+                        marginBottom: "1.5rem",
+                        borderColor: isPassed
+                          ? "rgba(16, 185, 129, 0.4)"
+                          : isSuspicious
+                          ? "rgba(245, 158, 11, 0.4)"
+                          : "rgba(244, 63, 94, 0.4)",
+                        background: isPassed
+                          ? "linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.05))"
+                          : isSuspicious
+                          ? "linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(244, 63, 94, 0.05))"
+                          : "linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(244, 63, 94, 0.05))",
+                      }}
+                    >
+                      <div style={{ marginBottom: "0.6rem" }}>
+                        {isPassed && <ShieldCheck size={48} color="var(--accent-emerald)" />}
+                        {isSuspicious && <AlertTriangle size={48} color="var(--accent-amber)" />}
+                        {!isPassed && !isSuspicious && <ShieldAlert size={48} color="var(--accent-rose)" />}
+                      </div>
+
+                      <div style={{ display: "inline-block" }}>
+                        <span
+                          className={
+                            isPassed
+                              ? "badge badge-verified"
+                              : isSuspicious
+                              ? "badge badge-suspicious"
+                              : "badge badge-failed"
+                          }
+                          style={{ fontSize: "1.05rem", padding: "0.45rem 1.5rem", fontWeight: 700, letterSpacing: "0.05em" }}
+                        >
+                          {isPassed ? "PASS" : isSuspicious ? "SUSPICIOUS" : "FAIL"}
+                        </span>
+                      </div>
+
+                      <div style={{ marginTop: "0.9rem", display: "flex", justifyContent: "center", alignItems: "baseline", gap: "0.5rem" }}>
+                        <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>
+                          {isPassed ? "Overall Score:" : "Final Adjusted Score:"}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "1.35rem",
+                            fontFamily: "JetBrains Mono",
+                            fontWeight: 800,
+                            color: isPassed
+                              ? "var(--accent-emerald)"
+                              : isSuspicious
+                              ? "var(--accent-amber)"
+                              : "var(--accent-rose)",
+                          }}
+                        >
+                          {finalScorePercent}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Per-Module Scores Breakdown */}
                 <h4 style={{ fontSize: "0.9rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.75rem" }}>
                   Detector Module Telemetry
                 </h4>
 
-                <div className="scores-grid" style={{ marginBottom: "1.5rem" }}>
-                  {/* 1. Speech Gate & Phrase Check */}
-                  <div className="score-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Audio Pipeline</span>
-                      {sessionResult.signals?.audio_pipeline?.passed ? (
-                        <span className="badge badge-verified" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>PASS</span>
-                      ) : (
-                        <span className="badge badge-failed" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>FAIL</span>
-                      )}
-                    </div>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      {sessionResult.signals?.audio_pipeline?.reason || "Speech & 5-word challenge"}
-                    </span>
-                  </div>
+                {(() => {
+                  const audioSig = sessionResult.signals?.audio_pipeline;
+                  const visualSig = sessionResult.signals?.visual_challenge;
+                  const livenessSig = sessionResult.signals?.visual_liveness;
+                  const replaySig = sessionResult.signals?.replay;
+                  const deepfakeSig = sessionResult.signals?.deepfake;
 
-                  {/* 2. Visual Challenge */}
-                  <div className="score-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Visual Challenge</span>
-                      {sessionResult.signals?.visual_challenge?.passed ? (
-                        <span className="badge badge-verified" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>PASS</span>
-                      ) : (
-                        <span className="badge badge-failed" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>FAIL</span>
-                      )}
-                    </div>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      {sessionResult.signals?.visual_challenge?.reason || "Head angle / blink compliance"}
-                    </span>
-                  </div>
+                  // 1. Audio details
+                  const audioDetails = (audioSig?.details || {}) as Record<string, any>;
+                  let capturedText = "";
+                  if (typeof audioDetails.transcript === "string" && audioDetails.transcript.trim()) {
+                    capturedText = audioDetails.transcript.trim();
+                  } else if (Array.isArray(audioDetails.words_detected) && audioDetails.words_detected.length > 0) {
+                    capturedText = audioDetails.words_detected.join(" ");
+                  } else if (audioSig?.reason) {
+                    const match = audioSig.reason.match(/Transcript:\s*['"]([^'"]*)['"]/i);
+                    if (match) capturedText = match[1].trim();
+                  }
+                  if (!capturedText) {
+                    capturedText = audioSig?.passed ? (session?.challenge.verbal || "Speech verified") : "None detected";
+                  }
 
-                  {/* 3. Visual Liveness */}
-                  <div className="score-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Passive Liveness</span>
-                      <span style={{ fontFamily: "JetBrains Mono", fontSize: "0.85rem", color: "var(--accent-cyan)" }}>
-                        {sessionResult.signals?.visual_liveness?.score !== null
-                          ? `${(sessionResult.signals!.visual_liveness.score! * 100).toFixed(0)}%`
-                          : "—"}
-                      </span>
-                    </div>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      {sessionResult.signals?.visual_liveness?.reason || "EAR variance & micro-movements"}
-                    </span>
-                  </div>
+                  let matchedWords: string[] = [];
+                  if (Array.isArray(audioDetails.matched_pairs) && audioDetails.matched_pairs.length > 0) {
+                    matchedWords = audioDetails.matched_pairs.map((p: string) => {
+                      const parts = p.split("->");
+                      return (parts[1] || parts[0]).trim();
+                    });
+                  } else if (Array.isArray(audioDetails.words_detected) && session?.challenge.verbal) {
+                    const targets = session.challenge.verbal.toLowerCase().split(/\s+/);
+                    matchedWords = audioDetails.words_detected.filter((w: string) => targets.includes(w.toLowerCase()));
+                  }
+                  const matchCount = typeof audioDetails.match_count === "number"
+                    ? audioDetails.match_count
+                    : matchedWords.length;
+                  const audioScore = audioSig?.score !== null && audioSig?.score !== undefined
+                    ? `${(audioSig.score * 100).toFixed(0)}%`
+                    : `${((matchCount / 5) * 100).toFixed(0)}%`;
 
-                  {/* 4. Replay Detection */}
-                  <div className="score-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Replay Defense</span>
-                      <span style={{ fontFamily: "JetBrains Mono", fontSize: "0.85rem", color: "var(--accent-cyan)" }}>
-                        {sessionResult.signals?.replay?.score !== null
-                          ? `${(sessionResult.signals!.replay.score! * 100).toFixed(0)}%`
-                          : "—"}
-                      </span>
-                    </div>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      {sessionResult.signals?.replay?.reason || "FFT moiré & temporal noise"}
-                    </span>
-                  </div>
+                  // 2. Visual details
+                  const visualScore = visualSig?.score !== null && visualSig?.score !== undefined
+                    ? `${(visualSig.score * 100).toFixed(0)}%`
+                    : visualSig?.passed ? "100%" : "0%";
 
-                  {/* 5. Deepfake Classifier */}
-                  <div className="score-card">
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Deepfake Model</span>
-                      <span style={{ fontFamily: "JetBrains Mono", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                        {sessionResult.signals?.deepfake?.score !== null
-                          ? `${(sessionResult.signals!.deepfake.score! * 100).toFixed(0)}%`
-                          : "Advisory"}
-                      </span>
+                  // 3. Liveness details
+                  const livenessScore = livenessSig?.score !== null && livenessSig?.score !== undefined
+                    ? `${(livenessSig.score * 100).toFixed(0)}%`
+                    : "—";
+
+                  // 4. Replay details
+                  const replayScore = replaySig?.score !== null && replaySig?.score !== undefined
+                    ? `${(replaySig.score * 100).toFixed(0)}%`
+                    : "—";
+
+                  // 5. Deepfake details
+                  const realHumanScore = deepfakeSig?.score !== null && deepfakeSig?.score !== undefined
+                    ? `${(deepfakeSig.score * 100).toFixed(0)}%`
+                    : "—";
+
+                  return (
+                    <div className="scores-grid" style={{ marginBottom: "1.5rem" }}>
+                      {/* 1. Speech Gate & Phrase Check */}
+                      <div className="score-card">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Audio Challenge</span>
+                          {audioSig?.passed ? (
+                            <span className="badge badge-verified" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>PASS</span>
+                          ) : (
+                            <span className="badge badge-failed" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>FAIL</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Captured: </span>
+                            <span style={{ color: "var(--text-primary)", fontFamily: "JetBrains Mono" }}>&ldquo;{capturedText}&rdquo;</span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Matched: </span>
+                            <span style={{ color: "var(--accent-cyan)", fontWeight: 600 }}>
+                              {matchedWords.length > 0 ? matchedWords.join(", ") : "None"}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Score: </span>
+                            <span style={{ color: audioSig?.passed ? "var(--accent-emerald)" : "var(--accent-rose)", fontWeight: 700 }}>
+                              {matchCount}/5 ({audioScore})
+                            </span>
+                          </div>
+                          {!audioSig?.passed && (
+                            <div style={{ fontSize: "0.75rem", color: "#fca5a5", marginTop: "0.1rem" }}>
+                              (Requires ≥ 4/5 words matched)
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 2. Visual Challenge */}
+                      <div className="score-card">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Visual Challenge</span>
+                          {visualSig?.passed ? (
+                            <span className="badge badge-verified" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>PASS</span>
+                          ) : (
+                            <span className="badge badge-failed" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>FAIL</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Action: </span>
+                            <span style={{ color: "var(--text-primary)", fontWeight: 500 }}>
+                              {actionInfo?.text || session?.challenge.visual || "Gesture challenge"}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Result: </span>
+                            <span style={{ color: visualSig?.passed ? "var(--accent-emerald)" : "var(--accent-rose)", fontWeight: 600 }}>
+                              {visualSig?.passed ? "Action performed successfully" : "Action not detected"}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Score: </span>
+                            <span style={{ color: visualSig?.passed ? "var(--accent-emerald)" : "var(--accent-rose)", fontWeight: 700 }}>
+                              {visualScore}
+                            </span>
+                          </div>
+                          {!visualSig?.passed && (
+                            <div style={{ fontSize: "0.75rem", color: "#fca5a5", marginTop: "0.1rem" }}>
+                              (Requires complete gesture execution)
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 3. Visual Liveness */}
+                      <div className="score-card">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Passive Liveness</span>
+                          {livenessSig?.passed ? (
+                            <span className="badge badge-verified" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>PASS</span>
+                          ) : (
+                            <span className="badge badge-failed" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>FAIL</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Presence: </span>
+                            <span style={{ color: livenessSig?.passed ? "var(--accent-emerald)" : "var(--accent-rose)", fontWeight: 500 }}>
+                              {livenessSig?.passed ? "Live human presence verified" : "Inconclusive live movement"}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Score: </span>
+                            <span style={{ color: livenessSig?.passed ? "var(--accent-emerald)" : "var(--accent-rose)", fontWeight: 700 }}>
+                              {livenessScore}
+                            </span>
+                          </div>
+                          {!livenessSig?.passed && (
+                            <div style={{ fontSize: "0.75rem", color: "#fca5a5", marginTop: "0.1rem" }}>
+                              (Requires score ≥ 50%)
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 4. Replay Detection */}
+                      <div className="score-card">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Replay Defense</span>
+                          {replaySig?.passed ? (
+                            <span className="badge badge-verified" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>PASS</span>
+                          ) : (
+                            <span className="badge badge-failed" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>FAIL</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                          <div>
+                            <span style={{ color: replaySig?.passed ? "var(--accent-emerald)" : "var(--accent-rose)", fontWeight: 600 }}>
+                              {replaySig?.passed ? "No replay detected" : "Screen replay detected"}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Safe Score: </span>
+                            <span style={{ color: replaySig?.passed ? "var(--accent-emerald)" : "var(--accent-rose)", fontWeight: 700 }}>
+                              {replayScore}
+                            </span>
+                          </div>
+                          {!replaySig?.passed && (
+                            <div style={{ fontSize: "0.75rem", color: "#fca5a5", marginTop: "0.1rem" }}>
+                              (Requires safe score ≥ 40%)
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 5. Deepfake Classifier */}
+                      <div className="score-card">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontWeight: 600, fontSize: "0.88rem" }}>Deepfake Model</span>
+                          {deepfakeSig?.passed ? (
+                            <span className="badge badge-verified" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>PASS</span>
+                          ) : (
+                            <span className="badge badge-failed" style={{ fontSize: "0.7rem", padding: "0.2rem 0.5rem" }}>FAIL</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                          <div>
+                            <span style={{ color: deepfakeSig?.passed ? "var(--accent-emerald)" : "var(--accent-rose)", fontWeight: 600 }}>
+                              {deepfakeSig?.passed ? "Real human face confirmed" : "Synthetic face detected"}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)" }}>Real Human Score: </span>
+                            <span style={{ color: deepfakeSig?.passed ? "var(--accent-emerald)" : "var(--accent-rose)", fontWeight: 700 }}>
+                              {realHumanScore}
+                            </span>
+                          </div>
+                          {!deepfakeSig?.passed && (
+                            <div style={{ fontSize: "0.75rem", color: "#fca5a5", marginTop: "0.1rem" }}>
+                              (Requires real human score ≥ 50%)
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      {sessionResult.signals?.deepfake?.reason || "Xception neural classifier"}
-                    </span>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Footer Action Buttons */}
                 <div style={{ display: "flex", gap: "1rem" }}>
