@@ -132,30 +132,30 @@ def _collect_words(segments: List[Any]) -> Tuple[List[Dict[str, Any]], List[Tupl
 
 def _build_reason(
     passed: bool, alignment: Alignment, target_words: List[str], threshold: int, max_insertions: int,
-    transcript: str, heard_any_word: bool,
+    heard_any_word: bool,
 ) -> str:
+    """The outcome in words. It never quotes what was heard: the reason is stored with the session."""
     challenge = " ".join(target_words)
-    pairs = ", ".join(alignment.pairs) if alignment.pairs else "none"
     if passed:
         return (
             f"Phrase compliance verified: {alignment.match_count}/{CHALLENGE_WORD_COUNT} words matched in order "
-            f"(challenge: {challenge}). Matched pairs: {pairs}. Extra words: {alignment.insertions}. "
-            f"Average confidence: {alignment.average_confidence:.3f}. Transcript: '{transcript}'."
+            f"(challenge: {challenge}). Extra words: {alignment.insertions}. "
+            f"Average confidence: {alignment.average_confidence:.3f}."
         )
     if not heard_any_word:
         return (
             f"Phrase compliance failed: No words detected in transcript "
-            f"(expected {challenge}). Transcript: '{transcript}'."
+            f"(expected {challenge})."
         )
     if alignment.match_count >= threshold:
         return (
             f"Phrase compliance failed: {alignment.match_count}/{CHALLENGE_WORD_COUNT} words matched in order but "
             f"{alignment.insertions} extra words were spoken (at most {max_insertions} allowed). "
-            f"Challenge: {challenge}. Transcript: '{transcript}'."
+            f"Challenge: {challenge}."
         )
     return (
         f"Phrase compliance failed: Only {alignment.match_count}/{CHALLENGE_WORD_COUNT} words matched in order "
-        f"(challenge: {challenge}). Matched pairs: {pairs}. Transcript: '{transcript}'."
+        f"(challenge: {challenge})."
     )
 
 
@@ -222,7 +222,7 @@ def run_phrase_compliance(
             score=round(alignment.match_count / CHALLENGE_WORD_COUNT, 2),
             passed=passed,
             reason=_build_reason(
-                passed, alignment, target_words, threshold, max_insertions, transcript, bool(recognized_words),
+                passed, alignment, target_words, threshold, max_insertions, bool(recognized_words),
             ),
             error=None,
             details=_success_details(
