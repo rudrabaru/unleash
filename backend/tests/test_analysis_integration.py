@@ -31,9 +31,9 @@ def _assert_contract(signals):
             assert result.score is None, f"{name} returned a score together with an error"
 
 
-def test_video_without_audio_fails_on_the_audio_check():
+def test_video_without_audio_fails_on_the_audio_check(browser_recorded_clip):
     """A clip with a face turning left but no audio track: every signal is present, audio fails."""
-    clip = require(VIDEO_FIXTURES_DIR / "TURN_LEFT.webm")
+    clip = browser_recorded_clip(require(VIDEO_FIXTURES_DIR / "TURN_LEFT.webm"))
 
     analysis = orchestrator.analyze_media(clip, "TURN_HEAD_LEFT", GENUINE_5WORD_PHRASE)
 
@@ -42,6 +42,18 @@ def test_video_without_audio_fails_on_the_audio_check():
     assert analysis.signals["audio_pipeline"].passed is False
     assert analysis.fusion.status.value == "FAILED"
     assert analysis.fusion.reason.startswith("Audio must-pass check failed")
+
+
+def test_a_left_turn_is_judged_left_and_not_right_through_the_analysis_entry(browser_recorded_clip):
+    """The direction as the whole analysis sees it: the same recording passes LEFT and fails RIGHT."""
+    clip = browser_recorded_clip(require(VIDEO_FIXTURES_DIR / "TURN_LEFT.webm"))
+
+    wanted_left = orchestrator.analyze_media(clip, "TURN_HEAD_LEFT", GENUINE_5WORD_PHRASE)
+    wanted_right = orchestrator.analyze_media(clip, "TURN_HEAD_RIGHT", GENUINE_5WORD_PHRASE)
+
+    assert wanted_left.signals["visual_challenge"].passed is True
+    assert wanted_right.signals["visual_challenge"].passed is False
+    assert wanted_right.fusion.reason.startswith("Visual challenge compliance failed")
 
 
 def test_genuine_speech_on_a_video_without_a_face_fails_on_the_visual_challenge():

@@ -10,12 +10,19 @@ Usage (from backend/):
 A clip entry may carry its own "phrase"; otherwise --phrase is used. Clips that do not contain the
 spoken phrase simply fail the audio check; the video signals are still measured. A listed file that
 is missing (for example a local recording on another machine) is reported and skipped.
+
+A clip entry with "mirrored": true was saved as a mirror image (a selfie app shows your own left on
+the left of the picture). The backend expects what a browser records, an unmirrored feed, so the tool
+flips such a clip back into a temporary copy before analysing it. Browser recordings need no flag.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, List
@@ -37,27 +44,49 @@ def _cell(result: Dict[str, Any]) -> str:
     return f"{score}{'' if result['passed'] else ' x'}"
 
 
+def _unmirrored_copy(path: Path, folder: Path) -> Path:
+    """A horizontally flipped copy of a mirror-image clip, i.e. what a browser would have recorded."""
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise SystemExit("ffmpeg is required to un-mirror clips marked \"mirrored\": true")
+    out = folder / f"{path.stem}_unmirrored.webm"
+    subprocess.run(
+        [ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-i", str(path), "-vf", "hflip",
+         "-c:v", "libvpx", "-b:v", "4M", "-c:a", "copy", str(out)],
+        check=True,
+    )
+    return out
+
+
 def measure(manifest_path: Path, phrase: str) -> List[Dict[str, Any]]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     rows = []
-    for clip in manifest["clips"]:
-        path = BACKEND / clip["path"]
-        if not path.exists():
-            print(f"skipped (file missing): {clip['path']}", file=sys.stderr)
-            continue
-        started = time.perf_counter()
-        analysis = orchestrator.analyze_media(path, clip["visual_challenge"], clip.get("phrase", phrase))
-        rows.append({
-            "clip": clip["path"],
-            "kind": clip["kind"],
-            "visual_challenge": clip["visual_challenge"],
-            "verdict": analysis.fusion.status.value,
-            "confidence": analysis.fusion.confidence,
-            "reason": analysis.fusion.reason,
-            "seconds": round(time.perf_counter() - started, 1),
-            "signals": {name: analysis.signals[name].model_dump() for name in SIGNALS},
-        })
+    with tempfile.TemporaryDirectory(prefix="measure_clips_") as scratch:
+        for clip in manifest["clips"]:
+            path = BACKEND / clip["path"]
+            if not path.exists():
+                print(f"skipped (file missing): {clip['path']}", file=sys.stderr)
+                continue
+            if clip.get("mirrored"):
+                path = _unmirrored_copy(path, Path(scratch))
+            rows.append(_measure_one(clip, path, phrase))
     return rows
+
+
+def _measure_one(clip: Dict[str, Any], path: Path, phrase: str) -> Dict[str, Any]:
+    """Analyse one clip (`path` is the file to analyse, which may be an un-mirrored copy) and return its row."""
+    started = time.perf_counter()
+    analysis = orchestrator.analyze_media(path, clip["visual_challenge"], clip.get("phrase", phrase))
+    return {
+        "clip": clip["path"],
+        "kind": clip["kind"],
+        "visual_challenge": clip["visual_challenge"],
+        "verdict": analysis.fusion.status.value,
+        "confidence": analysis.fusion.confidence,
+        "reason": analysis.fusion.reason,
+        "seconds": round(time.perf_counter() - started, 1),
+        "signals": {name: analysis.signals[name].model_dump() for name in SIGNALS},
+    }
 
 
 def print_table(rows: List[Dict[str, Any]]) -> None:

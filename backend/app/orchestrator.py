@@ -87,14 +87,9 @@ def warm_up() -> Dict[str, str]:
     return failures
 
 
-def analyze_media(
-    media_path: Path,
-    visual_challenge: str,
-    verbal_challenge: str,
-    flip_horizontal: bool = False,
-) -> AnalysisResult:
+def analyze_media(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
     with _ANALYSIS_LOCK:
-        return _analyze(media_path, visual_challenge, verbal_challenge, flip_horizontal=flip_horizontal)
+        return _analyze(media_path, visual_challenge, verbal_challenge)
 
 
 def _shared_landmarks(bundle):
@@ -155,18 +150,13 @@ class _Timer:
         return self.timings
 
 
-def _analyze(
-    media_path: Path,
-    visual_challenge: str,
-    verbal_challenge: str,
-    flip_horizontal: bool = False,
-) -> AnalysisResult:
+def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
     timer = _Timer()
 
     # One decode gives ~120 timestamped frames for the visual detectors (a blink lasts 0.1-0.3 s)
     # and the lip series, and ~30 native-resolution frames (a subset) for deepfake and replay.
     with timer.step("frames"):
-        bundle = load_frames(media_path, dense_max_edge=DENSE_MAX_EDGE, flip_horizontal=flip_horizontal)
+        bundle = load_frames(media_path, dense_max_edge=DENSE_MAX_EDGE)
     with timer.step("landmarks"):
         landmark_features = _shared_landmarks(bundle)
 
@@ -186,14 +176,8 @@ def _analyze(
     return AnalysisResult(signals=signals, fusion=result, timings=timer.finish())
 
 
-def run_verification(
-    session_id: str,
-    media_path: Path,
-    visual_challenge: str,
-    verbal_challenge: str,
-    flip_horizontal: bool = True,
-) -> None:
-    analysis = analyze_media(media_path, visual_challenge, verbal_challenge, flip_horizontal=flip_horizontal)
+def run_verification(session_id: str, media_path: Path, visual_challenge: str, verbal_challenge: str) -> None:
+    analysis = analyze_media(media_path, visual_challenge, verbal_challenge)
     db.write_decision(
         session_id=session_id,
         status=analysis.fusion.status.value,

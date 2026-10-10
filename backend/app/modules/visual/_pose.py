@@ -2,6 +2,14 @@
 Visual Challenge Compliance: yaw/pitch head-turn detection and blink-twice
 detection, retargeted to the plan's thresholds (yaw +/-15, pitch +/-10)
 instead of the standalone app's 20 degree/2-frame values.
+
+Direction convention (one place, no frame flipping anywhere else). The backend reads the camera
+feed exactly as the browser records it, and a browser records it NOT mirrored: the person's own
+left is on the right of the picture. MediaPipe's yaw is positive when the nose moves toward the
+right of the picture (measured on the sample clips: correlation +0.98 between yaw and the nose's
+position in the face). So turning to your own LEFT gives a positive yaw displacement and turning
+RIGHT a negative one; looking DOWN gives a positive pitch displacement. The preview on screen is
+mirrored for the user only and never reaches the backend. Pinned by tests/test_visual_module.py.
 """
 import statistics
 from typing import Any, Dict, List
@@ -61,8 +69,7 @@ def _head_turn(frames, direction: str) -> Dict[str, Any]:
     baseline = _baseline(frames, "yaw")
     if baseline is None:
         return {"detected": False, "max_displacement": 0.0, "longest_run": 0, "valid_frames": 0, "total_frames": len(frames)}
-    # Camera perspective: turning physical RIGHT -> positive yaw displacement, LEFT -> negative
-    return _check_axis(frames, "yaw", baseline, YAW_THRESHOLD, positive_qualifies=(direction == "RIGHT"))
+    return _check_axis(frames, "yaw", baseline, YAW_THRESHOLD, positive_qualifies=(direction == "LEFT"))
 
 
 def _vertical_turn(frames, direction: str) -> Dict[str, Any]:
@@ -135,10 +142,10 @@ def evaluate_challenge(features: Dict[str, Any], challenge: VisualChallengeType)
 
     if challenge == VisualChallengeType.TURN_HEAD_LEFT:
         result = _head_turn(frames, "LEFT")
-        threshold_desc = f"yaw <= -{YAW_THRESHOLD} deg held {HOLD_FRAMES} frames"
+        threshold_desc = f"yaw >= {YAW_THRESHOLD} deg held {HOLD_FRAMES} frames"
     elif challenge == VisualChallengeType.TURN_HEAD_RIGHT:
         result = _head_turn(frames, "RIGHT")
-        threshold_desc = f"yaw >= {YAW_THRESHOLD} deg held {HOLD_FRAMES} frames"
+        threshold_desc = f"yaw <= -{YAW_THRESHOLD} deg held {HOLD_FRAMES} frames"
     elif challenge == VisualChallengeType.LOOK_UP:
         result = _vertical_turn(frames, "UP")
         threshold_desc = f"pitch <= -{PITCH_THRESHOLD} deg held {HOLD_FRAMES} frames"

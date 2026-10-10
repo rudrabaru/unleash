@@ -26,7 +26,6 @@ def verify_clip(
     video: UploadFile = File(..., description="Recording with video and audio (.webm, .mp4, .mov or .mkv)"),
     visual_challenge: VisualChallengeType = Form(..., description="The visual action the person was asked to do"),
     verbal_challenge: str = Form(..., description="The 5 words the person was asked to say, space separated"),
-    flip_horizontal: bool = Form(default=False, description="Flip video horizontally for selfie mirror perspective"),
 ) -> VerifyResponse:
     if settings.ENVIRONMENT != "development":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
@@ -44,9 +43,7 @@ def verify_clip(
     try:
         with open(media_path, "wb") as buffer:
             shutil.copyfileobj(video.file, buffer)
-        analysis = orchestrator.analyze_media(
-            media_path, visual_challenge.value, verbal_challenge, flip_horizontal=flip_horizontal
-        )
+        analysis = orchestrator.analyze_media(media_path, visual_challenge.value, verbal_challenge)
     finally:
         try:
             media_path.unlink(missing_ok=True)

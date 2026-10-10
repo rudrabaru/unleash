@@ -82,6 +82,25 @@ def garbage_webm(tmp_path_factory) -> Path:
 
 
 @pytest.fixture(scope="session")
+def browser_recorded_clip(tmp_path_factory):
+    """
+    Factory: a horizontally flipped copy of a mirror-image sample clip, i.e. what a browser would
+    have recorded. The sample direction clips (TURN_LEFT, TURN_RIGHT) were saved the way a selfie
+    app shows you (your own left is the left of the picture); a browser records the camera feed
+    unmirrored and the backend expects that. Copies are cached for the whole test run.
+    """
+    folder = tmp_path_factory.mktemp("browser_recorded")
+
+    def make(source: Path) -> Path:
+        out = folder / f"{source.stem}_unmirrored.webm"
+        if not out.exists():
+            _ffmpeg("-i", str(source), "-vf", "hflip", "-an", "-c:v", "libvpx", "-b:v", "4M", str(out))
+        return out
+
+    return make
+
+
+@pytest.fixture(scope="session")
 def genuine_wav(tmp_path_factory) -> Path:
     """The genuine 5-word take as the 16 kHz mono WAV the pipeline extracts from it."""
     from app.modules.audio._extraction import extract_wav
