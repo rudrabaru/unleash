@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import { PHASE_LABELS, phaseAt } from "./challenge";
+import type { Protocol } from "./types";
 
 export function StepIndicator({ current, total = 5 }: { current: number; total?: number }) {
   return (
@@ -55,4 +57,57 @@ export function Check({ state, children, detail }: { state: "done" | "working" |
       {detail && <span className="detail">{detail}</span>}
     </div>
   );
+}
+
+// The steps of the recording (Read, Speak, Act), drawn from the server's windows.
+export function PhaseBar({ protocol, elapsed }: { protocol: Protocol; elapsed: number }) {
+  const current = phaseAt(protocol, elapsed);
+  const index = protocol.phases.findIndex((phase) => phase.name === current);
+  return (
+    <ol className="phases" aria-label="Steps of the recording">
+      {protocol.phases.map((phase, i) => {
+        const fill = i < index ? 100 : i === index ? Math.min(100, ((elapsed - phase.start) / (phase.end - phase.start)) * 100) : 0;
+        return (
+          <li key={phase.name} className={`phase ${i < index ? "done" : i === index ? "current" : ""}`} aria-current={i === index ? "step" : undefined}>
+            <span className="phase-name">{PHASE_LABELS[phase.name]}</span>
+            <span className="phase-track" aria-hidden="true">
+              <i style={{ width: `${fill}%` }} />
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+// Text for screen readers that is announced when it changes and is not shown on screen.
+export function Announcer({ message }: { message: string }) {
+  return (
+    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {message}
+    </div>
+  );
+}
+
+// A very short, quiet tone: the audible half of a phase change for people who are not looking at the
+// screen. Played at low volume (the browser's echo cancellation removes most of it from the recording).
+export function useBeeper() {
+  const contextRef = useRef<AudioContext | null>(null);
+  useEffect(() => () => void contextRef.current?.close().catch(() => {}), []);
+  return useCallback((frequency = 880, milliseconds = 90) => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      contextRef.current ??= new AudioCtx();
+      const context = contextRef.current;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      gain.gain.value = 0.04;
+      oscillator.frequency.value = frequency;
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + milliseconds / 1000);
+    } catch {
+      // no sound is not a reason to stop the check
+    }
+  }, []);
 }

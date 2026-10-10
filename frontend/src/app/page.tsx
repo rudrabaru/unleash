@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { submitRecording, waitForResult } from "./api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Cancelled, submitRecording, waitForResult } from "./api";
 import { Challenge } from "./screens/Challenge";
 import { PreScan } from "./screens/PreScan";
 import { Processing } from "./screens/Processing";
@@ -21,6 +21,10 @@ export default function Home() {
   const [blob, setBlob] = useState<Blob | null>(null);
   const [session, setSession] = useState<SessionChallenge | null>(null);
 
+  // The wait for a result can be cancelled: leaving the page or starting over stops polling at once.
+  const waiting = useRef<AbortController | null>(null);
+  useEffect(() => () => waiting.current?.abort(), []);
+
   const analyse = useCallback(
     async (recording: Blob, challenge: SessionChallenge) => {
       close(); // the camera is not needed any more
@@ -29,11 +33,15 @@ export default function Home() {
       setResult(null);
       setProblem(null);
       setScreen("uploading");
+      waiting.current?.abort();
+      const controller = new AbortController();
+      waiting.current = controller;
       try {
         await submitRecording(challenge, recording);
         setScreen("analysing");
-        setResult(await waitForResult(challenge.session_id));
+        setResult(await waitForResult(challenge.session_id, controller.signal));
       } catch (err: any) {
+        if (err instanceof Cancelled) return;
         setProblem(err.message);
       }
       setScreen("result");
@@ -42,6 +50,7 @@ export default function Home() {
   );
 
   const startOver = () => {
+    waiting.current?.abort();
     setResult(null);
     setProblem(null);
     setBlob(null);

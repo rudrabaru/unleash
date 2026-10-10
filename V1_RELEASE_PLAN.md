@@ -23,6 +23,8 @@ The intended flow (one recording, 13 s): **Read** about 3 s (words shown, face t
 | TURN_LEFT / TURN_RIGHT | no audio track | 0.83 / 0.93 | 1.00 | 0.47 / 0.48 | 0.41 / 0.30 | FAILED |
 | LIVELINESS_1 / _2 | fails / no audio | 0.49 | 0.00 (blink not seen) | 0.51 / 0.50 | 0.30 | FAILED |
 
+**First full browser run (2026-10-10, Chromium with a fake camera and microphone, the real backend):** the five screens ran in order (get ready 3 s, Read, Speak, Act, analysing, result); the recording was VP8/Opus WebM from `MediaRecorder`; the server's windows lined up with the on-screen phases (no movement counted in Read or Speak). Both must-pass checks passed on the recorded file (head turn 46.9 deg held 0.88 s and returned; 4 of 5 words in order inside the Speak window, speech 4.0 s). The verdict was `SUSPICIOUS` 0.67: deepfake 0.49, replay 0.41 and lip sync 0 of 5 (the face and the voice in that test feed are different recordings) held it below `VERIFIED`, which is the interim-fusion problem (gate G2). The feed is the real turn-left sample flipped to an unmirrored picture plus the real spoken take, so it exercises the pipeline end to end but is not a recording of a person.
+
 What it shows: **deepfake scores `real.webm` and `fake.webm` the same (0.48)**, so it does not separate them; **replay still scores genuine clips 0.30-0.42 against its 0.45 pass line** after the D-42 retune (the retune used genuine clips only); the joint veto no longer fires on these clips (deepfake is 0.46 or higher). Every verdict is `FAILED` because these clips do not contain the spoken phrase: this is a smoke check, not an accuracy figure. Peak memory was not re-measured (earlier record: 1.6 GB).
 
 ## Where things stand
@@ -76,7 +78,7 @@ Unchanged: the 4-key `DetectorResult` and the single-file upload.
 | P1-C (G1, done 2026-10-10) | Validation and `RETRY`: `media/probe.py`, `app/quality.py`, checks before the session is claimed (reject over 30 s or 1920x1080; soft failures give `RETRY`) | `media/probe.py`, `quality.py`, `sessions.py` (`_check_submission`), schema |
 | P1-D (G2) | Interim fusion and stored data; rewrite `tests/test_fusion.py` so each test asserts its own intent | `fusion.py`, `db.py`, tests |
 | P1-E (G2) | Vocabulary: frequency- and concreteness-filtered pool keeping the D-03 rules, generator kept; three-arm A/B (rare words, common words, template sentence) times `base.en`/`small.en`/`distil-small.en` | `vocabulary.py`, `tools/build_vocabulary.py`, `tools/phrase_model_comparison*.py` |
-| P1-F | Frontend phases UI from `session.protocol`: pre-roll, timers, phase bar, beep and `aria-live`, hold-and-return cue, MIME fallback, `onerror`, poll retry | `frontend/src/app/*` except results |
+| P1-F (done 2026-10-10) | Frontend phases UI from `session.protocol`: pre-roll, timers, phase bar, beep and `aria-live`, hold-and-return cue, MIME fallback, `onerror`, poll retry | `frontend/src/app/*` except results |
 | P1-G | Results, welcome and processing copy: reason-code to friendly message, `RETRY` screen, audio row shows pass state, debug toggle, true privacy text | `screens/Result.tsx`, `Welcome.tsx`, `Processing.tsx` |
 | P1-H | Backend hardening: safe `ENVIRONMENT` default, `/verify` cap, streaming size cap, `/ready`, absolute paths, startup sweep | `config.py`, `main.py`, `db.py`, `verify.py` |
 | P1-I | Tests: session API 401/404/real double-submit and a `VERIFIED` path, accidental-pass tests fixed, random-weights checkpoint-load test | `backend/tests/*` |
