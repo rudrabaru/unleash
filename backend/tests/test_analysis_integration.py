@@ -107,3 +107,18 @@ def test_verify_endpoint_is_disabled_outside_development(monkeypatch):
     response = _post(require(GENUINE_5WORD_NOFACE_VIDEO_WEBM))
 
     assert response.status_code == 404
+
+
+def test_verify_endpoint_can_judge_a_recording_against_the_protocol_windows(phased_turn_clip):
+    """The development demo opts in with `protocol`; without it the whole clip is judged."""
+    clip = phased_turn_clip(8.0)
+    with open(clip, "rb") as f:
+        windowed = client.post(
+            "/api/v1/verify",
+            data={"visual_challenge": "TURN_HEAD_LEFT", "verbal_challenge": GENUINE_5WORD_PHRASE, "protocol": "true"},
+            files={"video": ("clip.webm", f, "video/webm")},
+        )
+    whole = _post(clip)
+
+    assert windowed.json()["signals"]["visual_challenge"]["details"]["phase_aware"] is True
+    assert whole.json()["signals"]["visual_challenge"]["details"]["phase_aware"] is False

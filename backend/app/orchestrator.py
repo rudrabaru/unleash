@@ -18,6 +18,7 @@ from typing import Dict, Optional
 from app import db, fusion
 from app.media.face_crop import crop_faces
 from app.media.frames import DENSE_MAX_EDGE, load_frames
+from app.media.probe import probe_streams
 from app.modules.audio import process_audio_pipeline
 from app.modules.antispoof import detect_deepfake, detect_replay_attack
 from app.modules.visual import detect_visual_liveness, verify_challenge_compliance
@@ -124,7 +125,14 @@ def _shared_landmarks(bundle):
         return None
 
 
-def _run_video_detectors(bundle, landmark_features, visual_challenge: str, timer: "_Timer") -> Dict[str, DetectorResult]:
+def _run_video_detectors(
+    bundle,
+    landmark_features,
+    visual_challenge: str,
+    timer: "_Timer",
+    phases: Optional[PhaseWindows],
+    recording_start: Optional[float],
+) -> Dict[str, DetectorResult]:
     if not (bundle.sparse or bundle.dense):
         error = bundle.error or "No video frames available."
         return {name: _failed_result(reason="No video frames available", error=error) for name in VIDEO_SIGNALS}
@@ -134,7 +142,12 @@ def _run_video_detectors(bundle, landmark_features, visual_challenge: str, timer
     signals: Dict[str, DetectorResult] = {}
     for name, detector, args, kwargs in (
         ("visual_liveness", detect_visual_liveness, (bundle.dense,), {"features": landmark_features}),
-        ("visual_challenge", verify_challenge_compliance, (bundle.dense, visual_challenge), {"features": landmark_features}),
+        (
+            "visual_challenge",
+            verify_challenge_compliance,
+            (bundle.dense, visual_challenge),
+            {"features": landmark_features, "phases": phases, "recording_start": recording_start},
+        ),
         ("deepfake", detect_deepfake, (face_crops,), {}),
         ("replay", detect_replay_attack, (bundle.sparse,), {}),
     ):
@@ -177,6 +190,9 @@ def _analyze(
         bundle = load_frames(media_path, dense_max_edge=DENSE_MAX_EDGE)
     with timer.step("landmarks"):
         landmark_features = _shared_landmarks(bundle)
+    with timer.step("probe"):
+        # Zero of the recording's clock; the phase windows are offsets from it.
+        recording_start = probe_streams(media_path).recording_start
 
     signals: Dict[str, DetectorResult] = {}
     with timer.step("audio"):
@@ -187,7 +203,7 @@ def _analyze(
             verbal_challenge,
             lip_openness_data=_lip_series(landmark_features, bundle.fps),
         )
-    signals.update(_run_video_detectors(bundle, landmark_features, visual_challenge, timer))
+    signals.update(_run_video_detectors(bundle, landmark_features, visual_challenge, timer, phases, recording_start))
 
     with timer.step("fusion"):
         result = fusion.evaluate(signals)

@@ -12,6 +12,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
 from app import orchestrator
 from app.core.config import settings
+from app.protocol import PROTOCOL_V1
 from app.schemas.session import VerifyResponse, VisualChallengeType
 
 logger = logging.getLogger("unleash.verify")
@@ -26,6 +27,7 @@ def verify_clip(
     video: UploadFile = File(..., description="Recording with video and audio (.webm, .mp4, .mov or .mkv)"),
     visual_challenge: VisualChallengeType = Form(..., description="The visual action the person was asked to do"),
     verbal_challenge: str = Form(..., description="The 5 words the person was asked to say, space separated"),
+    protocol: bool = Form(default=False, description="Judge the recording against the read/speak/act windows, as a session does"),
 ) -> VerifyResponse:
     if settings.ENVIRONMENT != "development":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
@@ -43,7 +45,9 @@ def verify_clip(
     try:
         with open(media_path, "wb") as buffer:
             shutil.copyfileobj(video.file, buffer)
-        analysis = orchestrator.analyze_media(media_path, visual_challenge.value, verbal_challenge)
+        analysis = orchestrator.analyze_media(
+            media_path, visual_challenge.value, verbal_challenge, phases=PROTOCOL_V1 if protocol else None
+        )
     finally:
         try:
             media_path.unlink(missing_ok=True)

@@ -139,3 +139,43 @@ def clap_clip(tmp_path_factory):
         return out
 
     return make
+
+
+@pytest.fixture(scope="session")
+def phased_turn_clip(tmp_path_factory):
+    """
+    Factory for a 13 s browser-style clip of a REAL face that follows the protocol: neutral, then a
+    left turn that is held and returned to centre, then neutral again. `turn_at` is the second at
+    which the turn begins (8.0 = the start of Act; 2.7 = a turn made during Speak that is over before Act). It is built from the real
+    TURN_LEFT sample: its first frame is the neutral pose, the clip itself (sped up 2x) is the turn,
+    and the same clip reversed is the return. Everything is flipped to what a browser records
+    (the sample is a mirror image). Video only; there is no audio track.
+    """
+    from _paths import VIDEO_FIXTURES_DIR, require
+
+    folder = tmp_path_factory.mktemp("phased")
+    source = require(VIDEO_FIXTURES_DIR / "TURN_LEFT.webm")
+    still = folder / "neutral.png"
+    _ffmpeg("-i", str(source), "-frames:v", "1", str(still))
+    turn_and_return_seconds = 5.24
+
+    def make(turn_at: float) -> Path:
+        out = folder / f"turn_at_{turn_at}.webm"
+        if out.exists():
+            return out
+        pad = max(0.0, 13.3 - turn_at - turn_and_return_seconds)
+        inputs = ["-loop", "1", "-framerate", "25", "-t", str(turn_at), "-i", str(still), "-i", str(source)]
+        graph = (
+            "[0:v]hflip,format=yuv420p[a];"
+            "[1:v]hflip,setpts=0.5*PTS,fps=25,format=yuv420p,split[t1][t2];[t2]reverse[t3];"
+        )
+        parts, count = "[a][t1][t3]", 3
+        if pad > 0.05:
+            inputs += ["-loop", "1", "-framerate", "25", "-t", f"{pad:.2f}", "-i", str(still)]
+            graph += "[2:v]hflip,format=yuv420p[p];"
+            parts, count = "[a][t1][t3][p]", 4
+        graph += f"{parts}concat=n={count}:v=1:a=0[v]"
+        _ffmpeg(*inputs, "-filter_complex", graph, "-map", "[v]", "-c:v", "libvpx", "-b:v", "4M", str(out))
+        return out
+
+    return make

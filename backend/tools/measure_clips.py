@@ -11,6 +11,9 @@ A clip entry may carry its own "phrase"; otherwise --phrase is used. Clips that 
 spoken phrase simply fail the audio check; the video signals are still measured. A listed file that
 is missing (for example a local recording on another machine) is reported and skipped.
 
+A clip entry with "protocol": true is judged against the read/speak/act windows, as a session is (it
+must be a 13 s recording made with the recorder); without it the whole clip is judged.
+
 A clip entry with "mirrored": true was saved as a mirror image (a selfie app shows your own left on
 the left of the picture). The backend expects what a browser records, an unmirrored feed, so the tool
 flips such a clip back into a temporary copy before analysing it. Browser recordings need no flag.
@@ -31,6 +34,7 @@ BACKEND = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND))
 
 from app import orchestrator  # noqa: E402
+from app.protocol import PROTOCOL_V1  # noqa: E402
 
 DEFAULT_PHRASE = "walnut lantern bicycle maple trumpet"
 SIGNALS = ("audio_pipeline", "visual_liveness", "visual_challenge", "deepfake", "replay")
@@ -76,7 +80,8 @@ def measure(manifest_path: Path, phrase: str) -> List[Dict[str, Any]]:
 def _measure_one(clip: Dict[str, Any], path: Path, phrase: str) -> Dict[str, Any]:
     """Analyse one clip (`path` is the file to analyse, which may be an un-mirrored copy) and return its row."""
     started = time.perf_counter()
-    analysis = orchestrator.analyze_media(path, clip["visual_challenge"], clip.get("phrase", phrase))
+    phases = PROTOCOL_V1 if clip.get("protocol") else None
+    analysis = orchestrator.analyze_media(path, clip["visual_challenge"], clip.get("phrase", phrase), phases=phases)
     return {
         "clip": clip["path"],
         "kind": clip["kind"],
