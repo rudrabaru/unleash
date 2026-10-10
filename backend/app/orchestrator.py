@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
 
-from app import db, fusion
+from app import db, fusion, quality
 from app.media.face_crop import crop_faces
 from app.media.frames import DENSE_MAX_EDGE, load_frames
 from app.media.probe import probe_streams
@@ -26,6 +26,7 @@ from app.modules.visual._landmarks import extract_landmark_features
 from app.modules.visual._lip_series import build_lip_series
 from app.protocol import PROTOCOL_V1, PhaseWindows
 from app.schemas.detector import DetectorResult
+from app.schemas.session import VerificationStatus
 
 logger = logging.getLogger("unleash.orchestrator")
 
@@ -194,6 +195,21 @@ class _Timer:
         return self.timings
 
 
+def _retry_verdict(problem: quality.CaptureProblem) -> fusion.FusionResult:
+    """A recording that could not be judged: no verdict, no score, a request to try again."""
+    return fusion.FusionResult(status=VerificationStatus.RETRY, confidence=None, reason=problem.reason)
+
+
+def _retry_analysis(problem: quality.CaptureProblem, timer: "_Timer", phases: Optional[PhaseWindows]) -> AnalysisResult:
+    """The result when the recording was sent back before any detector ran; the code is kept as a signal."""
+    signals = {
+        "recording": DetectorResult(
+            score=None, passed=False, reason=problem.reason, error=None, details={"failure_code": problem.code}
+        )
+    }
+    return AnalysisResult(signals=signals, fusion=_retry_verdict(problem), timings=timer.finish(), phases=phases)
+
+
 def _analyze(
     media_path: Path,
     visual_challenge: str,
@@ -202,15 +218,21 @@ def _analyze(
 ) -> AnalysisResult:
     timer = _Timer()
 
+    # The timeline is read from the packets alone (milliseconds), before anything expensive: a
+    # recording that cannot be judged is sent back for another try without running a single detector.
+    with timer.step("probe"):
+        probe = probe_streams(media_path, limit_seconds=quality.HARD_MAX_SECONDS)
+    problem = quality.recording_problem(probe, phases)
+    if problem is not None:
+        return _retry_analysis(problem, timer, phases)
+    recording_start = probe.recording_start  # zero of the recording's clock; the phase windows are offsets from it
+
     # One decode gives ~120 timestamped frames for the visual detectors (a blink lasts 0.1-0.3 s)
     # and the lip series, and ~30 native-resolution frames (a subset) for deepfake and replay.
     with timer.step("frames"):
         bundle = load_frames(media_path, dense_max_edge=DENSE_MAX_EDGE)
     with timer.step("landmarks"):
         landmark_features = _shared_landmarks(bundle)
-    with timer.step("probe"):
-        # Zero of the recording's clock; the phase windows are offsets from it.
-        recording_start = probe_streams(media_path).recording_start
 
     signals: Dict[str, DetectorResult] = {}
     with timer.step("audio"):
@@ -226,7 +248,8 @@ def _analyze(
     signals.update(_run_video_detectors(bundle, landmark_features, visual_challenge, timer, phases, recording_start))
 
     with timer.step("fusion"):
-        result = fusion.evaluate(signals)
+        problem = quality.capture_problem_in(signals)
+        result = _retry_verdict(problem) if problem is not None else fusion.evaluate(signals)
     return AnalysisResult(signals=signals, fusion=result, timings=timer.finish(), phases=phases)
 
 

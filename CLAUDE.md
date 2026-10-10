@@ -39,7 +39,7 @@ Three people work in parallel on the whole project. There are no per-module owne
 | Voice authenticity | librosa heuristics (uncalibrated) | weighted | 10% |
 | Lip sync | word times against the lip series (uncalibrated) | weighted | 10% |
 
-Only the visual challenge and the two audio checks are must-pass. **Joint veto:** deepfake score below 0.3 *and* replay score below 0.4 gives `FAILED`. **Verdict:** `VERIFIED` at 0.80 or more, `SUSPICIOUS` 0.55-0.79, `FAILED` below 0.55 or any must-pass failure. A signal with no score is excluded and its weight redistributed; it is never treated as 0. Known open problems with this scheme are in `V1_RELEASE_PLAN.md`.
+Only the visual challenge and the two audio checks are must-pass. **Joint veto:** deepfake score below 0.3 *and* replay score below 0.4 gives `FAILED`. **Verdict:** `VERIFIED` at 0.80 or more, `SUSPICIOUS` 0.55-0.79, `FAILED` below 0.55 or any must-pass failure. `RETRY` (no score) means the recording could not be judged: too short, picture and sound out of step, no steady face at the start, a dead microphone, or an error on our side; it is neither an acceptance nor a failure. A signal with no score is excluded and its weight redistributed; it is never treated as 0. Known open problems with this scheme are in `V1_RELEASE_PLAN.md`.
 
 ## Module interfaces
 

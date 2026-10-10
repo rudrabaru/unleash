@@ -91,25 +91,26 @@ def claim_for_processing(session_id: str, updated_at: datetime) -> bool:
         return cursor.rowcount == 1
 
 
-def update_session_status(session_id: str, status: str, updated_at: datetime) -> None:
+def close_session(session_id: str, status: str, reason: str, updated_at: datetime) -> None:
+    """End a session with a status and a reason, for a session that never reached a verdict."""
     with _connect() as conn:
         conn.execute(
-            "UPDATE sessions SET status = ?, updated_at = ? WHERE session_id = ?",
-            (status, updated_at.isoformat(), session_id),
+            "UPDATE sessions SET status = ?, decision_reason = ?, updated_at = ? WHERE session_id = ?",
+            (status, reason, updated_at.isoformat(), session_id),
         )
 
 
 def fail_orphaned_sessions(updated_at: datetime) -> int:
     """
-    Mark every session still PROCESSING as FAILED. Analyses run inside the server process, so at
-    startup any PROCESSING session belongs to a process that has died (crash, restart, reload).
-    Returns how many were closed.
+    Close every session still PROCESSING as RETRY. Analyses run inside the server process, so at
+    startup any PROCESSING session belongs to a process that has died (crash, restart, reload); the
+    person did nothing wrong and may try again. Returns how many were closed.
     """
     with _connect() as conn:
         cursor = conn.execute(
             "UPDATE sessions SET status = ?, decision_reason = ?, updated_at = ? WHERE status = ?",
             (
-                "FAILED",
+                "RETRY",
                 "The analysis was interrupted before it finished. Please try again.",
                 updated_at.isoformat(),
                 "PROCESSING",

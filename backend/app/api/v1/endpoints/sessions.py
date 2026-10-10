@@ -6,9 +6,10 @@ from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, File, Form, Header, HTTPException, UploadFile, status
 
-from app import db, orchestrator
+from app import db, orchestrator, quality
 from app.core.config import settings
 from app.core.security import generate_challenge_token, verify_challenge_token
+from app.media.probe import probe_streams
 from app.modules.audio.vocabulary import CHALLENGE_VOCABULARY
 from app.protocol import PROTOCOL_V1
 from app.schemas.session import (
@@ -98,17 +99,34 @@ def _check_submission(session: Optional[dict], session_id: str, token: str, medi
     return session
 
 
-def _save_upload(session_id: str, media: UploadFile) -> Path:
+def _save_upload(media: UploadFile) -> Path:
+    """Store the upload under a name of its own (several uploads may race for one session)."""
     temp_dir = Path(settings.UPLOAD_TEMP_DIR)
     temp_dir.mkdir(parents=True, exist_ok=True)
-    media_path = temp_dir / f"{session_id}.webm"
+    media_path = temp_dir / f"upload_{uuid.uuid4().hex}.webm"
     try:
         with open(media_path, "wb") as buffer:
             shutil.copyfileobj(media.file, buffer)
     except OSError:
-        db.update_session_status(session_id, VerificationStatus.FAILED.value, datetime.now(timezone.utc))
-        raise
+        media_path.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The recording could not be stored. Please try again.",
+        )
     return media_path
+
+
+def _refuse_unusable_recording(session: dict, media_path: Path) -> None:
+    """
+    Refuse, before the session is claimed, a file that cannot be a recording of this protocol. The
+    session stays usable, so the person can send another recording for the same challenge.
+    """
+    reason = quality.upload_rejection(probe_streams(media_path, limit_seconds=quality.HARD_MAX_SECONDS))
+    reason = reason or quality.submitted_too_early(
+        datetime.fromisoformat(session["created_at"]), datetime.now(timezone.utc), settings.MIN_SUBMIT_SECONDS
+    )
+    if reason:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=reason)
 
 
 @router.post("/{session_id}/submit", response_model=SessionSubmitResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -121,18 +139,23 @@ def submit_session(
 ):
     """
     Submit the recorded single-blob .webm media for verification.
-    Validates the HMAC token and starts the analysis (all detectors, then fusion) in the background.
+    Validates the HMAC token and the recording, then starts the analysis (all detectors, then
+    fusion) in the background.
     """
     session = _check_submission(db.get_session(session_id), session_id, token, media, content_length)
+    media_path = _save_upload(media)
+    try:
+        _refuse_unusable_recording(session, media_path)
+        # One atomic UPDATE decides which request owns the session: a concurrent second submit loses.
+        if not db.claim_for_processing(session_id, datetime.now(timezone.utc)):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Session {session_id} has already been submitted.",
+            )
+    except HTTPException:
+        media_path.unlink(missing_ok=True)
+        raise
 
-    # One atomic UPDATE decides which request owns the session: a concurrent second submit loses.
-    if not db.claim_for_processing(session_id, datetime.now(timezone.utc)):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Session {session_id} has already been submitted.",
-        )
-
-    media_path = _save_upload(session_id, media)
     background_tasks.add_task(
         _run_and_cleanup,
         session_id,
@@ -154,7 +177,13 @@ def _run_and_cleanup(session_id: str, media_path: Path, visual_challenge: str, v
         orchestrator.run_verification(session_id, media_path, visual_challenge, verbal_challenge)
     except Exception as exc:  # noqa: BLE001 - orchestrator already isolates per-detector errors;
         # this only catches a fusion/persistence-level failure so the session never hangs in PROCESSING.
-        db.update_session_status(session_id, VerificationStatus.FAILED.value, datetime.now(timezone.utc))
+        # The person did nothing wrong: they are asked to try again, and the error is still raised and logged.
+        db.close_session(
+            session_id,
+            VerificationStatus.RETRY.value,
+            "The analysis could not be completed because of an error on our side. Please try again.",
+            datetime.now(timezone.utc),
+        )
         raise exc
     finally:
         try:

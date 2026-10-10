@@ -57,7 +57,7 @@ def test_sessions_left_processing_are_closed_at_startup():
 
     assert db.fail_orphaned_sessions(datetime.now(timezone.utc)) == 1
 
-    assert db.get_session(stuck)["status"] == VerificationStatus.FAILED.value
+    assert db.get_session(stuck)["status"] == VerificationStatus.RETRY.value  # the person did nothing wrong
     assert "interrupted" in db.get_session(stuck)["decision_reason"]
     assert db.get_session(fresh)["status"] == VerificationStatus.CREATED.value
 

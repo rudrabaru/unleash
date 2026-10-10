@@ -17,6 +17,8 @@ import pytest
 _SANDBOX = Path(tempfile.mkdtemp(prefix="unleash_tests_"))
 os.environ["DATABASE_URL"] = "sqlite:///" + (_SANDBOX / "unleash.db").as_posix()
 os.environ["UPLOAD_TEMP_DIR"] = str(_SANDBOX / "uploads")
+# Tests upload a recording right after creating its session; the "too early" refusal has its own tests.
+os.environ["MIN_SUBMIT_SECONDS"] = "0"
 
 from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM  # noqa: E402  (after the environment is set)
 
@@ -221,4 +223,56 @@ def protocol_take(phased_turn_clip, phased_speech_clip, tmp_path_factory):
         "-i", str(phased_turn_clip(8.0)), "-i", str(phased_speech_clip(2.0, total=13.3)),
         "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "copy", "-shortest", str(out),
     )
+    return out
+
+
+def _mux(out: Path, video: Path, audio: Path, video_offset: float = 0.0) -> Path:
+    """One WebM from a video file and an audio file; `video_offset` makes the picture start that many seconds late."""
+    _ffmpeg(
+        "-itsoffset", str(video_offset), "-i", str(video), "-i", str(audio),
+        "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "copy", "-shortest", str(out),
+    )
+    return out
+
+
+@pytest.fixture(scope="session")
+def protocol_take_with_silent_microphone(phased_turn_clip, tmp_path_factory):
+    """A protocol-length recording of a real turning face whose microphone recorded digital silence."""
+    folder = tmp_path_factory.mktemp("silent_mic")
+    silence = folder / "silence.webm"
+    _ffmpeg("-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", "13.5", "-c:a", "libopus", str(silence))
+    return _mux(folder / "silent_mic.webm", phased_turn_clip(8.0), silence)
+
+
+@pytest.fixture(scope="session")
+def protocol_take_without_a_face(phased_speech_clip, tmp_path_factory):
+    """A protocol-length recording with the real spoken take over a plain dark picture: nobody in front of the camera."""
+    folder = tmp_path_factory.mktemp("no_face")
+    picture = folder / "dark.webm"
+    _ffmpeg("-f", "lavfi", "-i", "color=c=0x202020:s=640x480:r=25:d=13.5", "-c:v", "libvpx", str(picture))
+    return _mux(folder / "no_face.webm", picture, phased_speech_clip(2.0, total=13.5))
+
+
+@pytest.fixture(scope="session")
+def protocol_take_with_late_picture(phased_turn_clip, phased_speech_clip, tmp_path_factory):
+    """A recording whose picture starts a full second after its sound: the windows would name different moments."""
+    return _mux(
+        tmp_path_factory.mktemp("late_picture") / "late_picture.webm",
+        phased_turn_clip(8.0), phased_speech_clip(2.0, total=13.3), video_offset=1.0,
+    )
+
+
+@pytest.fixture(scope="session")
+def oversized_picture_webm(tmp_path_factory):
+    """A one-second clip whose picture is 2560x1440, larger than the 1920x1080 a recording may have."""
+    out = tmp_path_factory.mktemp("oversized") / "big_picture.webm"
+    _ffmpeg("-f", "lavfi", "-i", "color=c=black:s=2560x1440:r=5:d=1", "-c:v", "libvpx", str(out))
+    return out
+
+
+@pytest.fixture(scope="session")
+def long_recording_webm(tmp_path_factory):
+    """A 40 s audio recording, longer than the 30 s a recording may have."""
+    out = tmp_path_factory.mktemp("long") / "forty_seconds.webm"
+    _ffmpeg("-f", "lavfi", "-i", "sine=frequency=300:sample_rate=16000", "-t", "40", "-c:a", "libopus", str(out))
     return out

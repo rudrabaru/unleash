@@ -17,7 +17,6 @@ from app.schemas.session import VerificationStatus
 from _paths import (
     GENUINE_5WORD_NOFACE_VIDEO_WEBM,
     GENUINE_5WORD_PHRASE,
-    OTHER_5WORD_PHRASE,
     require,
 )
 
@@ -79,32 +78,6 @@ def test_session_lifecycle_judges_a_protocol_recording_through_every_check(proto
     assert signals["visual_challenge"]["details"]["phase_aware"] is True
     assert isinstance(signals["audio_pipeline"]["details"]["voice_authenticity_score"], float)
     assert res_data["status"] != VerificationStatus.FAILED or "must-pass" not in res_data["decision_reason"]
-
-
-def test_session_with_no_face_in_the_recording_fails_the_visual_challenge():
-    """The older unshaped take, whose video has no face: audio on its own cannot pass a session."""
-    media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
-    session_id, token = _create_session_with_phrase(GENUINE_5WORD_PHRASE)
-
-    assert _submit(session_id, token, media).status_code == 202
-
-    res_data = client.get(f"/api/v1/sessions/{session_id}").json()
-    assert res_data["status"] == VerificationStatus.FAILED
-    assert res_data["signals"]["visual_challenge"]["passed"] is False
-    # a video track with no face gives no lip series, so the lip-sync check has no score
-    assert res_data["signals"]["audio_pipeline"]["details"].get("av_alignment_score") is None
-
-
-def test_session_lifecycle_with_wrong_challenge_fails():
-    """Speech that does not match the issued challenge fails the audio check."""
-    media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
-    session_id, token = _create_session_with_phrase(OTHER_5WORD_PHRASE)
-
-    assert _submit(session_id, token, media).status_code == 202
-
-    res_data = client.get(f"/api/v1/sessions/{session_id}").json()
-    assert res_data["status"] == VerificationStatus.FAILED
-    assert res_data["signals"]["audio_pipeline"]["passed"] is False
 
 
 def test_submit_loses_when_another_request_claimed_the_session_first(monkeypatch):

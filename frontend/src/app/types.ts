@@ -2,7 +2,7 @@
 
 export type VisualChallenge = "TURN_HEAD_LEFT" | "TURN_HEAD_RIGHT" | "LOOK_UP" | "LOOK_DOWN" | "BLINK_TWICE";
 
-export type VerificationStatus = "CREATED" | "PROCESSING" | "VERIFIED" | "SUSPICIOUS" | "FAILED";
+export type VerificationStatus = "CREATED" | "PROCESSING" | "VERIFIED" | "SUSPICIOUS" | "FAILED" | "RETRY";
 
 export interface DetectorResult {
   score: number | null;

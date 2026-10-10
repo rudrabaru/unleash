@@ -80,12 +80,12 @@ def test_pipeline_leaves_no_temporary_files_after_a_failed_check(silence_webm):
     assert _temp_entries() == before
 
 
-def test_pipeline_leaves_no_temporary_files_after_an_exception(silence_webm):
+def test_pipeline_leaves_no_temporary_files_after_an_exception(tone_webm):
     """An unexpected exception inside a check still removes the temporary folder and returns a result."""
     before = _temp_entries()
 
     with patch("app.modules.audio.run_speech_gate", side_effect=RuntimeError("boom")):
-        res = process_audio_pipeline(str(silence_webm), OTHER_5WORD_PHRASE)
+        res = process_audio_pipeline(str(tone_webm), OTHER_5WORD_PHRASE)
 
     assert res.passed is False and res.score is None and "boom" in res.error
     assert _temp_entries() == before

@@ -19,6 +19,7 @@ const VERDICT = {
   VERIFIED: { tone: "good", icon: "✓", title: "Verification passed", sub: "The checks passed on this recording." },
   SUSPICIOUS: { tone: "mid", icon: "!", title: "Inconclusive", sub: "Some checks were not convincing. Try again in good light." },
   FAILED: { tone: "bad", icon: "✕", title: "Verification failed", sub: "" },
+  RETRY: { tone: "mid", icon: "↻", title: "We could not check this recording", sub: "" },
 } as const;
 
 function buildRows(result: SessionResult): Row[] {

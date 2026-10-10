@@ -12,6 +12,7 @@ from app.schemas.session import (
     ProtocolPayload,
     SessionCreateResponse,
     SessionResultResponse,
+    VerificationStatus,
     VisualChallengeType,
 )
 
@@ -31,6 +32,12 @@ def test_session_result_fields_match_the_typescript_type():
 
 def test_session_challenge_fields_match_the_typescript_type():
     assert _ts_interface_fields("SessionChallenge") == set(SessionCreateResponse.model_fields)
+
+
+def test_verification_statuses_match_the_typescript_type():
+    source = TYPES_TS.read_text(encoding="utf-8")
+    declared = set(re.findall(r'"(\w+)"', re.search(r"type VerificationStatus =(.*?);", source, re.S).group(1)))
+    assert declared == {status.value for status in VerificationStatus}
 
 
 def test_protocol_fields_match_the_typescript_types():

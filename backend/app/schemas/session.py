@@ -21,6 +21,9 @@ class VerificationStatus(str, Enum):
     VERIFIED = "VERIFIED"
     SUSPICIOUS = "SUSPICIOUS"
     FAILED = "FAILED"
+    # The recording could not be judged (capture problem or an error on our side): try again with a
+    # new challenge. Neither an acceptance nor evidence against the person.
+    RETRY = "RETRY"
 
 
 class ChallengePayload(BaseModel):

@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     UPLOAD_TEMP_DIR: str = "./temp_uploads"
     # A 15 s browser recording at about 2.5 Mbps is about 5 MB; anything far above that is refused.
     MAX_UPLOAD_BYTES: int = 25 * 1024 * 1024
+    # A recording of the protocol takes about 13 s, and the browser starts it right after creating the
+    # session, so an upload sooner than this after creation was not made for the session. 0 turns the check off.
+    MIN_SUBMIT_SECONDS: float = 12.0
 
     # Deepfake model (environment names kept from before; also readable from backend/.env)
     XCEPTION_CHECKPOINT: Optional[str] = Field(default=None, validation_alias="UNLEASH_XCEPTION_CHECKPOINT")

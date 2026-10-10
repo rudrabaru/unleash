@@ -19,7 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import numpy as np
+
 from app.core.config import settings
+from app.modules.audio._io import read_wav_numpy
 from app.modules.audio._av_alignment import run_av_alignment, to_container_time
 from app.modules.audio._extraction import (
     check_extraction_completeness,
@@ -39,6 +42,9 @@ logger = logging.getLogger(__name__)
 # The two advisory checks contribute equally to the composite advisory score.
 _VOICE_CHECK_WEIGHT: float = 0.5
 _LIP_SYNC_WEIGHT: float = 0.5
+
+# Below this RMS (full scale = 1.0, about -80 dBFS) the audio is digital silence: a muted or dead microphone.
+SILENT_RMS: float = 1e-4
 
 # Lip samples this far outside the Speak window still take part in the lip-sync check.
 LIP_SERIES_MARGIN_SECONDS: float = 0.5
@@ -208,6 +214,25 @@ def _run_lip_sync(prepared: _Prepared, phrase: DetectorResult, lip_openness_data
     return result
 
 
+def _silent_capture(wav_path: Path) -> Optional[DetectorResult]:
+    """
+    A failed result when the checked audio is digital silence (a muted or dead microphone), else None.
+    It is a capture problem, not a person who stayed quiet: a live microphone always records a little
+    room noise, and the orchestrator turns this code into a request to try again.
+    """
+    audio, _, _ = read_wav_numpy(wav_path)
+    rms = float(np.sqrt(np.mean(audio.astype(np.float64) ** 2))) if len(audio) else 0.0
+    if rms >= SILENT_RMS:
+        return None
+    return DetectorResult(
+        score=None,
+        passed=False,
+        reason="No speech detected: the microphone recorded only silence.",
+        error=None,
+        details={"speech_detected": False, "speech_duration_seconds": 0.0, "failure_code": "mic_silent", "rms": rms},
+    )
+
+
 def _speak_window_details(prepared: _Prepared) -> Dict[str, Any]:
     """Which part of the recording the speech and phrase checks listened to."""
     if prepared.crop is None:
@@ -221,6 +246,10 @@ def _speak_window_details(prepared: _Prepared) -> Dict[str, Any]:
 
 
 def _run_checks(prepared: _Prepared, challenge_phrase: str, lip_openness_data) -> DetectorResult:
+    silent = _silent_capture(prepared.checked_wav)
+    if silent is not None:
+        return silent
+
     speech = run_speech_gate(prepared.checked_wav)
     if speech.error is not None:
         return speech

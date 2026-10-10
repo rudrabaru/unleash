@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import soundfile as sf
 
 from app.modules.audio import _Prepared, _run_checks
 from app.modules.audio import _extraction as extraction
@@ -49,7 +50,9 @@ def test_tools_are_found_again_once_they_are_on_the_path(monkeypatch):
 
 # --- a failed speech check ends the pipeline and is returned as it is ----------------------------
 
-def test_failed_speech_check_is_returned_unchanged(monkeypatch):
+def test_failed_speech_check_is_returned_unchanged(monkeypatch, tmp_path):
+    noise = tmp_path / "noise.wav"
+    sf.write(str(noise), np.random.default_rng(0).normal(0, 0.05, 16000).astype(np.float32), 16000)
     failed = DetectorResult(
         score=None, passed=False, reason="No speech detected in audio submission.", error=None,
         details={"speech_detected": False, "speech_duration_seconds": 0.0, "segments": []},
@@ -59,7 +62,7 @@ def test_failed_speech_check_is_returned_unchanged(monkeypatch):
         "app.modules.audio.run_phrase_compliance",
         lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("the phrase check must not run")),
     )
-    result = _run_checks(_Prepared(wav_path=Path("unused.wav")), GENUINE_5WORD_PHRASE, None)
+    result = _run_checks(_Prepared(wav_path=noise), GENUINE_5WORD_PHRASE, None)
     assert result is failed
 
 
