@@ -5,8 +5,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app import db
+from app.protocol import PROTOCOL_V1
 from app.schemas.detector import DetectorResult
-from app.schemas.session import SessionCreateResponse, SessionResultResponse, VisualChallengeType
+from app.schemas.session import (
+    PhaseWindow,
+    ProtocolPayload,
+    SessionCreateResponse,
+    SessionResultResponse,
+    VisualChallengeType,
+)
 
 TYPES_TS = Path(__file__).resolve().parents[2] / "frontend" / "src" / "app" / "types.ts"
 
@@ -24,6 +31,17 @@ def test_session_result_fields_match_the_typescript_type():
 
 def test_session_challenge_fields_match_the_typescript_type():
     assert _ts_interface_fields("SessionChallenge") == set(SessionCreateResponse.model_fields)
+
+
+def test_protocol_fields_match_the_typescript_types():
+    assert _ts_interface_fields("Protocol") == set(ProtocolPayload.model_fields)
+    assert _ts_interface_fields("PhaseWindow") == set(PhaseWindow.model_fields)
+
+
+def test_phase_names_match_the_typescript_type():
+    source = TYPES_TS.read_text(encoding="utf-8")
+    declared = set(re.findall(r'"(\w+)"', re.search(r"type PhaseName =(.*?);", source, re.S).group(1)))
+    assert declared == {phase.name for phase in PROTOCOL_V1.phases}
 
 
 def test_detector_result_fields_match_the_typescript_type():

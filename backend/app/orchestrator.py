@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from app import db, fusion
 from app.media.face_crop import crop_faces
@@ -23,6 +23,7 @@ from app.modules.antispoof import detect_deepfake, detect_replay_attack
 from app.modules.visual import detect_visual_liveness, verify_challenge_compliance
 from app.modules.visual._landmarks import extract_landmark_features
 from app.modules.visual._lip_series import build_lip_series
+from app.protocol import PROTOCOL_V1, PhaseWindows
 from app.schemas.detector import DetectorResult
 
 logger = logging.getLogger("unleash.orchestrator")
@@ -42,6 +43,8 @@ class AnalysisResult:
     signals: Dict[str, DetectorResult]
     fusion: fusion.FusionResult
     timings: Dict[str, float] = field(default_factory=dict)
+    # The phase windows the analysis was given (None = judge the whole recording, as before).
+    phases: Optional[PhaseWindows] = None
 
 
 def _failed_result(reason: str, error: str) -> DetectorResult:
@@ -87,9 +90,19 @@ def warm_up() -> Dict[str, str]:
     return failures
 
 
-def analyze_media(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
+def analyze_media(
+    media_path: Path,
+    visual_challenge: str,
+    verbal_challenge: str,
+    phases: Optional[PhaseWindows] = None,
+) -> AnalysisResult:
+    """
+    Analyse one recording. `phases` are the protocol windows (read, speak, act); with None every
+    detector judges the whole recording as before. The visual and audio checks read them from here
+    as they become phase-aware, so this is the one place a new window-dependent check hooks in.
+    """
     with _ANALYSIS_LOCK:
-        return _analyze(media_path, visual_challenge, verbal_challenge)
+        return _analyze(media_path, visual_challenge, verbal_challenge, phases)
 
 
 def _shared_landmarks(bundle):
@@ -150,7 +163,12 @@ class _Timer:
         return self.timings
 
 
-def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> AnalysisResult:
+def _analyze(
+    media_path: Path,
+    visual_challenge: str,
+    verbal_challenge: str,
+    phases: Optional[PhaseWindows],
+) -> AnalysisResult:
     timer = _Timer()
 
     # One decode gives ~120 timestamped frames for the visual detectors (a blink lasts 0.1-0.3 s)
@@ -173,11 +191,11 @@ def _analyze(media_path: Path, visual_challenge: str, verbal_challenge: str) -> 
 
     with timer.step("fusion"):
         result = fusion.evaluate(signals)
-    return AnalysisResult(signals=signals, fusion=result, timings=timer.finish())
+    return AnalysisResult(signals=signals, fusion=result, timings=timer.finish(), phases=phases)
 
 
 def run_verification(session_id: str, media_path: Path, visual_challenge: str, verbal_challenge: str) -> None:
-    analysis = analyze_media(media_path, visual_challenge, verbal_challenge)
+    analysis = analyze_media(media_path, visual_challenge, verbal_challenge, phases=PROTOCOL_V1)
     db.write_decision(
         session_id=session_id,
         status=analysis.fusion.status.value,

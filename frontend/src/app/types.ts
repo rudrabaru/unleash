@@ -12,9 +12,27 @@ export interface DetectorResult {
   details: Record<string, unknown>;
 }
 
+export type PhaseName = "read" | "speak" | "act";
+
+// Seconds from the start of the recording. The server owns these numbers (backend/app/protocol.py).
+export interface PhaseWindow {
+  name: PhaseName;
+  start: number;
+  end: number;
+}
+
+export interface Protocol {
+  version: number;
+  total_seconds: number;
+  min_recording_seconds: number;
+  max_recording_seconds: number;
+  phases: PhaseWindow[];
+}
+
 export interface SessionChallenge {
   session_id: string;
   challenge: { visual: VisualChallenge; verbal: string };
+  protocol: Protocol;
   token: string;
   expires_at: number; // epoch seconds
   created_at: string;

@@ -1,8 +1,9 @@
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
+from app.protocol import PhaseWindows
 from app.schemas.detector import DetectorResult
 
 
@@ -27,9 +28,35 @@ class ChallengePayload(BaseModel):
     verbal: str = Field(..., description="5 space-separated words the user must speak in order")
 
 
+class PhaseWindow(BaseModel):
+    name: Literal["read", "speak", "act"]
+    start: float = Field(..., description="Seconds from the start of the recording")
+    end: float = Field(..., description="Seconds from the start of the recording")
+
+
+class ProtocolPayload(BaseModel):
+    """How the recording is divided into phases (see app/protocol.py). The browser draws its timers from this."""
+    version: int
+    total_seconds: float
+    min_recording_seconds: float
+    max_recording_seconds: float
+    phases: List[PhaseWindow]
+
+    @classmethod
+    def from_windows(cls, windows: PhaseWindows) -> "ProtocolPayload":
+        return cls(
+            version=windows.version,
+            total_seconds=windows.total_seconds,
+            min_recording_seconds=windows.min_recording_seconds,
+            max_recording_seconds=windows.max_recording_seconds,
+            phases=[PhaseWindow(name=p.name, start=p.start, end=p.end) for p in windows.phases],
+        )
+
+
 class SessionCreateResponse(BaseModel):
     session_id: str
     challenge: ChallengePayload
+    protocol: ProtocolPayload
     token: str
     expires_at: int
     created_at: datetime

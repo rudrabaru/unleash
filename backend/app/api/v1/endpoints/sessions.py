@@ -10,8 +10,10 @@ from app import db, orchestrator
 from app.core.config import settings
 from app.core.security import generate_challenge_token, verify_challenge_token
 from app.modules.audio.vocabulary import CHALLENGE_VOCABULARY
+from app.protocol import PROTOCOL_V1
 from app.schemas.session import (
     ChallengePayload,
+    ProtocolPayload,
     SessionCreateResponse,
     SessionResultResponse,
     SessionSubmitResponse,
@@ -58,6 +60,7 @@ def create_session():
     return SessionCreateResponse(
         session_id=session_id,
         challenge=ChallengePayload(visual=visual_choice, verbal=verbal_choice),
+        protocol=ProtocolPayload.from_windows(PROTOCOL_V1),
         token=token,
         expires_at=expires_at,
         created_at=created_at
