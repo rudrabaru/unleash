@@ -33,7 +33,7 @@ python tools/measure_clips.py --manifest eval/calibration.json
 
 Tests: `cd backend && python -m pytest tests -q`.
 
-Frontend: a recorder page. Choose the camera, press Start, and follow the three steps (read the words, say them facing the camera, then do the action that appears). It stops by itself after 13 s; **Analyse Clip** uploads the recording and shows the verdict with every signal, and **Save Clip** keeps the file. Start the backend first. Use an unmirrored camera feed (turn off any "mirror" option in a phone-as-webcam app): left and right are the person's own left and right as recorded.
+Frontend: a recorder page. Choose the camera, press Start, and follow the three steps (read the words, say them facing the camera, then do the action that appears). It stops by itself after 13 s; **Analyse Clip** uploads the recording and shows the verdict with every signal, and **Save Clip** keeps the file. Start the backend first. The preview on screen is mirrored like a mirror, but the recording is not, and the backend reads it that way: "left" means the person's own left. A camera driver or phone-as-webcam app with its own "mirror" option must have it switched off, or left and right swap.
 
 ```bash
 cd frontend

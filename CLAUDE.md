@@ -43,7 +43,7 @@ Only the visual challenge and the two audio checks are must-pass. **Joint veto:*
 
 ## Module interfaces
 
-- **Frames:** `app/media/frames.py::load_frames` decodes a recording once (PyAV) and returns up to 120 timestamped frames for the visual detectors and up to 30 native-resolution frames (a subset) for deepfake and replay.
+- **Frames:** `app/media/frames.py::load_frames` decodes a recording once (PyAV) and returns up to 120 timestamped frames for the visual detectors and up to 30 native-resolution frames (a subset) for deepfake and replay, exactly as recorded (never mirrored: "left" is the person's own left in an unmirrored feed, see `visual/_pose.py`).
 - **Lip series** (visual to lip sync): `{"fps": float, "series": [{"frame_index", "time_seconds", "lip_openness_ratio"}]}` on the container clock; **word times** (phrase check to lip sync): `[{"word", "start", "end", "probability"}]` relative to the extracted WAV. `process_audio_pipeline` converts one to the other's clock. Details: `.claude/context/audio-pipeline/av-alignment-interface.md`.
 - **One analysis entry:** `app/orchestrator.py::analyze_media(path, visual_challenge, verbal_challenge)` runs every detector with failure isolation and returns signals, the fused verdict and per-step timings. The session flow (`run_verification`) and the development-only `POST /api/v1/verify` both use it. Detectors are plain blocking functions run in worker threads, one analysis at a time.
 

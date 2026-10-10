@@ -14,7 +14,8 @@ export function stepAt(elapsedSeconds: number): ChallengeStep {
   return "act";
 }
 
-// Left and right are the person's own left and right (the backend reads an unmirrored recording).
+// Left and right are the person's own left and right. The preview is mirrored for the user only;
+// the recording is not, and the backend reads it unmirrored (see backend/app/modules/visual/_pose.py).
 export const VISUAL_INSTRUCTIONS: Record<VisualChallenge, string> = {
   TURN_HEAD_LEFT: "Turn your head to your left",
   TURN_HEAD_RIGHT: "Turn your head to your right",

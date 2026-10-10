@@ -62,7 +62,7 @@ Unchanged: the 4-key `DetectorResult` and the single-file upload.
 |---|---|---|
 | P0-A | Unbreak the frontend: modal half and its CSS removed, `next.config.mjs` environment-driven, `.gitignore` narrowed, `tsconfig.tsbuildinfo` untracked | done 2026-10-10 |
 | P0-B | CI: frontend job, timeouts, model prefetch and cache key, pinned API dependencies, `pytest-timeout`, Dependabot | done 2026-10-10 |
-| P0-C (G1) | One signed yaw convention; delete the `flip_horizontal` plumbing; browser-recorded left/right fixtures from two cameras asserted through `POST /sessions`; fix README and `challenge.ts` text | waiting for G1 |
+| P0-C (G1) | One signed yaw convention; delete the `flip_horizontal` plumbing; browser-recorded left/right fixtures from two cameras asserted through the analysis; fix README and `challenge.ts` text | code, tests and docs done 2026-10-10 (D-46). **Open: record the browser fixtures** (a left turn and a right turn from each of two cameras with the recorder's "Save recording"), then add them under `backend/tests/fixtures/browser/` with a test per clip |
 | P0-D | Four staged backend edits with tests; `.gitattributes`, D-44/D-45, working-mode text, consent note; both stashes dropped; stray plan file deleted | done 2026-10-10. The merged remote branches (`feature/deepfake-detection`, `liveliness-challenge`, `new-visual`) are left on GitHub on purpose |
 | P0-E | Baseline above | done 2026-10-10 |
 
