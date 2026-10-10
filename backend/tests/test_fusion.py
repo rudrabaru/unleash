@@ -2,6 +2,8 @@
 Tests for the evidence fusion engine: must-pass checks, joint veto, null-score
 redistribution, and threshold bands.
 """
+import pytest
+
 from app import fusion
 from app.schemas.detector import DetectorResult
 from app.schemas.session import VerificationStatus
@@ -33,26 +35,36 @@ def test_audio_must_pass_check_fails_regardless_of_score():
     assert result.status == VerificationStatus.FAILED
 
 
-def test_joint_veto_fires_when_both_deepfake_and_replay_low():
-    signals = {
+STRONG_AUDIO = {"voice_authenticity_score": 0.9, "av_alignment_score": 0.9}
+
+
+def _strong_signals(deepfake, replay):
+    """Everything else strong, so the weighted score alone would be well above the SUSPICIOUS line."""
+    return {
+        "visual_liveness": _result(0.95),
         "visual_challenge": _result(0.9, passed=True),
-        "audio_pipeline": _result(0.9, passed=True),
-        "deepfake": _result(0.2),
-        "replay": _result(0.3),
+        "audio_pipeline": _result(0.9, passed=True, details=STRONG_AUDIO),
+        "deepfake": _result(deepfake),
+        "replay": _result(replay),
     }
+
+
+def test_joint_veto_fires_when_both_deepfake_and_replay_low():
+    signals = _strong_signals(deepfake=0.2, replay=0.3)
+
+    # without the veto this recording scores 0.68, which is SUSPICIOUS: only the veto can make it FAILED
+    assert fusion._weighted_score(signals) > fusion.SUSPICIOUS_THRESHOLD
     result = fusion.evaluate(signals)
+
     assert result.status == VerificationStatus.FAILED
+    assert result.confidence is None and result.reason.startswith("Joint veto")
 
 
 def test_joint_veto_does_not_fire_if_only_one_signal_low():
-    signals = {
-        "visual_challenge": _result(0.9, passed=True),
-        "audio_pipeline": _result(0.9, passed=True),
-        "deepfake": _result(0.2),
-        "replay": _result(0.9),
-    }
-    result = fusion.evaluate(signals)
-    assert result.status != VerificationStatus.FAILED or "veto" not in result.reason.lower()
+    result = fusion.evaluate(_strong_signals(deepfake=0.2, replay=0.9))
+
+    assert result.status == VerificationStatus.SUSPICIOUS and "veto" not in result.reason.lower()
+    assert result.confidence is not None
 
 
 def test_null_scores_are_redistributed_not_treated_as_zero():
@@ -79,8 +91,12 @@ def test_thresholds_verified_suspicious_failed():
     verified = fusion.evaluate({**base, "deepfake": _result(0.9), "replay": _result(0.9)})
     assert verified.status == VerificationStatus.VERIFIED
 
-    suspicious = fusion.evaluate({**base, "deepfake": _result(0.3), "visual_challenge": _result(0.3, passed=True)})
-    assert suspicious.status in (VerificationStatus.SUSPICIOUS, VerificationStatus.FAILED)
+    # (0.25*1.0 + 0.20*0.6 + 0.20*0.6 + 0.15*0.6) / 0.80 = 0.725: between the two lines
+    suspicious = fusion.evaluate({
+        **base, "visual_liveness": _result(0.6), "deepfake": _result(0.6), "replay": _result(0.6),
+    })
+    assert suspicious.status == VerificationStatus.SUSPICIOUS
+    assert suspicious.confidence == pytest.approx(0.725, abs=1e-3)
 
     failed = fusion.evaluate({
         "visual_challenge": _result(0.1, passed=True),

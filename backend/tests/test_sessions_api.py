@@ -91,3 +91,96 @@ def test_submit_loses_when_another_request_claimed_the_session_first(monkeypatch
 
 def test_challenge_selection_uses_the_os_csprng():
     assert isinstance(sessions._rng, secrets.SystemRandom)
+
+
+# --- answers the API gives when something is wrong with the request ------------------------------
+
+def test_an_unknown_session_is_a_404_for_both_reading_and_submitting():
+    assert client.get("/api/v1/sessions/does-not-exist").status_code == 404
+    response = client.post(
+        "/api/v1/sessions/does-not-exist/submit", data={"token": "x"}, files={"media": ("r.webm", b"abc", "video/webm")}
+    )
+    assert response.status_code == 404
+
+
+def _token_for(session_id, expiry_seconds=60, secret=None, other_session=None):
+    session = db.get_session(session_id)
+    token, _ = generate_challenge_token(
+        session_id=other_session or session_id,
+        visual_challenge=session["visual_challenge"],
+        verbal_challenge=session["verbal_challenge"],
+        secret_key=secret or settings.SECRET_KEY,
+        expiry_seconds=expiry_seconds,
+    )
+    return token
+
+
+def test_a_bad_token_is_a_401_and_does_not_use_up_the_session():
+    session_id = client.post("/api/v1/sessions").json()["session_id"]
+    media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
+    bad_tokens = {
+        "expired": _token_for(session_id, expiry_seconds=-5),
+        "wrong secret": _token_for(session_id, secret="another-secret-of-more-than-32-characters!"),
+        "another session's token": _token_for(session_id, other_session="some-other-session"),
+        "not a token": "garbage",
+    }
+
+    for name, token in bad_tokens.items():
+        response = _submit(session_id, token, media)
+        assert response.status_code == 401, name
+
+    assert db.get_session(session_id)["status"] == VerificationStatus.CREATED.value
+
+
+def test_a_second_submit_for_the_same_session_is_a_409(monkeypatch):
+    """Not the claim race (tested above) but the plain case: the session was already submitted."""
+    from app import orchestrator
+
+    monkeypatch.setattr(orchestrator, "run_verification", lambda *args, **kwargs: None)  # no analysis needed here
+    session_id = client.post("/api/v1/sessions").json()["session_id"]
+    token = _token_for(session_id)
+    media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
+
+    assert _submit(session_id, token, media).status_code == 202
+    second = _submit(session_id, token, media)
+
+    assert second.status_code == 409 and "already been submitted" in second.json()["detail"]
+
+
+def test_a_session_that_was_not_submitted_shows_created_and_no_signals():
+    session_id = client.post("/api/v1/sessions").json()["session_id"]
+
+    body = client.get(f"/api/v1/sessions/{session_id}").json()
+
+    assert body["status"] == "CREATED" and body["confidence"] is None
+    assert not body["signals"]
+
+
+# --- a verified result travels through the API unchanged -----------------------------------------
+
+def test_a_verified_verdict_is_stored_and_returned_and_the_upload_is_deleted(monkeypatch):
+    """The analysis is replaced by a stub that verifies: this tests the plumbing, not the detectors."""
+    from pathlib import Path
+
+    from app import orchestrator
+    from app.fusion import FusionResult
+    from app.schemas.detector import DetectorResult
+
+    def verified(media_path, visual_challenge, verbal_challenge, phases=None):
+        signals = {
+            "visual_challenge": DetectorResult(score=1.0, passed=True, reason="turned"),
+            "audio_pipeline": DetectorResult(score=0.9, passed=True, reason="said", details={"match_count": 5, "insertions": 0}),
+        }
+        return orchestrator.AnalysisResult(
+            signals=signals, fusion=FusionResult(VerificationStatus.VERIFIED, 0.91, "all checks agree"), phases=phases
+        )
+
+    monkeypatch.setattr(orchestrator, "analyze_media", verified)
+    session_id = client.post("/api/v1/sessions").json()["session_id"]
+
+    assert _submit(session_id, _token_for(session_id), require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)).status_code == 202
+
+    body = client.get(f"/api/v1/sessions/{session_id}").json()
+    assert body["status"] == "VERIFIED" and body["confidence"] == 0.91
+    assert body["signals"]["audio_pipeline"]["details"] == {"match_count": 5, "insertions": 0}
+    assert list(Path(settings.UPLOAD_TEMP_DIR).glob("upload_*")) == []

@@ -81,7 +81,7 @@ Unchanged: the 4-key `DetectorResult` and the single-file upload.
 | P1-F (done 2026-10-10) | Frontend phases UI from `session.protocol`: pre-roll, timers, phase bar, beep and `aria-live`, hold-and-return cue, MIME fallback, `onerror`, poll retry | `frontend/src/app/*` except results |
 | P1-G (done 2026-10-10) | Results, welcome and processing copy: reason-code to friendly message, `RETRY` screen, audio row shows pass state, debug toggle, true privacy text | `screens/Result.tsx`, `Welcome.tsx`, `Processing.tsx` |
 | P1-H (done 2026-10-10) | Backend hardening: safe `ENVIRONMENT` default, `/verify` cap, streaming size cap, `/ready`, absolute paths, startup sweep | `config.py`, `main.py`, `db.py`, `verify.py` |
-| P1-I | Tests: session API 401/404/real double-submit and a `VERIFIED` path, accidental-pass tests fixed, random-weights checkpoint-load test | `backend/tests/*` |
+| P1-I (done 2026-10-10) | Tests: session API 401/404/real double-submit and a `VERIFIED` path, accidental-pass tests fixed, random-weights checkpoint-load test | `backend/tests/*` |
 | P1-J (people) | Pilot of about 30 takes: sync-marker spike sets the guard, audio-constraint A/B, capture freeze | - |
 
 **Local-demo gate:** a fresh clone installs and starts both servers; a genuine take from each of 3 speakers reaches `VERIFIED`; silence, wrong phrase, reordered phrase, 40-word reading, no turn, turn during Speak, wrong direction, turn without return and a photo do not; every failure shows a plain reason; the screen lists what is not calibrated.
