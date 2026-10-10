@@ -2,7 +2,7 @@
 
 `CLAUDE.md` is the source of truth; read it first. This file only points to it.
 
-- **Working mode:** solo (one owner). Changes to must-pass checks, thresholds, fusion weights, the detector contract or the upload design need the owner's explicit approval and a line in `.claude/context/decisions.md`.
+- **Working mode:** three developers in parallel, by work package (D-44); one branch and one PR per package, green CI before merge. Changes to must-pass checks, thresholds, fusion weights, the detector contract or the upload design need the owner's explicit approval and a line in `.claude/context/decisions.md`.
 - **Rules:** every file in [`.agents/rules/`](.agents/rules/) applies: ask before assuming, no hardcoded stub values, the detector contract, repo hygiene, commit messages.
 - **Commands** (read `.claude/commands/<name>.md` and follow it): `/commit-message`, `/dead-code-audit`, `/solid-audit`, `/schema-check`, `/ready-check`, `/graceful-failure-audit`, `/latency-benchmark`, `/scenario-runner`, `/threshold-sweep`.
 - **Subagents** (`.claude/agents/`): `contract-validator`, `test-runner-reporter`.

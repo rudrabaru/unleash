@@ -24,7 +24,7 @@ uvicorn app.main:app --reload --port 8000
 
 **Module demo (development only):** open `/docs`, call `POST /api/v1/verify` with a recording, the visual action it contains and the 5 spoken words; the response lists every detector's score, pass/fail and reason, the verdict and the time of each step. To score a set of clips from the command line: `python tools/measure_clips.py` (clips are listed in `backend/eval/manifest.json`).
 
-**Your own recordings:** save clips from the recorder page (the file name carries the visual action and the 5 words), then add them to a local manifest and measure them. Recordings and that manifest stay out of git (they show faces and voices).
+**Your own recordings:** save clips from the recorder page (the file name carries the visual action and the 5 words), then add them to a local manifest and measure them. Recordings and that manifest stay out of git (they show faces and voices). The sample clips that are already tracked (`backend/eval/clips`, `backend/tests/fixtures`) are the team's own recordings, kept as test fixtures with the speakers' consent; do not add anyone else's.
 
 ```bash
 python tools/add_clips.py D:\Downloads --kind genuine --performed "front light, speaker A"   # kinds: genuine, replay, photo, synthetic_voice, wrong_phrase, silence, wrong_direction
@@ -38,8 +38,9 @@ Frontend: a recorder page. Choose the camera, press Start, and follow the three 
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local
+cp .env.example .env.local   # API_ORIGIN: where the dev proxy forwards /api/v1 (default http://127.0.0.1:8000)
 npm run dev        # http://localhost:3000
+npm run typecheck && npm run build   # what CI runs on every pull request
 ```
 
 ## Detector result contract

@@ -1,0 +1,13 @@
+# Normalise text line endings so three people on Windows and CI do not produce whole-file diffs.
+* text=auto
+
+# The decision log is append-mostly: let parallel additions of new rows merge without conflicts.
+.claude/context/decisions.md merge=union
+
+# Never touch binaries.
+*.webm binary
+*.mp4 binary
+*.wav binary
+*.task binary
+*.pth binary
+*.zip binary

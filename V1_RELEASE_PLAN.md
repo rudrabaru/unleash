@@ -1,55 +1,98 @@
 # Unleash v1.0 - status and work order
 
-Last updated 2026-10-06. Near-term plan; the long-term plan is `ROADMAP.md`. If they disagree: `.claude/context/decisions.md`, then `CLAUDE.md`, then these plans. Everything below is from code reads, test runs and probes on the current code, not from earlier reports.
+Last updated 2026-10-10. Near-term plan; the long-term plan is `ROADMAP.md`. If they disagree: `.claude/context/decisions.md`, then `CLAUDE.md`, then these plans. Numbers below come from runs on the current code unless marked as a record from an earlier date.
 
 ## Scope
 
-v1.0 is a **modular demo** (D-27): the audio, visual and anti-spoofing modules run on recorded input, every module returns the 4-key result, the must-pass checks fail closed, and results are reported as counts with their limits. No end-to-end human verdict (`VERIFIED` on a real person) is claimed, because no clip with a face *and* the matching phrase exists yet. The browser flow, the evaluation and deployment come after the detectors (D-38). Not in v1.0: smile, parallax, deployment (D-05, D-06).
+v1.0 is a **local live demo** of the read-speak-act challenge: every module runs on a browser recording, the must-pass checks fail closed, and results are reported as counts with their limits. It does **not** claim protection against deepfake, replay or synthetic voice (D-08). A hosted MVP (Docker, Railway, Vercel) follows the demo. Not in v1.0: smile, parallax, screen-flash (D-06, D-12).
+
+The intended flow (one recording, 13 s): **Read** about 3 s (words shown, face the camera, nothing scored), **Speak** about 5 s (say the words, still shown), **Act** about 5 s (words disappear, a cue shows the head action: turn, hold, return to centre).
+
+## Baseline, 2026-10-10 (package P0-E)
+
+| Check | Result |
+|---|---|
+| Backend suite | 186 passed, 0 skipped in 102 s (the local deepfake checkpoint is present; a fresh clone skips the checkpoint tests) |
+| Frontend | `npm run typecheck` and `npm run build` pass; the 5 screens render, no console errors; with no camera the pre-scan shows "No camera or microphone was detected" |
+| Clip measurement (`tools/measure_clips.py`, 10 phone-style clips, **unflipped**; production flips, see P0-C) | analysis 5.9-9.7 s per clip |
+
+| Clip | audio | liveness | challenge | deepfake | replay | verdict |
+|---|---|---|---|---|---|---|
+| BLINKING / TALKING / real / fake | fails (no phrase) | 0.93 | 1.00 | 0.50 / 0.50 / 0.48 / 0.48 | 0.42 / 0.30 / 0.30 / 0.30 | FAILED |
+| DOWN / UP | fails | 0.84 / 0.83 | 1.00 | 0.46 / 0.46 | 0.30 / 0.30 | FAILED |
+| TURN_LEFT / TURN_RIGHT | no audio track | 0.83 / 0.93 | 1.00 | 0.47 / 0.48 | 0.41 / 0.30 | FAILED |
+| LIVELINESS_1 / _2 | fails / no audio | 0.49 | 0.00 (blink not seen) | 0.51 / 0.50 | 0.30 | FAILED |
+
+What it shows: **deepfake scores `real.webm` and `fake.webm` the same (0.48)**, so it does not separate them; **replay still scores genuine clips 0.30-0.42 against its 0.45 pass line** after the D-42 retune (the retune used genuine clips only); the joint veto no longer fires on these clips (deepfake is 0.46 or higher). Every verdict is `FAILED` because these clips do not contain the spoken phrase: this is a smoke check, not an accuracy figure. Peak memory was not re-measured (earlier record: 1.6 GB).
 
 ## Where things stand
 
-| Area | Works (measured) | Open |
+| Area | Works | Open |
 |---|---|---|
-| Audio checks | ffmpeg extraction with truncation check; speech check; phrase check (`base.en`, 4 of 5, passes the one real take at 4/5); voice authenticity and lip sync run; temporary WAV always removed. A genuine take through the whole pipeline passes in about 1 s warm. | Phrase check ignores word order and extra words. Floor needs human takes. Voice check and lip sync are uncalibrated; the lip-sync windows cover most of the speech span. |
-| Visual | MediaPipe landmarks, liveness, yaw/pitch challenge (yaw sign verified on real clips), blink challenge, lip series with real timestamps. | The blink challenge cannot tell commanded from natural blinks. Liveness on one sample clip sits at the 0.5 line. |
-| Anti-spoofing | Deepfake (now on landmark face crops) and replay run and return honest scores or errors. | **Deepfake checkpoint is near chance** (best validation accuracy 0.589; `fake.webm` 0.48 vs `real.webm` 0.48 with the crop) and was trained on whole frames. **Replay scores every genuine clip 0.30-0.42 against a 0.60 line.** The checkpoint exists on one machine only. |
-| Fusion | Weights, must-pass checks, joint veto, null redistribution; 17 tests. | `VERIFIED` is unreachable with the current deepfake and replay scores (score cap about 0.79); the joint veto fires on genuine UP and DOWN clips; no minimum signal coverage (see below). |
-| Pipeline | One decode, one analysis entry (`analyze_media`), worker threads with a lock, atomic session claim, a development-only demo endpoint, a clip measurement tool. Warm analysis of a 5.5 s 1080p clip 12.8 s before the deepfake frame cap and 8-11 s per sample clip after; peak memory 1.6 GB. | One browser recording (9.3 s, VP8/Opus) analysed in 10.6 s; more are needed. |
-| Tests and CI | 169 tests green; a fresh clone runs about 148 with one skip (no checkpoint). CI is one job (ffmpeg, conflict-marker check, full suite); not yet run on GitHub. | |
-| Frontend | A recorder page: camera picker, read-speak-act steps with auto-stop at 13 s, saves a VP8/Opus clip, uploads it, polls and shows the verdict with a per-signal table (D-41). Types checked against the API by a test. | Not yet tried end to end with a camera; not the 5-screen design. |
+| Audio | ffmpeg extraction with truncation check; speech check; phrase check (`base.en`, 4 of 5, passes the one real take at 4/5); voice authenticity and lip sync run; temporary WAV always removed | Whole-clip, order not enforced, extra words free, 136 rare nouns hard to recognise, floor from one speaker; voice check and lip sync uncalibrated |
+| Visual | MediaPipe landmarks, liveness, yaw/pitch challenge, lip series with real timestamps | No Read/Speak/Act windows, no hold, no return; blink challenge near-vacuous; liveness proves little; mirror handling inconsistent (P0-C) |
+| Anti-spoofing | Deepfake (landmark crop) and replay run and report | Deepfake near chance (validation 33/56); replay design unsound; neither may decide anything |
+| Fusion | Weights, must-pass checks, veto, null redistribution | `VERIFIED` practically unreachable; fails open; a test pins the fail-open behaviour |
+| Pipeline / API | One decode, one analysis entry, worker thread with lock, atomic claim, size cap, secret guard, orphan sweep | No duration/resolution caps before decoding; `ENVIRONMENT` defaults to development; no readiness endpoint; no rate limit |
+| Frontend | 5-screen flow (D-45), builds and renders | Does not render phases from the server; developer strings in results; no MIME fallback |
+| Evaluation | `tools/measure_clips.py`, `add_clips.py`, `phrase_model_comparison.py` | No attack recordings, no TAR/FAR tooling, `/scenario-runner` and `/threshold-sweep` cannot run |
+| CI | Backend job, conflict-marker job, frontend type-check + build job (P0-B) | Not yet run on GitHub |
 
-First browser recording (one clip, one speaker, LOOK_DOWN): `SUSPICIOUS` 0.67; speech, phrase (4 of 5) and visual challenge passed; lip sync 0 of 5 because the head was turned down, the chin was at the frame edge and the mouth was dark (the lip signal stayed near 0.002 against a 0.022 line); replay 0.38 and deepfake 0.47 on a genuine take (D-40). Whisper's word times were imperfect but usable.
+## Decisions already taken (2026-10-09)
 
-Sample-clip measurement (10 clips, `python tools/measure_clips.py`; phone-style H.264 files, so a smoke check only): challenge passes on all 8 real-face clips performing it; liveness 0.47-0.93; deepfake 0.23-0.49; replay 0.30-0.42; every verdict `FAILED`.
+Local demo first, then hosted MVP; desktop Chrome/Edge/Firefox only; three developers by work package (D-44); 5-screen frontend (D-45); the backend becomes phase-aware (windows, hold, return, ordered phrase in the Speak window); Act stays 5 s; both calibration approaches (challenge-bound statistical tests, then calibrated and learned fusion); the rare-noun vocabulary is replaced; only match counts and codes are stored (not the transcript); tracked sample clips stay with a consent note.
 
-## Open problems that block a genuine `VERIFIED`
+## Working rules
 
-1. **Deepfake and replay do not separate genuine from fake** and hold 35% of the weight (see above).
-2. **No capture through the real path.** All real-face clips are phone-style files; the replay and clock results must be re-measured on browser recordings.
-3. **No clip with a face and the matching phrase**, and no attack recordings (screen replay, photo, synthetic voice with face, wrong phrase, silence, wrong direction), so no false-accept rate exists.
-4. **Fusion fails open:** with no minimum coverage, audio plus challenge alone can reach `VERIFIED` if liveness, deepfake and replay all error out.
-5. **Phrase check:** order not enforced, extra words free, floor not chosen from human takes.
-6. **Checkpoint not published** (SHA-256 in the README, URL missing).
+One package = one short-lived branch off `integration` and one pull request with green CI. `orchestrator.py`, `sessions.py`, `schemas/session.py`, `fusion.py`, `decisions.md` and `globals.css` have one writer at a time; P1-0 lands first. Every package that changes a check, threshold, weight, status value, contract or the upload design adds a decision-log line in the same commit and waits for the owner at its gate. Before recording the calibration set, freeze: phase windows, vocabulary, capture settings (audio constraints, bitrate, MIME type) and the yaw convention.
 
-## Work order (each step needs the owner's go-ahead; *decision* = changes what the system accepts, asked with a recommendation)
+## Approval gates (the owner decides)
 
-1. **Baseline table** with `tools/measure_clips.py` (done for the current code: above).
-2. **Deepfake face crop (done, D-39):** face box from the dense landmarks mapped to the 30 native frames, frames with no face skipped, signal `None` if none. Re-measured: still chance, so the retrain in step 5 is needed.
-3. **Recording slice of the browser flow (done; one clip recorded and analysed):** camera plus microphone (about 720p, 30 fps), one VP8/Opus file, a "save clip" button.
-3a. **Read, speak, act (built, D-41; to be tried with a camera):** the recorder shows the words and the person faces the camera for about 3 s, says them facing the camera for about 5 s, then the words disappear and the head action is cued for about 4 s. Today the person cannot read the words while turning, and speaking while looking down hides the mouth from lip sync. Record the calibration set this way. Frontend only; the backend does not check the order yet.
-4. **Record a calibration set through it (needs the owner):** genuine face and 5-word takes (eventually at least 10 from at least 3 speakers, front lighting, camera at eye level, a mix of actions with left and right well represented) and attacks: phone-screen replay, printed or on-screen photo, synthetic voice with face, wrong phrase, silence, wrong head direction (5-10 each). For look up and look down add a take where the person only looks at the screen. Start with 10 genuine takes, then 5 each of replay, photo and synthetic voice.
-5. **Detector decisions with data (*decision*):** deepfake retrain (same crop as runtime, split by source video, success = validation at least 0.85, genuine clips below 0.3 fake probability, `fake.webm` flagged, else reported but not scored); calibrate replay, voice authenticity and lip sync (lip sync needs a shuffled-audio control; give it a "too flat or head turned too far to judge" rule that scores `None`) and leave them unweighted until they separate; decide the joint veto, the weights and a minimum-coverage rule; decide whether look up and look down stay.
-5a. **Hand gesture challenge (*decision*, candidate):** after the calibration set, prototype "show N fingers" (N random, 1 to 5) with MediaPipe HandLandmarker and compare it with the head actions on the same takes. See the decision log for the risks.
-6. **Phrase check (*decision*):** enforce order and cap extra words; pick the floor from human takes.
-7. **Prove the three pipelines work together:** one real face-and-phrase clip gives all five signals; the lip-sync control passes; the clock test stays green; the database round-trips; API schema matches the frontend types.
-8. **Browser flow (5 screens)** from `docs/figma.zip`: 15 s auto-stop, submit, poll, result with per-signal breakdown; decide on an `/eval` page; automated end-to-end test with fake-media browser flags.
-9. **Evaluation:** at least 8 recordings per scenario from at least 3 speakers, error rates per attack type, claims only from recorded results.
-10. **v1.1 and deployment items** as listed in `ROADMAP.md`.
+- **G1** (before P0-C, P1-0, P1-A, P1-B, P1-C): one signed yaw convention replaces the D-43 frame flip; challenge only in Act with hold at least 0.4 s, excursion at least max(15 deg yaw / 10 deg pitch, 5 sigma of the Read-window jitter), return to within max(8 / 6 deg, 3 sigma) of the baseline; phrase only in Speak, **ordered**, at least 4 target words in order and at most 3 inserted words; window guard 0.4 s (set from the pilot); `BLINK_TWICE` no longer issued (enum kept); `RETRY` status; additive `protocol` field in `POST /sessions`; minimum submit delay 12 s.
+- **G2** (P1-D, P1-E, P1-J): interim fusion (deepfake, replay, voice authenticity and lip sync report-only, joint veto off, minimum coverage caps the verdict at `SUSPICIOUS`); transcript no longer stored; vocabulary pool and speech model; capture-constraint freeze.
+- **G3** (after the campaign): learned fusion parameters, operating point and abstain band; each signal's entry decision; deepfake retrain or demote; screen-flash for v2.
 
-## v1.0 acceptance (module demo)
+Unchanged: the 4-key `DetectorResult` and the single-file upload.
 
-- Every module returns a valid 4-key result on every clip, including corrupt and empty input (tests).
-- Must-pass checks fail closed with the right reason (silence, wrong phrase, wrong direction, no video, no audio).
-- Request time under 20 s warm; speech plus phrase checks under 10 s.
-- Known limits stated: deepfake near chance, replay and voice check and lip sync uncalibrated, sample is small, no genuine `VERIFIED` shown.
-- Release steps: demo recorded from `/api/v1/verify`; one-page summary of the limits; `backend/unleash.db` and `temp_uploads/` cleared; pull request to `main` and a `v1.0.0` tag only if the owner decides to cut the release (D-13 is withdrawn).
+## Work packages
+
+**P0 - stabilise (days 1-2)**
+
+| Pkg | Goal | Status |
+|---|---|---|
+| P0-A | Unbreak the frontend: modal half and its CSS removed, `next.config.mjs` environment-driven, `.gitignore` narrowed, `tsconfig.tsbuildinfo` untracked | done 2026-10-10 |
+| P0-B | CI: frontend job, timeouts, model prefetch and cache key, pinned API dependencies, `pytest-timeout`, Dependabot | done 2026-10-10 |
+| P0-C (G1) | One signed yaw convention; delete the `flip_horizontal` plumbing; browser-recorded left/right fixtures from two cameras asserted through `POST /sessions`; fix README and `challenge.ts` text | waiting for G1 |
+| P0-D | Four staged backend edits with tests; `.gitattributes`, D-44/D-45, working-mode text, consent note; both stashes dropped; stray plan file deleted | done 2026-10-10. The merged remote branches (`feature/deepfake-detection`, `liveliness-challenge`, `new-visual`) are left on GitHub on purpose |
+| P0-E | Baseline above | done 2026-10-10 |
+
+**P1 - local demo (about 1.5-2 weeks)**
+
+| Pkg | Goal | Files |
+|---|---|---|
+| P1-0 (G1) | Protocol plumbing, lands first: `app/protocol.py` (read 0-3, speak 3-8, act 8-13 s; min 12 s, max 16 s), additive `protocol` in the session response (schema, `types.ts` and the contract test together), `analyze_media(..., phases=None)` where `None` keeps today's behaviour | `protocol.py`, `schemas/session.py`, `sessions.py` (create), `orchestrator.py`, `types.ts` |
+| P1-A (G1) | Phased challenge in `visual/_pose_phased.py`: baseline from Read (0.5-2.7 s, median and robust sigma, at least 8 frames), action only in Act, hold, return, failure codes `no_motion`, `wrong_direction`, `no_hold`, `no_return` | `visual/_pose_phased.py`, `visual/__init__.py`, tests |
+| P1-B (G1) | Phased audio: WAV cropped to Speak (container 2.6-8.7 s), `audio/_phrase_align.py` ordered alignment, lip sync on Speak, deepfake/replay on frames before 8.7 s | `modules/audio/*`, tests |
+| P1-C (G1) | Validation and `RETRY`: `media/probe.py`, `app/quality.py`, checks before the session is claimed (reject over 30 s or 1920x1080; soft failures give `RETRY`) | `media/probe.py`, `quality.py`, `sessions.py` (`_check_submission`), schema |
+| P1-D (G2) | Interim fusion and stored data; rewrite `tests/test_fusion.py` so each test asserts its own intent | `fusion.py`, `db.py`, tests |
+| P1-E (G2) | Vocabulary: frequency- and concreteness-filtered pool keeping the D-03 rules, generator kept; three-arm A/B (rare words, common words, template sentence) times `base.en`/`small.en`/`distil-small.en` | `vocabulary.py`, `tools/build_vocabulary.py`, `tools/phrase_model_comparison*.py` |
+| P1-F | Frontend phases UI from `session.protocol`: pre-roll, timers, phase bar, beep and `aria-live`, hold-and-return cue, MIME fallback, `onerror`, poll retry | `frontend/src/app/*` except results |
+| P1-G | Results, welcome and processing copy: reason-code to friendly message, `RETRY` screen, audio row shows pass state, debug toggle, true privacy text | `screens/Result.tsx`, `Welcome.tsx`, `Processing.tsx` |
+| P1-H | Backend hardening: safe `ENVIRONMENT` default, `/verify` cap, streaming size cap, `/ready`, absolute paths, startup sweep | `config.py`, `main.py`, `db.py`, `verify.py` |
+| P1-I | Tests: session API 401/404/real double-submit and a `VERIFIED` path, accidental-pass tests fixed, random-weights checkpoint-load test | `backend/tests/*` |
+| P1-J (people) | Pilot of about 30 takes: sync-marker spike sets the guard, audio-constraint A/B, capture freeze | - |
+
+**Local-demo gate:** a fresh clone installs and starts both servers; a genuine take from each of 3 speakers reaches `VERIFIED`; silence, wrong phrase, reordered phrase, 40-word reading, no turn, turn during Speak, wrong direction, turn without return and a photo do not; every failure shows a plain reason; the screen lists what is not calibrated.
+
+**P2 - measure, calibrate, learn (about 2 weeks)**: P2-A manifest and trial plan; P2-B `tools/dump_features.py`, `tools/eval_report.py` (APCER/BPCER per attack, Clopper-Pearson intervals, leave-one-speaker-out); P2-C (G3) calibrators and learned fusion in `app/fusion_params/v1.json`; P2-D (G3) lip-sync permutation test; P2-E (people) campaign of about 300 takes (genuine: 3 speakers x 2 conditions x 4 actions x 3 repeats plus 30 no-action takes; attacks: phone replay 30, monitor replay 30, printed photo with live voice 30, TTS over a live face 30, speaker-replayed audio 15, wrong phrase, silence, wrong direction and no action 15 each); P2-F (G3) anti-spoof and voice decisions with data; P2-G `EVALUATION.md`.
+
+A signal leaves report-only only if: leave-one-speaker-out AUC lower 95% bound is at least 0.70 against its target attacks; held-out log-loss improves in at least 2 of 3 folds; it is available on at least 90% of genuine takes; and its AUC lower bound is at least 0.60 in every device and lighting stratum. With zero accepts the 95% upper bound on the false-accept rate is 31% at n=8, 18% at n=15, 9.5% at n=30 and 4.9% at n=60: "FAR below 5%" needs about 60 attack takes per attack type, and three speakers are three clusters (final numbers need at least two held-out speakers).
+
+**P3 - hosted MVP (about 2 weeks)**: P3-0 spike whether a 5 MB upload passes a Vercel rewrite (else call Railway directly); P3-A Docker, Railway, Vercel config; P3-B worker process with a kill timeout, bounded queue with position and ETA, `/ready`; P3-C rate limits, retention, security headers; P3-D Playwright end to end and structured logs; P3-E smoke and load test.
+
+## Open items
+
+- Phrase check floor (D-04) stays 0.5 until at least 10 genuine takes from at least 3 speakers exist.
+- Deepfake: report-only until the retrain rule is met (validation at least 0.85 on 300 or more frames and genuine browser clips below 0.3 fake probability); checkpoint distribution (D-29).
+- Hand gesture challenge, look up/down and the two-step head sequence: decide with the campaign data.
+- Branch protection on `integration` and `main`: enforce by convention if the repository plan cannot.

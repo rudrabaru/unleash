@@ -22,9 +22,9 @@ Every detector returns exactly this (`backend/app/schemas/detector.py`, `Detecto
 
 `score` is 0.0-1.0 (1.0 = genuine) or `null`; **when `error` is set, `score` is `null`**. `passed` is the module's own pass/fail. `reason` is never empty. `details` is diagnostic telemetry stored with the session; fusion reads only `details["voice_authenticity_score"]` and `details["av_alignment_score"]` from the audio result. A detector never raises: on any failure it returns `score=null, passed=false` with `error` set.
 
-## Working mode: solo
+## Working mode: three developers, work packages (D-44)
 
-One person (the owner) works on the whole project for now: no per-module owners, no ownership guard. Commits go straight to `integration` in small steps; nothing is pushed unless the owner asks. The old three-developer ownership map is at git tag `pre-solo-reset`. **To return to three developers:** when the owner says "distribute work among 3", record it in the decision log, restore the ownership map and the guard hook from that tag, and split the work as the owner specifies.
+Three people work in parallel on the whole project. There are no per-module owners and no ownership guard hook. The work is cut into packages with separate file sets (order and contents in `V1_RELEASE_PLAN.md`). One package is one short-lived branch off `integration` and one pull request that needs green CI before it merges. A few shared files (`orchestrator.py`, `sessions.py`, `schemas/session.py`, `fusion.py`, `decisions.md`, `globals.css`) have one writer at a time. Claude Code commits or pushes only when asked. The old ownership map is at git tag `pre-solo-reset` if a per-module split is ever wanted again.
 
 ## Signals, must-pass checks and fusion
 
