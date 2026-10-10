@@ -14,18 +14,24 @@ permissions:
   contents: read
 
 jobs:
-  backend-tests:
-    name: Backend tests
+  conflict-markers:
+    name: No merge-conflict markers
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-
-      - name: Fail on merge-conflict markers
-        run: |
+      - run: |
           if git grep -nE '^(<<<<<<<|>>>>>>>)'; then
             echo "Merge-conflict markers found"
             exit 1
           fi
+
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
@@ -39,13 +45,42 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r backend/requirements-dev.txt
 
-      # faster-whisper downloads its model on first use; cache it between runs.
+      # faster-whisper downloads its model on first import. The cache is keyed on the file that
+      # names the model, so changing the model changes the key.
       - name: Cache the speech model
         uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          key: whisper-base-en-v1
+          key: whisper-${{ hashFiles('backend/app/modules/audio/_phrase_compliance.py') }}
+
+      # Fetch the model in its own step so a download failure is reported as such instead of
+      # as a test-collection error.
+      - name: Fetch the speech model
+        working-directory: backend
+        run: python -c "from faster_whisper import WhisperModel; WhisperModel('base.en', device='cpu', compute_type='int8')"
 
       - name: Run tests
         working-directory: backend
         run: python -m pytest tests -rs
+
+  frontend-build:
+    name: Frontend type-check and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
