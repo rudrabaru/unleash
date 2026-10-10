@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from app.core.config import settings
-from app.modules.audio import _compute_pipeline_score, process_audio_pipeline
+from app.modules.audio import process_audio_pipeline
 from app.schemas.detector import DetectorResult
 from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM, OTHER_5WORD_PHRASE, require
 
@@ -36,9 +36,7 @@ def test_pipeline_output_schema_contract(genuine_pipeline_result):
     assert isinstance(res, DetectorResult)
     assert res.passed is True
     assert res.error is None
-    assert res.score is not None
-    assert isinstance(res.score, float)
-    assert 0.0 <= res.score <= 1.0
+    assert res.score is None  # must-pass checks carry no score; voice and lip sync are in the details
     assert isinstance(res.reason, str) and len(res.reason) > 0
 
     assert res.details is not None
@@ -89,33 +87,3 @@ def test_pipeline_leaves_no_temporary_files_after_an_exception(tone_webm):
 
     assert res.passed is False and res.score is None and "boom" in res.error
     assert _temp_entries() == before
-
-
-def test_compute_pipeline_score_voice_check_only():
-    """Composite advisory score when the lip-sync check produced no score."""
-    s3_res = DetectorResult(score=0.85, passed=True, reason="Authentic", error=None, details={})
-    score, score_str = _compute_pipeline_score(s3_res, lip_sync_score=None)
-
-    assert score == 0.85
-    assert score_str == "0.850"
-
-
-def test_compute_pipeline_score_voice_and_lip_sync():
-    """Composite advisory score when both the voice check and the lip-sync check scored."""
-    s3_res = DetectorResult(score=0.80, passed=True, reason="Authentic", error=None, details={})
-    lip_sync_score = 0.90
-
-    score, score_str = _compute_pipeline_score(s3_res, lip_sync_score=lip_sync_score)
-
-    # 50/50 weighting: (0.80 * 0.5 + 0.90 * 0.5) / 1.0 = 0.85
-    assert score == 0.85
-    assert score_str == "0.800"
-
-
-def test_compute_pipeline_score_none_when_no_scores():
-    """The composite advisory score is None when no check produced a score."""
-    s3_res = DetectorResult(score=None, passed=True, reason="Error", error="err", details={})
-    score, score_str = _compute_pipeline_score(s3_res, lip_sync_score=None)
-
-    assert score is None
-    assert score_str == "N/A"

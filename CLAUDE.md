@@ -31,15 +31,15 @@ Three people work in parallel on the whole project. There are no per-module owne
 | Signal | Technique | Role | Weight |
 |---|---|---|---|
 | Visual liveness | MediaPipe eye aspect ratio, blink, micro-movement | weighted | 20% |
-| Visual challenge | MediaPipe yaw/pitch against the random action | **must pass** + weighted | 25% |
-| Deepfake | self-trained Xception on CPU | weighted, joint veto | 20% |
-| Replay | OpenCV FFT moiré, temporal noise, brightness | weighted, joint veto | 15% |
-| Audio speech check | silero-vad, at least 2.0 s of speech | **must pass** | - |
-| Audio phrase check | faster-whisper `base.en`; 4 of 5 words, similarity at least 0.8, word confidence at least 0.5 | **must pass** | - |
-| Voice authenticity | librosa heuristics (uncalibrated) | weighted | 10% |
-| Lip sync | word times against the lip series (uncalibrated) | weighted | 10% |
+| Visual challenge | MediaPipe head pose against the random action: turn, hold, return, in the Act window | **must pass** + weighted | 25% |
+| Audio speech check | silero-vad, at least 2.0 s of speech inside the Speak window | **must pass** | - |
+| Audio phrase check | faster-whisper `base.en`, Speak window; at least 4 of 5 words **in order**, similarity at least 0.8, word confidence at least 0.5, at most 3 extra words | **must pass** | - |
+| Deepfake | self-trained Xception on CPU | report-only (uncalibrated, near chance) | 0 |
+| Replay | OpenCV FFT moiré, temporal noise, brightness | report-only (uncalibrated) | 0 |
+| Voice authenticity | librosa heuristics (uncalibrated) | report-only | 0 |
+| Lip sync | word times against the lip series (uncalibrated) | report-only | 0 |
 
-Only the visual challenge and the two audio checks are must-pass. **Joint veto:** deepfake score below 0.3 *and* replay score below 0.4 gives `FAILED`. **Verdict:** `VERIFIED` at 0.80 or more, `SUSPICIOUS` 0.55-0.79, `FAILED` below 0.55 or any must-pass failure. `RETRY` (no score) means the recording could not be judged: too short, picture and sound out of step, no steady face at the start, a dead microphone, or an error on our side; it is neither an acceptance nor a failure. A signal with no score is excluded and its weight redistributed; it is never treated as 0. Known open problems with this scheme are in `V1_RELEASE_PLAN.md`.
+Only the visual challenge and the two audio checks are must-pass; a missing one fails closed. **Report-only** signals (D-51) run and are shown but add nothing to the score and cannot veto it, until a calibration campaign shows they separate genuine from attack (entry rule in `V1_RELEASE_PLAN.md`); there is no joint veto. **Verdict:** the weighted average of liveness and the challenge's score: `VERIFIED` at 0.80 or more, `SUSPICIOUS` 0.55-0.79, `FAILED` below 0.55 or any must-pass failure; if either weighted signal has no score the verdict is capped at `SUSPICIOUS`. `RETRY` (no score) means the recording could not be judged: too short, picture and sound out of step, no steady face at the start, a dead microphone, or an error on our side; it is neither an acceptance nor a failure. A signal with no score is excluded and its weight redistributed; it is never treated as 0. `VERIFIED` means "the challenge was done in this recording": it is **not** a claim of protection against deepfake, replay or synthetic-voice attacks. Known open problems with this scheme are in `V1_RELEASE_PLAN.md`.
 
 ## Module interfaces
 

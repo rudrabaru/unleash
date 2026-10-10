@@ -54,8 +54,8 @@ def test_session_lifecycle_judges_a_protocol_recording_through_every_check(proto
     """
     Full session creation, submit and background analysis on a recording that follows the protocol: a
     real face that turns left, holds and returns in Act, and a real spoken 5-word take in Speak. Both
-    must-pass checks pass, so the verdict is decided by the weighted signals (a VERIFIED case is not
-    asserted: the anti-spoofing scores are uncalibrated).
+    must-pass checks pass and, under the interim policy (deepfake, replay, voice and lip sync are
+    report-only), liveness and the challenge decide the verdict: VERIFIED.
     """
     session_id, token = _create_session_with_phrase(GENUINE_5WORD_PHRASE)
     with db._connect() as conn:  # the face in the recording turns left
@@ -77,7 +77,9 @@ def test_session_lifecycle_judges_a_protocol_recording_through_every_check(proto
     assert signals["visual_challenge"]["passed"] is True, signals["visual_challenge"]["reason"]
     assert signals["visual_challenge"]["details"]["phase_aware"] is True
     assert isinstance(signals["audio_pipeline"]["details"]["voice_authenticity_score"], float)
-    assert res_data["status"] != VerificationStatus.FAILED or "must-pass" not in res_data["decision_reason"]
+    assert res_data["status"] == VerificationStatus.VERIFIED, res_data["decision_reason"]
+    assert res_data["confidence"] > 0.8
+    assert {"deepfake", "replay"} <= set(signals)  # still computed and shown, just not scored
 
 
 def test_submit_loses_when_another_request_claimed_the_session_first(monkeypatch):

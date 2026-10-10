@@ -108,7 +108,7 @@ export function explain(result: SessionResult): Explanation {
   }
   if (result.status === "SUSPICIOUS") {
     return {
-      message: "The movement and the words were fine, but the other checks were not convincing.",
+      message: "The movement and the words were seen, but the recording was not clear enough to be sure.",
       checks,
       advice: ["Try again with good light on your face and no one else in the picture."],
     };

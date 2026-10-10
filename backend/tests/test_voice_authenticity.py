@@ -137,8 +137,7 @@ def test_pipeline_includes_the_voice_check(genuine_pipeline_result):
 
     assert isinstance(res, DetectorResult)
     assert res.passed is True
-    assert res.score is not None
-    assert 0.0 <= res.score <= 1.0
+    assert res.score is None  # the must-pass checks carry no score; the voice check is in the details
     assert res.error is None
 
     # The voice-check details are merged into the pipeline details

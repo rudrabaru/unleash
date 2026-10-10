@@ -39,10 +39,6 @@ from app.schemas.detector import DetectorResult
 
 logger = logging.getLogger(__name__)
 
-# The two advisory checks contribute equally to the composite advisory score.
-_VOICE_CHECK_WEIGHT: float = 0.5
-_LIP_SYNC_WEIGHT: float = 0.5
-
 # Below this RMS (full scale = 1.0, about -80 dBFS) the audio is digital silence: a muted or dead microphone.
 SILENT_RMS: float = 1e-4
 
@@ -70,30 +66,14 @@ def _merge_details(*results: DetectorResult) -> Dict[str, Any]:
     return merged
 
 
-def _compute_pipeline_score(
-    voice_result: DetectorResult,
-    lip_sync_score: Optional[float] = None,
-) -> Tuple[Optional[float], str]:
-    """
-    Composite advisory score and the voice-check score as text. Only checks that produced a
-    score contribute; with none, the score is None.
-    """
-    parts = [(voice_result.score, _VOICE_CHECK_WEIGHT), (lip_sync_score, _LIP_SYNC_WEIGHT)]
-    measured = [(score, weight) for score, weight in parts if score is not None]
-    voice_text = f"{voice_result.score:.3f}" if voice_result.score is not None else "N/A"
-    if not measured:
-        return None, voice_text
-    total_weight = sum(weight for _, weight in measured)
-    return round(sum(score * weight for score, weight in measured) / total_weight, 3), voice_text
-
-
 def _build_pipeline_reason(
     speech_details: Dict[str, Any],
     phrase_details: Dict[str, Any],
-    voice_text: str,
+    voice: DetectorResult,
     lip_sync_reason: str,
 ) -> str:
     """Human-readable reason for a run in which both must-pass checks passed."""
+    voice_text = f"{voice.score:.3f}" if voice.score is not None else "N/A"
     speech_seconds = speech_details.get("speech_duration_seconds", 0.0)
     matched = phrase_details.get("match_count", 0)
     return (
@@ -278,11 +258,10 @@ def _run_checks(prepared: _Prepared, challenge_phrase: str, lip_openness_data) -
         if check.error is not None:
             details[name] = check.error  # advisory errors do not fail the run but must stay visible
 
-    score, voice_text = _compute_pipeline_score(voice, lip_sync_score=lip_sync.score)
     return DetectorResult(
-        score=score,
+        score=None,  # the must-pass checks have no score; voice and lip sync are reported in the details
         passed=True,
-        reason=_build_pipeline_reason(speech.details or {}, phrase.details or {}, voice_text, lip_sync.reason),
+        reason=_build_pipeline_reason(speech.details or {}, phrase.details or {}, voice, lip_sync.reason),
         error=None,
         details=details,
     )

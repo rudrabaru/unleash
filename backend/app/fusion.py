@@ -1,33 +1,40 @@
 """
 Evidence Fusion + Decision Engine.
 
-Combines the five detector signals (visual liveness, visual challenge compliance,
-deepfake, replay, audio) into a final verdict: must-pass checks first, then the joint veto,
-then the weighted score (see CLAUDE.md for the weights and bands).
+Interim policy (owner decision D-51), until a calibration campaign shows which signals separate
+genuine people from attacks:
+
+  * Must-pass checks decide first: the visual challenge and the audio speech and phrase checks. A
+    failed one is FAILED; so is one that is missing (the check fails closed).
+  * The score is the weighted average of the two signals that are calibrated enough to carry weight:
+    visual liveness and the visual challenge's score.
+  * Deepfake, replay, voice authenticity and lip sync still run and are shown with the result, but add
+    nothing to the score and cannot veto it ("report-only"). They do not yet tell a genuine recording
+    from a fake one.
+  * Minimum coverage: VERIFIED needs both weighted signals to have a score. With one missing the
+    verdict is capped at SUSPICIOUS (never raised, never turned into FAILED).
+
+So VERIFIED means "the challenge was done in this recording": it is not a claim of protection against
+deepfake, replay or synthetic-voice attacks (see the claims policy in CLAUDE.md).
 """
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from app.schemas.detector import DetectorResult
 from app.schemas.session import VerificationStatus
 
-# Weighted-scoring portion. Challenge compliance's must-pass check is separate from its
-# score weight; the audio speech and phrase checks are pure must-pass checks with no
-# weight of their own (they decide audio_pipeline.passed instead).
+# The signals that carry weight. Visual liveness 0.20 and the visual challenge's score 0.25, averaged
+# over whichever of the two has a score (their ratio stays 4:5).
 SIGNAL_WEIGHTS: Dict[str, float] = {
     "visual_liveness": 0.20,
     "visual_challenge": 0.25,
-    "deepfake": 0.20,
-    "replay": 0.15,
-    "voice_authenticity": 0.10,
-    "av_alignment": 0.10,
 }
+
+# Computed and reported, never scored. Promote one only when the calibration data allows it.
+REPORT_ONLY_SIGNALS = ("deepfake", "replay", "voice_authenticity", "av_alignment")
 
 VERIFIED_THRESHOLD = 0.80
 SUSPICIOUS_THRESHOLD = 0.55
-
-JOINT_VETO_DEEPFAKE_THRESHOLD = 0.3
-JOINT_VETO_REPLAY_THRESHOLD = 0.4
 
 
 @dataclass
@@ -38,93 +45,59 @@ class FusionResult:
 
 
 def _must_pass_failed(signals: Dict[str, DetectorResult]) -> Optional[str]:
-    """Return a human-readable reason if any must-pass check failed, else None."""
+    """Return a human-readable reason if a must-pass check failed or is missing, else None."""
     visual_challenge = signals.get("visual_challenge")
-    if visual_challenge is not None and not visual_challenge.passed:
+    if visual_challenge is None:
+        return "Visual challenge compliance failed: the check produced no result."
+    if not visual_challenge.passed:
         return f"Visual challenge compliance failed: {visual_challenge.reason}"
 
     audio = signals.get("audio_pipeline")
-    if audio is not None and not audio.passed:
+    if audio is None:
+        return "Audio must-pass check failed: the check produced no result."
+    if not audio.passed:
         return f"Audio must-pass check failed: {audio.reason}"
-
-    deepfake = signals.get("deepfake")
-    replay = signals.get("replay")
-    if (
-        deepfake is not None and deepfake.score is not None
-        and replay is not None and replay.score is not None
-        and deepfake.score < JOINT_VETO_DEEPFAKE_THRESHOLD
-        and replay.score < JOINT_VETO_REPLAY_THRESHOLD
-    ):
-        return (
-            f"Joint veto: deepfake score {deepfake.score:.2f} < "
-            f"{JOINT_VETO_DEEPFAKE_THRESHOLD} and replay score {replay.score:.2f} < "
-            f"{JOINT_VETO_REPLAY_THRESHOLD}"
-        )
-
     return None
 
 
-def _weighted_score(signals: Dict[str, DetectorResult]) -> Optional[float]:
-    """
-    Weighted average of the six soft/advisory signals. Null scores are excluded
-    and their weight redistributed proportionally across the remaining signals
-    (never treated as 0), per plan Section 6.
+def _scored(signals: Dict[str, DetectorResult]) -> Dict[str, float]:
+    """The weighted signals that have a score, with their scores."""
+    return {
+        name: signals[name].score
+        for name in SIGNAL_WEIGHTS
+        if signals.get(name) is not None and signals[name].score is not None
+    }
 
-    visual_challenge contributes its score to this weighted portion even though
-    its `passed` boolean is checked separately as a must-pass check above.
-    """
-    present: Dict[str, float] = {}
-    for key, weight in SIGNAL_WEIGHTS.items():
-        result = signals.get(key)
-        if result is not None and result.score is not None:
-            present[key] = weight
 
-    voice = signals.get("voice_authenticity")
-    if voice is None:
-        audio = signals.get("audio_pipeline")
-        if audio is not None and audio.details:
-            va_score = audio.details.get("voice_authenticity_score")
-            if va_score is not None:
-                present["voice_authenticity"] = SIGNAL_WEIGHTS["voice_authenticity"]
-
-    av = signals.get("av_alignment")
-    if av is None:
-        audio = signals.get("audio_pipeline")
-        if audio is not None and audio.details:
-            av_score = audio.details.get("av_alignment_score")
-            if av_score is not None:
-                present["av_alignment"] = SIGNAL_WEIGHTS["av_alignment"]
-
-    if not present:
+def _weighted_score(scores: Dict[str, float]) -> Optional[float]:
+    """Weighted average of the scored signals, with the weight of a missing one shared by the rest (never as 0)."""
+    if not scores:
         return None
+    total_weight = sum(SIGNAL_WEIGHTS[name] for name in scores)
+    return sum(score * SIGNAL_WEIGHTS[name] for name, score in scores.items()) / total_weight
 
-    total_weight = sum(present.values())
-    numerator = 0.0
-    for key in present:
-        if key == "voice_authenticity" and signals.get("voice_authenticity") is None:
-            score = signals["audio_pipeline"].details["voice_authenticity_score"]
-        elif key == "av_alignment" and signals.get("av_alignment") is None:
-            score = signals["audio_pipeline"].details["av_alignment_score"]
-        else:
-            score = signals[key].score
-        numerator += score * present[key]
 
-    return numerator / total_weight
+def _band(score: float) -> VerificationStatus:
+    if score >= VERIFIED_THRESHOLD:
+        return VerificationStatus.VERIFIED
+    if score >= SUSPICIOUS_THRESHOLD:
+        return VerificationStatus.SUSPICIOUS
+    return VerificationStatus.FAILED
 
 
 def evaluate(signals: Dict[str, DetectorResult]) -> FusionResult:
     """
-    Run the must-pass checks first, then the weighted score.
+    Fuse the signals into a verdict: must-pass checks, then the weighted score, then the coverage cap.
 
-    `signals` keys expected: visual_liveness, visual_challenge, deepfake, replay,
-    audio_pipeline (the combined audio result). voice_authenticity and
-    av_alignment may be read from audio_pipeline.details if not passed separately.
+    `signals` keys read: visual_liveness, visual_challenge and audio_pipeline. Deepfake, replay and the
+    two advisory audio checks (reported inside audio_pipeline.details) are never read.
     """
     gate_reason = _must_pass_failed(signals)
     if gate_reason is not None:
         return FusionResult(status=VerificationStatus.FAILED, confidence=None, reason=gate_reason)
 
-    score = _weighted_score(signals)
+    scores = _scored(signals)
+    score = _weighted_score(scores)
     if score is None:
         return FusionResult(
             status=VerificationStatus.FAILED,
@@ -132,16 +105,16 @@ def evaluate(signals: Dict[str, DetectorResult]) -> FusionResult:
             reason="All must-pass checks passed but no usable signal scores were available.",
         )
 
-    if score >= VERIFIED_THRESHOLD:
-        status = VerificationStatus.VERIFIED
-    elif score >= SUSPICIOUS_THRESHOLD:
+    status = _band(score)
+    missing: List[str] = [name for name in SIGNAL_WEIGHTS if name not in scores]
+    capped = bool(missing) and status == VerificationStatus.VERIFIED
+    if capped:
         status = VerificationStatus.SUSPICIOUS
-    else:
-        status = VerificationStatus.FAILED
 
-    return FusionResult(
-        status=status,
-        confidence=round(score, 4),
-        reason=f"Weighted signal score {score:.2f} against thresholds "
-        f"(VERIFIED>={VERIFIED_THRESHOLD}, SUSPICIOUS>={SUSPICIOUS_THRESHOLD}).",
+    reason = (
+        f"Weighted score {score:.2f} from {', '.join(scores)} "
+        f"(VERIFIED>={VERIFIED_THRESHOLD}, SUSPICIOUS>={SUSPICIOUS_THRESHOLD})."
     )
+    if capped:
+        reason += f" Capped at SUSPICIOUS because {', '.join(missing)} could not be measured."
+    return FusionResult(status=status, confidence=round(score, 4), reason=reason)
