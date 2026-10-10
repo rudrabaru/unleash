@@ -1,0 +1,5 @@
+# Extra packages for the offline tools in backend/tools (not needed to run the server or the tests).
+# pip install -r requirements-tools.txt
+-r requirements.txt
+wordfreq==3.1.1   # word frequencies, for tools/build_vocabulary.py
+nltk==3.10.3      # WordNet, for tools/build_vocabulary.py (python -c "import nltk; nltk.download('wordnet')")

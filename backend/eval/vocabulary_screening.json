@@ -1,0 +1,5317 @@
+{
+ "first_candidates_1_to_2_syllables_run_together": {
+  "voices": [
+   "Microsoft David Desktop (rate 0)",
+   "Microsoft Zira Desktop (rate 1)",
+   "Microsoft Ravi (rate 0)",
+   "Microsoft Heera (rate 2)"
+  ],
+  "keep_at_least": 3,
+  "summary": "189/249 words heard in at least 3 of 4 trials; 793/1000 word-trials recognised",
+  "words": {
+   "world": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "water": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Tractor Plate Agent Honeywater.",
+     "Ravi: Shipwater Chamber Locker Haircut."
+    ]
+   },
+   "head": {
+    "heard": 0,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Chinturf had salad gone.",
+     "Desktop: Sugarhead Clockship Wardrobe",
+     "Ravi: Eagle granite shelter headpipe.",
+     "Heera: Flint had tissue wagon daisy."
+    ]
+   },
+   "hand": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Rabbits leave milk and grape.",
+     "Desktop: Earth hand tape surface coast."
+    ]
+   },
+   "body": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "office": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Room office velvet bedroom tree"
+    ]
+   },
+   "room": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Hardware Room Mainland Blade Candle"
+    ]
+   },
+   "ground": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "picture": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "paper": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Paper Tape Body Hill Rainbow",
+     "Heera: Paper ankle-honey-shell depot. //"
+    ]
+   },
+   "earth": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ball": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "card": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Body Lake Yacht Card Atom",
+     "Heera: Grapecalfe Car Dish Vault"
+    ]
+   },
+   "river": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Airplane Turkey costume river weed."
+    ]
+   },
+   "island": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "station": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "photo": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "hotel": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "brain": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ship": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Lunchdish Railroad Dyship",
+     "Desktop: Sugarhead Clockship Wardrobe",
+     "Ravi: Shipwater Chamber Locker Haircut."
+    ]
+   },
+   "machine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "plant": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "coast": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "queen": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "glass": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Ladder glass wheat rabbit rubber."
+    ]
+   },
+   "screen": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tree": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Tower Spoon of Intructry",
+     "Heera: Marble tree meal fruit junction."
+    ]
+   },
+   "airport": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "engine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lake": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "mouth": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Radar mouth carbon photo-crow",
+     "Ravi: Ball-mouth tissue chrome finger."
+    ]
+   },
+   "surface": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "hill": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Paper Tape Body Hill Rainbow"
+    ]
+   },
+   "agent": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "stone": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Puppets don't boat acid backyard.",
+     "Ravi: Stonecopper Banner Depo Stahl"
+    ]
+   },
+   "window": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: window for extreme maple earth.",
+     "Heera: window tower stone cookie cloth"
+    ]
+   },
+   "camp": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Benchcamp carbon hand pipe."
+    ]
+   },
+   "dinner": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bridge": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "garden": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "farm": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "iron": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "mountain": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Mount and Eagle Closet Chamber Protein"
+    ]
+   },
+   "fuel": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "boat": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Garageboat Brain Highway Cotton"
+    ]
+   },
+   "moon": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Moonlighter Mountain cloth vessel",
+     "Heera: Sophie Shouldersnake Candlemoon"
+    ]
+   },
+   "ocean": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chair": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Finger of an chair screen tablet."
+    ]
+   },
+   "sugar": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Sugarhead Clockship Wardrobe",
+     "Heera: Puppet wrist airplane Sugar Hill."
+    ]
+   },
+   "platform": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lunch": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Lunchdish Railroad Dyship",
+     "Desktop: Bath lunch exit locker railway.",
+     "Heera: Milk Pillow Saddle Lunch Dinner"
+    ]
+   },
+   "milk": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Cabin Milk Bacon Tank Couch"
+    ]
+   },
+   "kitchen": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: kitchen fence lunch picture airport."
+    ]
+   },
+   "aircraft": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "truck": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Dice Truck Beard Turkey Pocket",
+     "Ravi: Tower Spoon of Intructry"
+    ]
+   },
+   "chicken": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "shirt": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Soap shirt station crow marker."
+    ]
+   },
+   "stream": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: window for extreme maple earth."
+    ]
+   },
+   "bottle": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Bottleglobe Sugar Beef Supper"
+    ]
+   },
+   "cheese": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "fruit": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tank": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "button": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tool": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "turkey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "carbon": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Autocarbon Gown Junction footage."
+    ]
+   },
+   "plate": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Desk plate calf bench machine.",
+     "Heera: Gunplate Granite tablet porch."
+    ]
+   },
+   "bathroom": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "motor": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "protein": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Bottle protein card station airport.",
+     "Heera: Turf Chamber Mountain Platform Protein"
+    ]
+   },
+   "chest": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "shoulder": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Sophie Shouldersnake Candlemoon"
+    ]
+   },
+   "tower": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Clipped our meal sugar ranch."
+    ]
+   },
+   "highway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "auto": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Autocarbon Gown Junction footage.",
+     "Ravi: Auto-aircraft carpet powder chest."
+    ]
+   },
+   "finger": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Finger of an chair screen tablet."
+    ]
+   },
+   "guitar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "meal": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pocket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chamber": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Turf Chamber Mountain Platform Protein"
+    ]
+   },
+   "circuit": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bedroom": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "railway": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Brain railway luggage ankle worm."
+    ]
+   },
+   "acid": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "temple": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Powder Junction J Temple Surface"
+    ]
+   },
+   "bath": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Taxi Backyard Cargo BathBine",
+     "Ravi: World bath maple shirt tool."
+    ]
+   },
+   "tape": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Paper Tape Body Hill Rainbow"
+    ]
+   },
+   "clock": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Sugarhead Clockship Wardrobe",
+     "Heera: Clock rubber tent cattle costume."
+    ]
+   },
+   "desk": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Desk plate calf bench machine.",
+     "Heera: Chicken Turkey Desk Fence Puppy"
+    ]
+   },
+   "pizza": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "wire": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "belt": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Footage Belt Island Haircut Surface",
+     "Ravi: Worm Belt Rail Bedroom Carriage",
+     "Heera: Candy Belt Chair Tractor Globe"
+    ]
+   },
+   "rail": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Drum rail exit pipe bathroom."
+    ]
+   },
+   "butter": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Spider butter ground jelly motor"
+    ]
+   },
+   "bench": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Benchcamp carbon hand pipe."
+    ]
+   },
+   "entrance": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "makeup": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Wagon Junction make-up cement garden.",
+     "Heera: Make-up ground island footage wardrobe."
+    ]
+   },
+   "shell": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "honey": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Tractor Plate Agent Honeywater."
+    ]
+   },
+   "juice": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cotton": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "exit": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Sausage Subway exit vine workshop"
+    ]
+   },
+   "leather": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "shore": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Boat Depot Shore Button Fluid",
+     "Heera: Tierra's Closet Short Aircraft Engine."
+    ]
+   },
+   "jacket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "railroad": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Lunchdish Railroad Dyship"
+    ]
+   },
+   "tissue": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "footage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "hardware": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sauce": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Sauced Canyon foam marble statue"
+    ]
+   },
+   "beef": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Beard beef juice elbow flint.",
+     "Desktop: beef farm risk drum paper",
+     "Heera: Garage beef highway fabric hardware."
+    ]
+   },
+   "candy": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Saddlecandy Thumb Turf Chicken"
+    ]
+   },
+   "globe": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Bottleglobe Sugar Beef Supper"
+    ]
+   },
+   "copper": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Stonecopper Banner Depo Stahl"
+    ]
+   },
+   "vessel": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Vessel Straw World Cleaner Capsule"
+    ]
+   },
+   "garage": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Garage Sketch Sauce Puppy Builder",
+     "Ravi: Garageboat Brain Highway Cotton"
+    ]
+   },
+   "pipe": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Eagle granite shelter headpipe."
+    ]
+   },
+   "powder": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "shelter": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "spider": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "rubber": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Clock rubber tent cattle costume."
+    ]
+   },
+   "snake": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Sophie Shouldersnake Candlemoon"
+    ]
+   },
+   "fluid": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dish": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Lunchdish Railroad Dyship",
+     "Ravi: Coast Backyard Dish Builder Surface"
+    ]
+   },
+   "fence": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cave": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: We cave monkey bridge shark."
+    ]
+   },
+   "radar": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Rate Arcement Paper Glass Butter",
+     "Heera: Rabbit Radar Worm Vessel Glass"
+    ]
+   },
+   "blade": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Sleeve Yacht Blade Shoulder Cave"
+    ]
+   },
+   "cargo": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: cargo copper wallet entrance basement.",
+     "Ravi: Stream Cargo Tractor Camps Leave"
+    ]
+   },
+   "taxi": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "basement": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "carpet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "costume": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Costume Leather Candle Monkey Shelter",
+     "Desktop: Fabric costume cement taxi meal."
+    ]
+   },
+   "soap": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Clothsoap Iron Airport Basement"
+    ]
+   },
+   "couch": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Mountain couch hardware shell bedroom"
+    ]
+   },
+   "bacon": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Tool Bacon Cloth Shelter Leather",
+     "Heera: Ladder Bacon Basket Body Acid"
+    ]
+   },
+   "cattle": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Cleaner jacket keyboard cattle pizza.",
+     "Heera: Clock rubber tent cattle costume."
+    ]
+   },
+   "crop": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Oven crop worm marble canyon."
+    ]
+   },
+   "salad": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "wallet": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Agent wallet shark fruit shelter."
+    ]
+   },
+   "workshop": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "plug": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cabin": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Cabin Milk Bacon Tank Couch",
+     "Heera: Cooler Subway cabin railway cliff"
+    ]
+   },
+   "closet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "eagle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sandwich": {
+    "heard": 0,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Salon ribbon sand which stone grape.",
+     "Desktop: Send which pizza straw pipe cooler.",
+     "Ravi: Sand which tingied acid iron.",
+     "Heera: Send which pencil couch finger cargo."
+    ]
+   },
+   "valve": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Cookie valve needle tool statue"
+    ]
+   },
+   "banner": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Stonecopper Banner Depo Stahl"
+    ]
+   },
+   "drum": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "keyboard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cliff": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Clipped our meal sugar ranch."
+    ]
+   },
+   "shark": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "statue": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "fabric": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "basket": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Basketstall Laundry Insect Moon"
+    ]
+   },
+   "beard": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: DICE hand beard photo drum"
+    ]
+   },
+   "bucket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cookie": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "monkey": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Button Monkey Cleaner Soap Crust"
+    ]
+   },
+   "rainbow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "laundry": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "oven": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Finger of an chair screen tablet.",
+     "Ravi: Tower Spoon of Intructry",
+     "Heera: Mainland luggage ship of an atom."
+    ]
+   },
+   "rabbit": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "subway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tablet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tent": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Yacht Machine Plant Tent Dinner"
+    ]
+   },
+   "sketch": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Shell Sketch Rubber Garage Balloon",
+     "Desktop: Garage Sketch Sauce Puppy Builder",
+     "Ravi: Barnsketch Temple Makeup Drawer"
+    ]
+   },
+   "cloth": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Clothsoap Iron Airport Basement"
+    ]
+   },
+   "fork": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: window for extreme maple earth.",
+     "Desktop: wagon shirt fence for cabin."
+    ]
+   },
+   "ladder": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Moonlighter Mountain cloth vessel"
+    ]
+   },
+   "lobby": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ranch": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "thumb": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Vine World Tom Motor Wire"
+    ]
+   },
+   "wheat": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Frog wheat supper desk cheese.",
+     "Ravi: Airplane Turkey costume river weed.",
+     "Heera: We cave monkey bridge shark."
+    ]
+   },
+   "wrist": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Chest wrist ocean candy tank.",
+     "Desktop: beef farm risk drum paper",
+     "Ravi: Entrance Elbow Fork Portrest"
+    ]
+   },
+   "chin": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Chinturf had salad gone.",
+     "Desktop: Chinterf Saddle Powder Laundry",
+     "Ravi: Sand which tingied acid iron."
+    ]
+   },
+   "puppy": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "barn": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Bar and Terrace Fuel Builder Pocket",
+     "Desktop: Barn Candy Finger Platform World.",
+     "Ravi: Barnsketch Temple Makeup Drawer"
+    ]
+   },
+   "straw": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: River Agent Bedroom Straw Photo"
+    ]
+   },
+   "needle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pond": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ankle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "canyon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cooler": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "marble": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pillow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "depot": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Bucket Depot Railroad Cliff Honey",
+     "Ravi: Stonecopper Banner Depo Stahl"
+    ]
+   },
+   "locker": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "mainland": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pencil": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cement": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Rate Arcement Paper Glass Butter"
+    ]
+   },
+   "junction": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "sleeve": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Rabbits leave milk and grape.",
+     "Ravi: Stream Cargo Tractor Camps Leave"
+    ]
+   },
+   "airplane": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "balloon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chrome": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Radar mouth carbon photo-crow",
+     "Heera: Soap shirt station crow marker."
+    ]
+   },
+   "cleaner": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "vault": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: shipment vault juice dish statue"
+    ]
+   },
+   "wagon": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: wagon shirt fence for cabin.",
+     "Heera: Flint had tissue wagon daisy."
+    ]
+   },
+   "frog": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Boat Frog Chest Rail Crop"
+    ]
+   },
+   "candle": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Daisy Tower Lake Candle Frog",
+     "Heera: Sophie Shouldersnake Candlemoon"
+    ]
+   },
+   "spoon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "terrace": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Bar and Terrace Fuel Builder Pocket",
+     "Heera: Tierra's Closet Short Aircraft Engine."
+    ]
+   },
+   "backyard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "marker": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "salon": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Salon ribbon sand which stone grape.",
+     "Ravi: Sophosilon protein spider pillow."
+    ]
+   },
+   "granite": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "maple": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pickup": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Jelly Lake pick-up guitar wallet.",
+     "Heera: Pick up Jelly Barn capsule mouth."
+    ]
+   },
+   "builder": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Cleaner Builder Shelter Chin Machine"
+    ]
+   },
+   "carriage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "necklace": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "porch": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Bacon porch pillow hardware chicken",
+     "Ravi: Entrance Elbow Fork Portrest"
+    ]
+   },
+   "elbow": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Elba Rail Plant, Queen Island"
+    ]
+   },
+   "gateway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "yacht": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ribbon": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Office ribbon railroad hotel desk."
+    ]
+   },
+   "sofa": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Sopha Adam Sausage Capsule Soap",
+     "Ravi: Sophosilon protein spider pillow.",
+     "Heera: Sophie Shouldersnake Candlemoon"
+    ]
+   },
+   "luggage": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Mainland luggage ship of an atom."
+    ]
+   },
+   "puppet": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Puppet Pencil Wire Airplane Carpet",
+     "Heera: Puppet wrist airplane Sugar Hill."
+    ]
+   },
+   "sausage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "wardrobe": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "stall": {
+    "heard": 0,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Basketstall Laundry Insect Moon",
+     "Desktop: Chamber Fluid Gateway Cookie Stole",
+     "Ravi: Stonecopper Banner Depo Stahl",
+     "Heera: Stahl Drum Velvet Needle Eagle"
+    ]
+   },
+   "daisy": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "drawer": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "foam": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Sauced Canyon foam marble statue"
+    ]
+   },
+   "jade": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Sand which tingied acid iron.",
+     "Heera: Powder Junction J Temple Surface"
+    ]
+   },
+   "tractor": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "flint": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "jelly": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "velvet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "worm": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dice": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Lunchdish Railroad Dyship",
+     "Desktop: Dice Truck Beard Turkey Pocket",
+     "Heera: haircut lobby bottle die screen."
+    ]
+   },
+   "insect": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: insect tree bridge spoon tent."
+    ]
+   },
+   "shipment": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Ball Compass Shipman Cave Bench",
+     "Desktop: shipment vault juice dish statue",
+     "Heera: Auto shipment workshop leather office."
+    ]
+   },
+   "turf": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Chinturf had salad gone.",
+     "Desktop: Chinterf Saddle Powder Laundry"
+    ]
+   },
+   "gown": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Chinturf had salad gone.",
+     "Desktop: Autocarbon Gown Junction footage.",
+     "Heera: Gunplate Granite tablet porch."
+    ]
+   },
+   "compass": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "falcon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "supper": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "saddle": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Saddlecandy Thumb Turf Chicken"
+    ]
+   },
+   "vine": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Taxi Backyard Cargo BathBine",
+     "Ravi: Sausage Subway exit vine workshop"
+    ]
+   },
+   "atom": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Daisy Camp Adam Hotel Farm",
+     "Desktop: Sopha Adam Sausage Capsule Soap",
+     "Ravi: Body Lake Yacht Card Atom"
+    ]
+   },
+   "calf": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Desk plate calf bench machine.",
+     "Ravi: Calf Salad Insect Cooler Platform",
+     "Heera: Grapecalfe Car Dish Vault"
+    ]
+   },
+   "capsule": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "crust": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "grape": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Heera: Grapecalfe Car Dish Vault"
+    ]
+   },
+   "gravel": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "haircut": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: haircut lobby bottle die screen."
+    ]
+   }
+  }
+ },
+ "current_run_together": {
+  "voices": [
+   "Microsoft David Desktop (rate 0)",
+   "Microsoft Zira Desktop (rate 1)",
+   "Microsoft Ravi (rate 0)",
+   "Microsoft Heera (rate 2)"
+  ],
+  "keep_at_least": 3,
+  "summary": "124/136 words heard in at least 3 of 4 trials; 495/560 word-trials recognised",
+  "words": {
+   "acorn": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "album": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Sweater Ankle Guitar Nephew Album"
+    ]
+   },
+   "ankle": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Ravi: Ocean ankle ladder indigo orchid."
+    ]
+   },
+   "anvil": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Silver Orchid Sunset and Bill Emerald."
+    ]
+   },
+   "apron": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Apronjaguar Narrow Planet Galaxy"
+    ]
+   },
+   "artist": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Ravi: Ginger Artist Noodle Radish Dinner"
+    ]
+   },
+   "attic": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Add a Quarry elbow tractor cabin."
+    ]
+   },
+   "autumn": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Ribbon Sunset Autumn Emerald Bakery",
+     "Ravi: Fabric Outfit Autumn Carpet Otter"
+    ]
+   },
+   "bakery": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "balloon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "banana": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Butter Attic Banana Artist Quarry"
+    ]
+   },
+   "basket": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "bicycle": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Lizard bicycle kayak radish velvet."
+    ]
+   },
+   "bucket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "butter": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "button": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Guitar Button Silver Eagle Yogurt"
+    ]
+   },
+   "cabin": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Anvil cabin village puzzle fiddle.",
+     "Heera: cabin orange paddle unicorn ocean."
+    ]
+   },
+   "cactus": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "carpet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cradle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dinner": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dolphin": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dragon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "eagle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "elbow": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Ginger elbow nephew utensil maple",
+     "Ravi: Planet elbow lantern meadow velvet"
+    ]
+   },
+   "elephant": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ember": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Ember Garden Squirrel Quiver Unicorn",
+     "Heera: Giraffe Vinegar Sandal Embroesis"
+    ]
+   },
+   "emerald": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "engine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "envelope": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "fabric": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: fabric dragon napkin zenith mirror"
+    ]
+   },
+   "falcon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "feather": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "fiddle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "freckle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "gadget": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "galaxy": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "garden": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ginger": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "giraffe": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "glacier": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "goblet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "guitar": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Guitar Button Silver Eagle Yogurt"
+    ]
+   },
+   "harvest": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "honey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "horizon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "hotel": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "igloo": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Iglue library button feather walnut."
+    ]
+   },
+   "indigo": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "insect": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Kitchen Insect Sunset Turtle Envil",
+     "Desktop: Cradle River insect puzzle giraffe."
+    ]
+   },
+   "jaguar": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Apronjaguar Narrow Planet Galaxy",
+     "Desktop: Shadowjaguar Orange Kitchen Dinner"
+    ]
+   },
+   "jigsaw": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "jungle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "kayak": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "kingdom": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "kitchen": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Ladder Kitchen Galaxy Kingdom Jungle."
+    ]
+   },
+   "koala": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ladder": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lagoon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lantern": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lavender": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "library": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Iglue library button feather walnut."
+    ]
+   },
+   "lizard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lumber": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Trump at lumber gadget lizard falcon"
+    ]
+   },
+   "maple": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Pebble nephew balloon kingdom Mabel"
+    ]
+   },
+   "marble": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Zebra Marvel Turtle Nectar Rainbow"
+    ]
+   },
+   "meadow": {
+    "heard": 2,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Engine Meadow Carpet album Rainbow",
+     "Ravi: Lavender Oasis Ticket Medozinif",
+     "Heera: Gadget Hotel Monkey Meadow Engine"
+    ]
+   },
+   "mirror": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Attic Mirror Indigo Outfit Mountain."
+    ]
+   },
+   "monkey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "mountain": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "muffin": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "napkin": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "narrow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "nectar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "nephew": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Pebble nephew balloon kingdom Mabel"
+    ]
+   },
+   "noodle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "nutmeg": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "oasis": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Heera: Giraffe Vinegar Sandal Embroesis"
+    ]
+   },
+   "ocean": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "olive": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Olive Teapot Pebble Otter Planet."
+    ]
+   },
+   "onion": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "orange": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "orchid": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "otter": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "outfit": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Desktop: outfit table jigsaw volcano penguin"
+    ]
+   },
+   "oyster": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Bakery Ribenoyster album Zenith."
+    ]
+   },
+   "paddle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pebble": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pencil": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "penguin": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Hankwin Acorn Rainbow Walrus Oasis"
+    ]
+   },
+   "pillow": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Hello velvet koala jaguar noodle!"
+    ]
+   },
+   "planet": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "pocket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pumpkin": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "puzzle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "quarry": {
+    "heard": 2,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Goblet Window Cori Balloon Ticket",
+     "Ravi: violin napkin quarry attic paddle.",
+     "Heera: Vanilla Quarry Library, Wagon's Enith."
+    ]
+   },
+   "quiver": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "radish": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "rainbow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ribbon": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Bakery Ribenoyster album Zenith."
+    ]
+   },
+   "river": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sandal": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "shadow": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Shadowjaguar Orange Kitchen Dinner"
+    ]
+   },
+   "silver": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Silver Trump at narrow Falcon Acorn."
+    ]
+   },
+   "spider": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Goblet spider gadget rainbow harvest."
+    ]
+   },
+   "squirrel": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Heera: Fiddle Bucket Squirrel Dragon Ribbon."
+    ]
+   },
+   "sunset": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sweater": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "table": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "teapot": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "thunder": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ticket": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "tractor": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "trumpet": {
+    "heard": 0,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Unicorn Butter Hotel Trump at Nectar",
+     "Desktop: Trump at lumber gadget lizard falcon",
+     "Ravi: Silver Trump at narrow Falcon Acorn.",
+     "Heera: Zucchini Pencil Trump at Falcon Maple."
+    ]
+   },
+   "turtle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "umbrella": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "unicorn": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "upstairs": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "utensil": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "vanilla": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "velvet": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Hello velvet koala jaguar noodle!"
+    ]
+   },
+   "village": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "vinegar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "violin": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Dragon Carpet Violin Zipper Olive",
+     "Ravi: violin napkin quarry attic paddle."
+    ]
+   },
+   "volcano": {
+    "heard": 2,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Ankle Volcano Glacier Bucket Noodle",
+     "Desktop: Freckle Window Squirrel volcano planet.",
+     "Heera: Walrus Glacier volcano nutmeg banana."
+    ]
+   },
+   "waffle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "wagon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "walnut": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "walrus": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "window": {
+    "heard": 2,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Freckle Window Squirrel volcano planet.",
+     "Desktop: Anvil Apron Freckle Window Koala",
+     "Heera: window carpet bakery horizon ticket."
+    ]
+   },
+   "yellow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "yogurt": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "zebra": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "zenith": {
+    "heard": 3,
+    "trials": 5,
+    "misheard": [
+     "Ravi: Lavender Oasis Ticket Medozinif",
+     "Heera: Vanilla Quarry Library, Wagon's Enith."
+    ]
+   },
+   "zipper": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: zipper emerald lumber pebble apron."
+    ]
+   },
+   "zucchini": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Volcano Muffin Sweater Mountains Aquini"
+    ]
+   }
+  }
+ },
+ "candidates_paused": {
+  "voices": [
+   "Microsoft David Desktop (rate 0)",
+   "Microsoft Zira Desktop (rate 1)",
+   "Microsoft Ravi (rate 0)",
+   "Microsoft Heera (rate 2)"
+  ],
+  "keep_at_least": 3,
+  "summary": "173/188 words heard in at least 3 of 4 trials; 688/760 word-trials recognised",
+  "words": {
+   "office": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Locker, office, insect, bucket, carriage."
+    ]
+   },
+   "picture": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "hospital": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "river": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "island": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "station": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: station, potato, banner, window, library"
+    ]
+   },
+   "computer": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: computer, terminal, candy, circuit, velvet",
+     "Ravi: Computer, Potato, Linen, Lever, Corator"
+    ]
+   },
+   "photo": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "hotel": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "machine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "camera": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: camera, hotel, dinner, feather, bucket",
+     "Heera: Bathroom, Camera, Pillow, Cabbage, River"
+    ]
+   },
+   "library": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Library, tractor, rabbit, warehouse, glacier",
+     "Ravi: Library, Bicycle, Mosquito, Furniture, Hotel"
+    ]
+   },
+   "airport": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "engine": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Linen, Engine, Oyster, Elephant, Volcano"
+    ]
+   },
+   "surface": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "window": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dinner": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Dinner, shipment, turkey, sandwich, ladder."
+    ]
+   },
+   "garden": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "vehicle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "mountain": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "museum": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ocean": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Ocean, Sugar, Surface, Basement, Stable"
+    ]
+   },
+   "planet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sugar": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Ocean, Sugar, Surface, Basement, Stable",
+     "Ravi: Sugar, Planet, Banner, Vehicle, Chimney"
+    ]
+   },
+   "platform": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "studio": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "apartment": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "kitchen": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: kitchen, pocket, island, panther, lantern"
+    ]
+   },
+   "aircraft": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chicken": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: chicken, spider, falcon, ocean, potato."
+    ]
+   },
+   "stadium": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: stadium, spider, factory, bacon, guitar",
+     "Heera: Stadium, Violet, Stereo, Pigeon, Chicken"
+    ]
+   },
+   "breakfast": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Supper, Breakfast, Pigeon, Candle, Balloon"
+    ]
+   },
+   "bottle": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: bottle, fabric, wallet, bacon, railway."
+    ]
+   },
+   "button": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Needle, button, machine, driveway, puppet"
+    ]
+   },
+   "turkey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "factory": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bathroom": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "motor": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tower": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cabinet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chocolate": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Chocolate, Surface, Sidewalk, Tower, Banner"
+    ]
+   },
+   "highway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "guitar": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Guitar, Lever, Comet, Rainbow, Grocery",
+     "Heera: Guitar, Pizza, Costume, Cargo, Computer."
+    ]
+   },
+   "pocket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chamber": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "circuit": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: circuit, salad, chamber, locker, marker",
+     "Ravi: Circuit, Meteor, Garage, Picture, Marker"
+    ]
+   },
+   "bedroom": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "railway": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: railway, airport, subway, basement, curtain"
+    ]
+   },
+   "temple": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pizza": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "butter": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "entrance": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "makeup": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "honey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "satellite": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "uniform": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "jacket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "railroad": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Tower, Railroad, Coconut, Landerin, Elephant"
+    ]
+   },
+   "piano": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: piano, motor, volcano, comet, mosaic."
+    ]
+   },
+   "terminal": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "candy": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "furniture": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "garage": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Garage, Sculpture, Butter, Cargo, Museum"
+    ]
+   },
+   "shelter": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "spider": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Spider, Eagle, Pigeon, Pocket, Grocery"
+    ]
+   },
+   "radar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cargo": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "basement": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "carpet": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Freeway, carpet, photo, closet, camera"
+    ]
+   },
+   "costume": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bacon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cattle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "classroom": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Comet. Terrace. Turbine. classroom"
+    ]
+   },
+   "salad": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Solid, Vinegar, Engine, Platform, Picture",
+     "Heera: Airplane, Salad, Pencil, Canyon, Lever"
+    ]
+   },
+   "wallet": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: wallet, tractor, puppy, station, garden."
+    ]
+   },
+   "workshop": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "buffalo": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "closet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "eagle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sandwich": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "banner": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "keyboard": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: keyboard, kitchen, statue, rainbow, engine."
+    ]
+   },
+   "potato": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "statue": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Wagon, Pickup, Island, Paperback, Statue"
+    ]
+   },
+   "elephant": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "fabric": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "warehouse": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "basket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bucket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cookie": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: cookie, feather, bacon, bedroom, planet"
+    ]
+   },
+   "monkey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "rainbow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "grocery": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "laundry": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Surface, laundry, railway, turbine, wardrobe"
+    ]
+   },
+   "rabbit": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Rabbit, Museum, Locker, Candle, Basement"
+    ]
+   },
+   "subway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tablet": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Heera: Tablet, radar, freeway, engine, aircraft."
+    ]
+   },
+   "collar": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Guitar, Submarine, Pencil, Color, Keyboard"
+    ]
+   },
+   "ladder": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "lobby": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "banana": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: banana, surface, suitcase, piano, luggage"
+    ]
+   },
+   "cottage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "puppy": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bicycle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "needle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "canyon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pillow": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "locker": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pencil": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "vegetable": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "airplane": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sculpture": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "balloon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "monument": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "wagon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "nursery": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "umbrella": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "candle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "coconut": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "corridor": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Cattle, Backyard, Vegetable, Corridder, Makeup",
+     "Ravi: Computer, Potato, Linen, Lever, Corator"
+    ]
+   },
+   "terrace": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Terrace, Nursery, Maple, Stadium, Radar",
+     "Ravi: Teras, River, Staple, Dinner, Falcon",
+     "Heera: Butter, Terrace, Fireplace, Rabbit, Rainbow"
+    ]
+   },
+   "backyard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "marker": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "salon": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: salon, insect, daisy, eagle, monkey",
+     "Heera: salon, daisy, furniture, collar, squirrel."
+    ]
+   },
+   "curtain": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: curtain, costume, parachute, glacier, factory"
+    ]
+   },
+   "envelope": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "maple": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Mabel, puppet, tower, cabinet, furniture"
+    ]
+   },
+   "pickup": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Pickup, Classroom, Closet, Temple, Necklace",
+     "Ravi: apartment, saddle, ocean, entrance, pick up."
+    ]
+   },
+   "carriage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "necklace": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tomato": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: tomato, coconut, compass, chicken, parachute"
+    ]
+   },
+   "violet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "gateway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ribbon": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Ribbon, Lizard, Vinegar, Cockpit, Tower"
+    ]
+   },
+   "submarine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "luggage": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Comet. Terrace. Turbine. classroom"
+    ]
+   },
+   "puppet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sausage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "wardrobe": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: wardrobe, computer, station, mosaic, keyboard"
+    ]
+   },
+   "daisy": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tractor": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "jelly": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "stereo": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "velvet": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: velvet, waterfall, railroad, garden, bedroom"
+    ]
+   },
+   "insect": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "shipment": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "volcano": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "compass": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "falcon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "supper": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "saddle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pottery": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "feather": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "squirrel": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Candle, Squirrel, Supper, Bucket, Terminal"
+    ]
+   },
+   "sidewalk": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "staple": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "sushi": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Susie, carriage, fabric, fireplace, workshop",
+     "Ravi: sushi, pocket, basket, tablet, oyster",
+     "Heera: Orchard, Susie, Cattle, Backyard, Pottery."
+    ]
+   },
+   "courtyard": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Compass, Sculpture, Cockpit, Workshop, Courtyard"
+    ]
+   },
+   "driveway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "panther": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "comet": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Comet, Backyard, Sidewalk, Rabbit, Button"
+    ]
+   },
+   "lever": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Guitar, Lever, Comet, Rainbow, Grocery",
+     "Ravi: Computer, Potato, Linen, Lever, Corator"
+    ]
+   },
+   "vinegar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "attic": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lizard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "turbine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "paperback": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: curtain, platform, honey, collar, paper back",
+     "Desktop: Paperback, Elephant, Supper, Cottage, Freeway"
+    ]
+   },
+   "freeway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lantern": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Tower, Railroad, Coconut, Landerin, Elephant"
+    ]
+   },
+   "linen": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: linen, turkey, chamber, statue, squirrel"
+    ]
+   },
+   "mosquito": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pigeon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cockpit": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "glacier": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "mosaic": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "staircase": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "orchard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "rhino": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cabbage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chimney": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "meteor": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: radar, media, pickup, cattle, envelope."
+    ]
+   },
+   "sedan": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "suitcase": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "fireplace": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "oyster": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "waterfall": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "doorway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "parachute": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   }
+  }
+ },
+ "current_paused": {
+  "voices": [
+   "Microsoft David Desktop (rate 0)",
+   "Microsoft Zira Desktop (rate 1)",
+   "Microsoft Ravi (rate 0)",
+   "Microsoft Heera (rate 2)"
+  ],
+  "keep_at_least": 3,
+  "summary": "135/136 words heard in at least 3 of 4 trials; 532/560 word-trials recognised",
+  "words": {
+   "acorn": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "album": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Indigo, Album, Mountain, Otter, Vinegar"
+    ]
+   },
+   "ankle": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Ravi: Ocean, ankle, ladder, indigo, orchid."
+    ]
+   },
+   "anvil": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "apron": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "artist": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "attic": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "autumn": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: autumn, upstairs, cactus, horizon, onion"
+    ]
+   },
+   "bakery": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "balloon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "banana": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "basket": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "bicycle": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: bicycle, hotel, cactus, koala, nectar //"
+    ]
+   },
+   "bucket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "butter": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "button": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cabin": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Attic, Quarry, Elbow, Traktor, Cabin"
+    ]
+   },
+   "cactus": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "carpet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cradle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dinner": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dolphin": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dragon": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: dragon, sandal, olive, lizard, teapot."
+    ]
+   },
+   "eagle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "elbow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "elephant": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ember": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "emerald": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "engine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "envelope": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "fabric": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Fabric, Outfit, Autumn, Carpet, Otter"
+    ]
+   },
+   "falcon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "feather": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "fiddle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "freckle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "gadget": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: gadget, ocean, basket, teapot, ember"
+    ]
+   },
+   "galaxy": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "garden": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ginger": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "giraffe": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "glacier": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "goblet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "guitar": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Guitar, Vinegar, Eagle, Engine, Jigsaw"
+    ]
+   },
+   "harvest": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "honey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "horizon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "hotel": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "igloo": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Mountain, Iglue, Marble, Thunder, Zebra"
+    ]
+   },
+   "indigo": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "insect": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Insect, Oyster, Harvest, Zipper, Basket"
+    ]
+   },
+   "jaguar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "jigsaw": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "jungle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "kayak": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "kingdom": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "kitchen": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "koala": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Anvil, Apron, Freckle, Window, Co-Alla"
+    ]
+   },
+   "ladder": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lagoon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lantern": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Ribbon, Pillow, Lantern, Bakery, Sweater"
+    ]
+   },
+   "lavender": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "library": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lizard": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: lizard, vicycle, kayak, radish, velvet"
+    ]
+   },
+   "lumber": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "maple": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Pebble, Nephew, Balloon, Kingdom, Mabel",
+     "Heera: Zucchini, Pencil, Trumpet, Falcon, Mabel."
+    ]
+   },
+   "marble": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "meadow": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "mirror": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "monkey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "mountain": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "muffin": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "napkin": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "narrow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "nectar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "nephew": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "noodle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "nutmeg": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "oasis": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "ocean": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "olive": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: olive, teapot, pebble, otter, planet."
+    ]
+   },
+   "onion": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Onion, Zebra, Butter, Nephew, Pillow"
+    ]
+   },
+   "orange": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "orchid": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "otter": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "outfit": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "oyster": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "paddle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pebble": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pencil": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "penguin": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pillow": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: pillow, velvet, koala, jaguar, noodle. //"
+    ]
+   },
+   "planet": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "pocket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pumpkin": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "puzzle": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Puzzle, Cradle, Orchid, Zebra, Sandal."
+    ]
+   },
+   "quarry": {
+    "heard": 3,
+    "trials": 5,
+    "misheard": [
+     "Ravi: Violin, napkin, cori, attic, paddle.",
+     "Heera: Vanilla, Corey, Library, Wagon, Zenith."
+    ]
+   },
+   "quiver": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "radish": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "rainbow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ribbon": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: ribbon, sunset, autumn, emerald, bakery."
+    ]
+   },
+   "river": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sandal": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "shadow": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Shadow, Jaguar, Orange, Kitchen, Dinner"
+    ]
+   },
+   "silver": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Silver, Trumpet, Narrow, Falcon, Acorn"
+    ]
+   },
+   "spider": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Goblet, Spider, Gadget, Rainbow, Harvest"
+    ]
+   },
+   "squirrel": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "sunset": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sweater": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "table": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "teapot": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "thunder": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ticket": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "tractor": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Spider, tractor, kingdom, emerald, pebble"
+    ]
+   },
+   "trumpet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "turtle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "umbrella": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "unicorn": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "upstairs": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "utensil": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "vanilla": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "velvet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "village": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "vinegar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "violin": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "volcano": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "waffle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "wagon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "walnut": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "walrus": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "window": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Goblet, Window, Quarry, Balloon, Ticket"
+    ]
+   },
+   "yellow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "yogurt": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "zebra": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "zenith": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "zipper": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "zucchini": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   }
+  }
+ },
+ "candidates_run_together": {
+  "voices": [
+   "Microsoft David Desktop (rate 0)",
+   "Microsoft Zira Desktop (rate 1)",
+   "Microsoft Ravi (rate 0)",
+   "Microsoft Heera (rate 2)"
+  ],
+  "keep_at_least": 3,
+  "summary": "166/188 words heard in at least 3 of 4 trials; 671/760 word-trials recognised",
+  "words": {
+   "office": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "picture": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "hospital": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "river": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "island": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "station": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "computer": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "photo": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "hotel": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Breakfast furniture Hotel Banana Submarine"
+    ]
+   },
+   "machine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "camera": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Bathroom Camera Pillow Cabbage River"
+    ]
+   },
+   "library": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Library tractor rabbit warehouse glacier.",
+     "Ravi: Library Bicycle Mosquito Furniture Hotel"
+    ]
+   },
+   "airport": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "engine": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Linen and Genoister elephant volcano."
+    ]
+   },
+   "surface": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Chocolate Surface Sidewalk Tower Banner",
+     "Ravi: Banana Surface Suitcase piano luggage."
+    ]
+   },
+   "window": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "dinner": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "garden": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "vehicle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "mountain": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "museum": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ocean": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "planet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sugar": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Bathroom Sugar Courtyard Chimney Pigeon"
+    ]
+   },
+   "platform": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Curtain Platform Honey Collar Paperback"
+    ]
+   },
+   "studio": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "apartment": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "kitchen": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "aircraft": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chicken": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "stadium": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "breakfast": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Supper Breakfast Pigeon Candle Balloon"
+    ]
+   },
+   "bottle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "button": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "turkey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "factory": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bathroom": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "motor": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tower": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cabinet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chocolate": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "highway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "guitar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pocket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chamber": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "circuit": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bedroom": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "railway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "temple": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pizza": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Airport Butter Pizza Temple Mountain."
+    ]
+   },
+   "butter": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "entrance": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "makeup": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "honey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "satellite": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Falcon Machine Chimney Satellite Stable"
+    ]
+   },
+   "uniform": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "jacket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "railroad": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "piano": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Banana Surface Suitcase piano luggage.",
+     "Heera: piano motor volcano comet Mosaic."
+    ]
+   },
+   "terminal": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "candy": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "furniture": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "garage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "shelter": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "spider": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Waterfall Falcon Suitcase Spider Corridor."
+    ]
+   },
+   "radar": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Terrace Nursery Maple Stadium radar.",
+     "Heera: Tablet Rate Our Freeway Engine Aircraft"
+    ]
+   },
+   "cargo": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "basement": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "carpet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "costume": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Guitar Pizza Costume Cargo Computer"
+    ]
+   },
+   "bacon": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Bottle fabric wallet they can railway.",
+     "Heera: Satellite basement kitchen chamber biggin. //"
+    ]
+   },
+   "cattle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "classroom": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "salad": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Salad Vinegar Engine Platform Picture"
+    ]
+   },
+   "wallet": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Jacket Court Yard Puppy Wall at Volcano",
+     "Heera: wallet tractor puppy station garden."
+    ]
+   },
+   "workshop": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "buffalo": {
+    "heard": 4,
+    "trials": 5,
+    "misheard": [
+     "Heera: Tomato Panther driveway picture Buffalo."
+    ]
+   },
+   "closet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "eagle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sandwich": {
+    "heard": 2,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Camera aircraft send which railroad ribbon.",
+     "Desktop: Dinner shipment Turkey send which latter.",
+     "Ravi: Fireplace Collar Studio Sand, which Rhino."
+    ]
+   },
+   "banner": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Chocolate Surface Sidewalk Tower Banner"
+    ]
+   },
+   "keyboard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "potato": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Computer Potato Lin and Lever Corator",
+     "Heera: Parachute Potato Carpet Ship in Factory"
+    ]
+   },
+   "statue": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "elephant": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Linen and Genoister elephant volcano."
+    ]
+   },
+   "fabric": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "warehouse": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "basket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bucket": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cookie": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Cookie Feather Bacon Bedroom Planet",
+     "Heera: Studio Sidewalk Vehicle Pocket Cooking"
+    ]
+   },
+   "monkey": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "rainbow": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "grocery": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Buffalo Grocery Carriage Elephant Pencil"
+    ]
+   },
+   "laundry": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "rabbit": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Rabbit Museum Locker Candle Basement"
+    ]
+   },
+   "subway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "tablet": {
+    "heard": 3,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Motor Tablet Office Button Umbrella",
+     "Ravi: Daisy Pottery Candy Buffalo tablet."
+    ]
+   },
+   "collar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ladder": {
+    "heard": 3,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Dinner shipment Turkey send which latter.",
+     "Heera: Doorway luggage Jelly Hospital ladder."
+    ]
+   },
+   "lobby": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "banana": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cottage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "puppy": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "bicycle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "needle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "canyon": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Station Kenyon Honey Satellite Motor"
+    ]
+   },
+   "pillow": {
+    "heard": 5,
+    "trials": 5,
+    "misheard": []
+   },
+   "locker": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pencil": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "vegetable": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "airplane": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "sculpture": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "balloon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "monument": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "wagon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "nursery": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "umbrella": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "candle": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Lizard Garage Candle Vinegar Entrance"
+    ]
+   },
+   "coconut": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Shelter Coconut Puppy Highway Tractor",
+     "Ravi: Tomato Coconut Compass Chicken Parachute"
+    ]
+   },
+   "corridor": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Cattle Backyard Vegetable Corridder Makeup",
+     "Ravi: Computer Potato Lin and Lever Corator",
+     "Heera: Waterfall Falcon Suitcase Spider Corridor."
+    ]
+   },
+   "terrace": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Butter Terrace Fireplace Rabbit Rainbow"
+    ]
+   },
+   "backyard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "marker": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "salon": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Ceylon insect Daisy Eagle Monkey",
+     "Heera: Salon Daisy Furniture Collar Squirrel"
+    ]
+   },
+   "curtain": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "envelope": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: and below keyboard submarine makeup hotel."
+    ]
+   },
+   "maple": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pickup": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Pick up classroom closet temple necklace.",
+     "Ravi: Apartment Saddle Ocean entrance pick up."
+    ]
+   },
+   "carriage": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Sucy Carriage Fabric Fireplace Workshop"
+    ]
+   },
+   "necklace": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Circuit Shelter necklace lobby warehouse. // //"
+    ]
+   },
+   "tomato": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "violet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "gateway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "ribbon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "submarine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "luggage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "puppet": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Maple Puppet Tower Cabinet Furniture",
+     "Ravi: Puppet Landerin Cattle Feather Warehouse",
+     "Heera: Puppet Basket Bicycle Supper Fabric"
+    ]
+   },
+   "sausage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "wardrobe": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "daisy": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Salon Daisy Furniture Collar Squirrel"
+    ]
+   },
+   "tractor": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "jelly": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "stereo": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Wagon stereo office cabinet island.",
+     "Heera: Stadium Violet stereo pigeon chicken. //"
+    ]
+   },
+   "velvet": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "insect": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "shipment": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Parachute Potato Carpet Ship in Factory"
+    ]
+   },
+   "volcano": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "compass": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Compass Sculpture Cockpit Workshop Courtyard"
+    ]
+   },
+   "falcon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "supper": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: paperback elephant supper cottage freeway."
+    ]
+   },
+   "saddle": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pottery": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "feather": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Cookie Feather Bacon Bedroom Planet"
+    ]
+   },
+   "squirrel": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Candle Squirrel Supper Bucket Terminal",
+     "Desktop: Linen Turkey Chamber Statues Quirl",
+     "Ravi: Locker Squirrel Sculpture Mosaic Uniform"
+    ]
+   },
+   "sidewalk": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "staple": {
+    "heard": 3,
+    "trials": 5,
+    "misheard": [
+     "Desktop: Office staple airplane lobby photo.",
+     "Ravi: Terrace River Staple Dinner Falcon."
+    ]
+   },
+   "sushi": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Sucy Carriage Fabric Fireplace Workshop",
+     "Ravi: Sushi Pocket Basket Tablet Oyster",
+     "Heera: Orchard Sousie Cattle Backyard Pottery."
+    ]
+   },
+   "courtyard": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Bathroom Sugar Courtyard Chimney Pigeon",
+     "Ravi: Jacket Court Yard Puppy Wall at Volcano"
+    ]
+   },
+   "driveway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "panther": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "comet": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Guitar lever Comet Rainbow Grocery",
+     "Ravi: Comment Backyard Sidewalk Rabbit Button."
+    ]
+   },
+   "lever": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Guitar lever Comet Rainbow Grocery",
+     "Desktop: Sidewalk Monkey Lever Sushi Pillow",
+     "Heera: Airplane Salad Pencil Canyon Lever"
+    ]
+   },
+   "vinegar": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "attic": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Add a cottage sedan tractor wardrobe."
+    ]
+   },
+   "lizard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "turbine": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "paperback": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Wagon Pickup Island paperback statue."
+    ]
+   },
+   "freeway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "lantern": {
+    "heard": 2,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Puppet Landerin Cattle Feather Warehouse",
+     "Heera: Tower Railroad Coconut Lantern Elephant."
+    ]
+   },
+   "linen": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Ravi: Computer Potato Lin and Lever Corator"
+    ]
+   },
+   "mosquito": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "pigeon": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cockpit": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "glacier": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "mosaic": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "staircase": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "orchard": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "rhino": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "cabbage": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "chimney": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "meteor": {
+    "heard": 1,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Meteor doorway costume saddle picture",
+     "Desktop: Radar Media Pickup Cattle envelope",
+     "Heera: Uniform saddle meatier curtain glacier. //"
+    ]
+   },
+   "sedan": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Heera: Button bedroom linens it and dinner."
+    ]
+   },
+   "suitcase": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "fireplace": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "oyster": {
+    "heard": 3,
+    "trials": 4,
+    "misheard": [
+     "Desktop: Linen and Genoister elephant volcano."
+    ]
+   },
+   "waterfall": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "doorway": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   },
+   "parachute": {
+    "heard": 4,
+    "trials": 4,
+    "misheard": []
+   }
+  }
+ }
+}

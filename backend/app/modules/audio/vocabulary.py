@@ -1,42 +1,49 @@
 """
 The word pool the 5-word verbal challenge is drawn from (`POST /sessions`).
 
-Why a curated pool: challenge entropy is what resists replay and scripted attacks, and a small
-vocabulary of acoustically distinct words keeps the speech recognizer near its best accuracy.
-The pool was generated once from the CMU Pronouncing Dictionary and committed as this constant:
-every word has no homophone anywhere in that dictionary, at least two syllables, is not a
-number word (Whisper may transcribe those as digits) or unsuitable to show a user, differs from
-every other word by at least 2 phonemes, and is spelled differently enough (similarity < 0.7)
-that the phrase check can never confuse two pool words. The generator is not kept: the planned
-common-word challenge will need a new pool built from scratch (it is in git history at tag
-`pre-solo-reset`). `tests/test_challenge_vocabulary.py` checks the properties that matter.
+Why a curated pool: a person says the words with nothing around them, so the speech recognizer has
+no sentence to lean on, and rare nouns are exactly what it hears worst ("lantern" became "Lenton").
+This pool holds 156 common, everyday (5-9 letters, 2-3 syllables) words, chosen by
+`tools/build_vocabulary.py` from wordfreq, the CMU Pronouncing Dictionary and WordNet. Each word is a
+thing most people know at a glance, has no homophone anywhere in the CMU Pronouncing Dictionary, is not
+a number word or on the tool's blocklist, differs from every other word by at least 2 phonemes and is
+spelled differently enough (similarity under 0.7) that the phrase check can never take one pool word
+for another. 187 candidates were spoken by four Windows voices (two US, two Indian-English), with
+and without pauses between the words, through the real phrase check; only words heard in at least 3 of
+4 trials in both styles were kept. That screen is a proxy (clean synthetic speech): the human pilot
+recordings decide whether the pool or the recognizer needs more. The properties are checked by
+`tests/test_challenge_vocabulary.py`; the evidence is `eval/vocabulary_screening.json`.
+Entropy: 5 words in order from 156 are 36.4 bits, enough against a pre-recorded phrase. It is not what
+stops a live synthetic voice (the words are on screen for 8 s); the challenge protocol does that work.
 """
 from typing import List
 
-# 136 words covering 25 letters.
+# 156 words covering 22 letters.
 CHALLENGE_VOCABULARY: List[str] = [
-    "acorn", "album", "ankle", "anvil", "apron", "artist",
-    "attic", "autumn", "bakery", "balloon", "banana", "basket",
-    "bicycle", "bucket", "butter", "button", "cabin", "cactus",
-    "carpet", "cradle", "dinner", "dolphin", "dragon", "eagle",
-    "elbow", "elephant", "ember", "emerald", "engine", "envelope",
-    "fabric", "falcon", "feather", "fiddle", "freckle", "gadget",
-    "galaxy", "garden", "ginger", "giraffe", "glacier", "goblet",
-    "guitar", "harvest", "honey", "horizon", "hotel", "igloo",
-    "indigo", "insect", "jaguar", "jigsaw", "jungle", "kayak",
-    "kingdom", "kitchen", "koala", "ladder", "lagoon", "lantern",
-    "lavender", "library", "lizard", "lumber", "maple", "marble",
-    "meadow", "mirror", "monkey", "mountain", "muffin", "napkin",
-    "narrow", "nectar", "nephew", "noodle", "nutmeg", "oasis",
-    "ocean", "olive", "onion", "orange", "orchid", "otter",
-    "outfit", "oyster", "paddle", "pebble", "pencil", "penguin",
-    "pillow", "planet", "pocket", "pumpkin", "puzzle", "quarry",
-    "quiver", "radish", "rainbow", "ribbon", "river", "sandal",
-    "shadow", "silver", "spider", "squirrel", "sunset", "sweater",
-    "table", "teapot", "thunder", "ticket", "tractor", "trumpet",
-    "turtle", "umbrella", "unicorn", "upstairs", "utensil", "vanilla",
-    "velvet", "village", "vinegar", "violin", "volcano", "waffle",
-    "wagon", "walnut", "walrus", "window", "yellow", "yogurt",
-    "zebra", "zenith", "zipper", "zucchini",
+    "aircraft", "airplane", "airport", "apartment", "attic", "backyard",
+    "balloon", "banana", "banner", "basement", "basket", "bathroom",
+    "bedroom", "bicycle", "bottle", "breakfast", "bucket", "buffalo",
+    "butter", "button", "cabinet", "candle", "candy", "canyon",
+    "cargo", "carpet", "carriage", "cattle", "chamber", "chicken",
+    "chimney", "chocolate", "classroom", "closet", "cockpit", "collar",
+    "compass", "costume", "cottage", "curtain", "daisy", "dinner",
+    "doorway", "driveway", "eagle", "elephant", "engine", "entrance",
+    "envelope", "fabric", "factory", "falcon", "feather", "fireplace",
+    "freeway", "furniture", "garage", "garden", "gateway", "glacier",
+    "grocery", "highway", "honey", "hospital", "hotel", "insect",
+    "island", "jacket", "jelly", "keyboard", "kitchen", "ladder",
+    "laundry", "linen", "lizard", "lobby", "locker", "luggage",
+    "machine", "makeup", "maple", "marker", "monkey", "monument",
+    "mosaic", "mosquito", "motor", "mountain", "museum", "necklace",
+    "needle", "nursery", "ocean", "office", "orchard", "oyster",
+    "panther", "parachute", "pencil", "photo", "picture", "pigeon",
+    "pillow", "pizza", "planet", "platform", "pocket", "pottery",
+    "puppy", "rabbit", "railroad", "railway", "rainbow", "rhino",
+    "ribbon", "river", "saddle", "satellite", "sausage", "sculpture",
+    "sedan", "shelter", "shipment", "sidewalk", "spider", "staircase",
+    "staple", "station", "statue", "studio", "submarine", "subway",
+    "suitcase", "supper", "tablet", "temple", "terminal", "tomato",
+    "tower", "tractor", "turbine", "turkey", "umbrella", "uniform",
+    "vegetable", "vehicle", "velvet", "vinegar", "violet", "volcano",
+    "wagon", "wardrobe", "warehouse", "waterfall", "window", "workshop",
 ]
-
