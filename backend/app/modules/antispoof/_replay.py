@@ -14,7 +14,7 @@ weighted and combined into one 0.0-1.0 score:
                                       range and clip at the extremes compared to natural,
                                       ambient-lit footage.
 
-Threshold: pass if combined score >= REPLAY_PASS_THRESHOLD (0.45).
+Threshold: pass if combined score >= REPLAY_PASS_THRESHOLD (0.40).
 
 **Calibration status: [UNCALIBRATED].** These are real computations over real frames - nothing
 here is a fabricated number - but every threshold and weight below (the ring radii,
@@ -36,7 +36,7 @@ MOIRE_WEIGHT = 0.55
 NOISE_WEIGHT = 0.30
 BRIGHTNESS_WEIGHT = 0.15
 
-REPLAY_PASS_THRESHOLD = 0.45
+REPLAY_PASS_THRESHOLD = 0.40
 
 # --- moire (FFT) ---------------------------------------------------------------
 # Ring around the spectrum center, excluding the low-frequency content that carries the
