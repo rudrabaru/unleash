@@ -43,7 +43,7 @@ export const VISUAL_CUE_DETAIL = "Hold it for a moment, then come back to the ce
 // What each phase asks, in the words the person reads and a screen reader announces.
 export const PHASE_GUIDANCE: Record<PhaseName, { heading: string; announce: string }> = {
   read: { heading: "Read these five words", announce: "Read the five words. Face the camera and keep still." },
-  speak: { heading: "Say them now, in order", announce: "Say the five words now, in order." },
+  speak: { heading: "Say them now, in order, one at a time", announce: "Say the five words now, in order, one at a time with a short pause between them." },
   act: { heading: "Now the movement", announce: "The words are gone. Do the movement shown, hold it, then return to the centre." },
 };
 
