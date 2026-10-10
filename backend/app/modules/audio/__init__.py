@@ -159,7 +159,7 @@ def _run_checks(prepared: _Prepared, challenge_phrase: str, lip_openness_data) -
     if speech.error is not None:
         return speech
     if not speech.passed:
-        return DetectorResult(score=None, passed=False, reason=speech.reason, error=None, details=speech.details)
+        return speech
 
     phrase, phrase_seconds = _timed(run_phrase_compliance, prepared.wav_path, challenge_phrase)
     phrase.details = {**(phrase.details or {}), "phrase_check_latency_seconds": phrase_seconds}

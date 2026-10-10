@@ -7,6 +7,7 @@ instead of decoding the video itself, and switched to IMAGE running mode since
 sampled frames are not temporally contiguous.
 """
 import math
+import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -29,22 +30,25 @@ FACE_TOP, FACE_CHIN = 10, 152
 EAR_BLINK_THRESHOLD = 0.20
 
 _landmarker_singleton = None
+_landmarker_lock = threading.Lock()
 
 
 def _get_landmarker():
     global _landmarker_singleton
     if _landmarker_singleton is None:
-        options = mp_vision.FaceLandmarkerOptions(
-            base_options=mp_python.BaseOptions(model_asset_path=str(MODEL_PATH)),
-            running_mode=mp_vision.RunningMode.IMAGE,
-            num_faces=1,
-            output_face_blendshapes=False,
-            output_facial_transformation_matrixes=True,
-            min_face_detection_confidence=0.5,
-            min_face_presence_confidence=0.5,
-            min_tracking_confidence=0.5,
-        )
-        _landmarker_singleton = mp_vision.FaceLandmarker.create_from_options(options)
+        with _landmarker_lock:
+            if _landmarker_singleton is None:
+                options = mp_vision.FaceLandmarkerOptions(
+                    base_options=mp_python.BaseOptions(model_asset_path=str(MODEL_PATH)),
+                    running_mode=mp_vision.RunningMode.IMAGE,
+                    num_faces=1,
+                    output_face_blendshapes=False,
+                    output_facial_transformation_matrixes=True,
+                    min_face_detection_confidence=0.5,
+                    min_face_presence_confidence=0.5,
+                    min_tracking_confidence=0.5,
+                )
+                _landmarker_singleton = mp_vision.FaceLandmarker.create_from_options(options)
     return _landmarker_singleton
 
 
@@ -101,8 +105,8 @@ def extract_landmark_features(
 
         if result.face_landmarks:
             _fill_face_metrics(entry, result.face_landmarks[0], frame_rgb.shape[:2])
-        if result.facial_transformation_matrixes:
-            entry["yaw"], entry["pitch"] = _rotation_matrix_to_euler(result.facial_transformation_matrixes[0])
+            if result.facial_transformation_matrixes:
+                entry["yaw"], entry["pitch"] = _rotation_matrix_to_euler(result.facial_transformation_matrixes[0])
         frame_data.append(entry)
 
     return {"frames": frame_data, "error": None}
