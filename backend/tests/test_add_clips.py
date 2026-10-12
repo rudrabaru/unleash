@@ -38,3 +38,18 @@ def test_adds_copies_and_does_not_duplicate(tmp_path):
     assert all(clip["protocol"] is True for clip in clips)  # recorder clips are judged against the windows
     assert len(clips) == 1
     assert clips[0]["kind"] == "genuine" and clips[0]["phrase"] == "paddle envelope carpet dolphin quarry"
+
+
+def test_keeps_the_strata_fields_and_the_content_hash(tmp_path):
+    import hashlib
+
+    source = tmp_path / "downloads"
+    source.mkdir()
+    (source / GOOD).write_bytes(b"abc")
+    manifest = tmp_path / "calibration.json"
+    add_clips([source], "audio_replay", "loudspeaker", manifest, tmp_path / "recordings", speaker="B", device="phone webcam",
+              lighting="dim", browser="Chrome 130")
+    clip = json.loads(manifest.read_text(encoding="utf-8"))["clips"][0]
+    assert clip["kind"] == "audio_replay" and clip["speaker"] == "B" and clip["device"] == "phone webcam"
+    assert clip["lighting"] == "dim" and clip["browser"] == "Chrome 130"
+    assert clip["sha256"] == hashlib.sha256(b"abc").hexdigest()

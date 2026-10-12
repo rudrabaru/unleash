@@ -66,6 +66,9 @@ cp .env.example .env
 uvicorn app.main:app --reload --port 8000  # health: /health, docs: /docs
 python -m pytest tests -q                  # needs ffmpeg on PATH
 python tools/measure_clips.py              # score every clip in eval/manifest.json
+python tools/trial_plan.py                 # calibration checklist: clips recorded vs still missing
+python tools/dump_features.py              # analyse eval/calibration.json once into eval/features.jsonl
+python tools/eval_report.py                # counts, intervals and the per-signal rule from that file
 ```
 
 Module demo (development only): `POST /api/v1/verify` in `/docs` with a recording, the visual action and the 5 words returns every detector's result, the verdict and timings. Frontend: `cd frontend && npm install && cp .env.example .env.local && npm run dev` (http://localhost:3000). Before any integration test, confirm the server answers `/health`.

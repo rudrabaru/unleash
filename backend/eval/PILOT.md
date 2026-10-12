@@ -21,7 +21,9 @@ Then, from `backend/`:
 .venv\Scripts\python.exe tools/measure_clips.py --manifest eval/calibration.json --json eval/pilot_results.json
 ```
 
-(`--speaker` and `--device` matter: the calibration is validated one speaker at a time.) Send me `eval/pilot_results.json`, or just say it is there; it contains no faces or voices (scores, counts and codes only).
+(`--speaker` and `--device` matter: the calibration is validated one speaker at a time; add `--lighting dim` or `front light` and `--browser` when they differ.) Send me `eval/pilot_results.json`, or just say it is there; it contains no faces or voices (scores, counts and codes only).
+
+To see what is still missing at any time: `.venv\Scripts\python.exe tools/trial_plan.py`. When clips are in, `tools/dump_features.py --manifest eval/calibration.json` analyses each one once into `eval/features.jsonl` (no faces or voices, and no words), and `tools/eval_report.py` turns that into counts, intervals and the per-signal check.
 
 ## 3. What the pilot decides
 - the **window guard** (0.4 s) and the **speaking allowance** (0.7 s), from where words and movements really fall against the windows;
@@ -30,4 +32,4 @@ Then, from `backend/`:
 - whether five seconds of Speak is enough for a normal-paced read of five words.
 
 ## 4. Later: attacks (the calibration campaign)
-Phone or monitor replay of a genuine take, a printed or on-screen photo with a live voice, a synthetic voice over a live face, wrong words, silence, wrong direction and no movement, recorded through the same recorder and added with the matching `--kind`. The plan and the numbers are in `V1_RELEASE_PLAN.md` (P2).
+Phone or monitor replay of a genuine take, a printed or on-screen photo with a live voice, a synthetic voice over a live face, wrong words, silence, wrong direction and no movement, recorded through the same recorder and added with the matching `--kind` (`trial_plan.py` lists the kinds, how many of each, and how to make them). The plan and the numbers are in `V1_RELEASE_PLAN.md` (P2).

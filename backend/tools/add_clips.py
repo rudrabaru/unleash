@@ -8,19 +8,23 @@ Measure them with:  python tools/measure_clips.py --manifest eval/calibration.js
 
 Every clip is listed with "protocol": true: a recorder clip follows the read/speak/act protocol, so
 measure_clips judges it against the windows, as a session does. `--speaker` and `--device` are kept
-with each clip because the calibration is only meaningful per speaker and per camera.
+with each clip because the calibration is only meaningful per speaker and per camera; `--lighting` and
+`--browser` do the same for the strata of the evaluation. Each clip also gets its content hash.
+After adding: `python tools/trial_plan.py` shows what is still missing, `python tools/dump_features.py`
+analyses the clips once, `python tools/eval_report.py` reports.
 
 Usage (from backend/):
     .venv\\Scripts\\python.exe tools/add_clips.py D:\\Downloads --kind genuine --speaker A --device laptop --performed "front light"
     .venv\\Scripts\\python.exe tools/add_clips.py clip-LOOK_UP-a_b_c_d_e-1.webm --kind replay --performed "phone screen"
 
 `--kind` is what the clip is, not what you expect the system to say: genuine, replay, photo,
-synthetic_voice, wrong_phrase, silence, wrong_direction. For wrong_phrase and silence the file
+synthetic_voice, audio_replay, face_swap, wrong_phrase, silence, wrong_direction, no_action. For wrong_phrase and silence the file
 name still carries the words the session asked for, which is what the check is measured against.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -32,7 +36,7 @@ BACKEND = Path(__file__).resolve().parent.parent
 RECORDINGS = BACKEND / "eval" / "recordings"
 CALIBRATION_MANIFEST = BACKEND / "eval" / "calibration.json"
 
-KINDS = ("genuine", "replay", "photo", "synthetic_voice", "wrong_phrase", "silence", "wrong_direction")
+KINDS = ("genuine", "replay", "photo", "synthetic_voice", "audio_replay", "face_swap", "wrong_phrase", "silence", "wrong_direction", "no_action")
 ACTIONS = ("TURN_HEAD_LEFT", "TURN_HEAD_RIGHT", "LOOK_UP", "LOOK_DOWN", "BLINK_TWICE")
 _NAME = re.compile(r"^clip-(?P<action>[A-Z_]+)-(?P<words>[A-Za-z]+(?:_[A-Za-z]+){4})-(?P<stamp>\d+)\.webm$")
 
@@ -53,7 +57,8 @@ def _find_clips(sources: List[Path]) -> List[Path]:
 
 
 def add_clips(sources: List[Path], kind: str, performed: str, manifest_path: Path = CALIBRATION_MANIFEST,
-              recordings_dir: Path = RECORDINGS, speaker: str = "", device: str = "") -> Dict[str, List[str]]:
+              recordings_dir: Path = RECORDINGS, speaker: str = "", device: str = "", lighting: str = "",
+              browser: str = "") -> Dict[str, List[str]]:
     manifest: Dict[str, Any] = (
         json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest_path.exists()
@@ -81,6 +86,9 @@ def add_clips(sources: List[Path], kind: str, performed: str, manifest_path: Pat
             "protocol": True,
             **({"speaker": speaker} if speaker else {}),
             **({"device": device} if device else {}),
+            **({"lighting": lighting} if lighting else {}),
+            **({"browser": browser} if browser else {}),
+            "sha256": hashlib.sha256(destination.read_bytes()).hexdigest(),
             **parsed,
         })
         known.add(clip.name)
@@ -97,10 +105,13 @@ def main() -> int:
     parser.add_argument("--kind", required=True, choices=KINDS)
     parser.add_argument("--performed", default="", help="a short note: lighting, how the attack was made")
     parser.add_argument("--speaker", default="", help="who is in the clip (a letter or name; the calibration is leave-one-speaker-out)")
-    parser.add_argument("--device", default="", help="the camera and browser used, e.g. 'laptop webcam, Chrome'")
+    parser.add_argument("--device", default="", help="the camera used, e.g. 'laptop webcam' (strata of the evaluation)")
+    parser.add_argument("--lighting", default="", help="e.g. 'front light' or 'dim' (strata of the evaluation)")
+    parser.add_argument("--browser", default="", help="e.g. 'Chrome 130'")
     args = parser.parse_args()
 
-    report = add_clips(args.sources, args.kind, args.performed, speaker=args.speaker, device=args.device)
+    report = add_clips(args.sources, args.kind, args.performed, speaker=args.speaker, device=args.device,
+                       lighting=args.lighting, browser=args.browser)
     for label, names in report.items():
         for name in names:
             print(f"{label.replace('_', ' ')}: {name}")
