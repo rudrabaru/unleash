@@ -112,7 +112,11 @@ export function useRecorder() {
       setLevel(Math.min(100, Math.round(Math.sqrt(sum / samples.length) * 400)));
 
       if (drawing && probe.videoWidth > 0 && tick++ % 5 === 0) {
-        drawing.drawImage(probe, 0, 0, canvas.width, canvas.height);
+        // Only the middle of the picture, where the face is: a phone camera used as a webcam sends black bars
+        // at the sides, and the whole frame would read as too dark.
+        const w = probe.videoWidth;
+        const h = probe.videoHeight;
+        drawing.drawImage(probe, w * 0.3, h * 0.15, w * 0.4, h * 0.7, 0, 0, canvas.width, canvas.height);
         const pixels = drawing.getImageData(0, 0, canvas.width, canvas.height).data;
         let total = 0;
         for (let i = 0; i < pixels.length; i += 4) total += 0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2];
