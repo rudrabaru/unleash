@@ -1,0 +1,940 @@
+{
+ "rules": "(the phrase check hears isolated words with no sentence around them, so the words\nthemselves must be easy):\n\n  * common (wordfreq Zipf frequency of at least 3.5), 5-9 letters and 2-3 syllables (a one-syllable\n    word is too little sound for a recogniser with no sentence around it: 71% of trials against\n    85% for two syllables in the first screen);\n  * an everyday thing as the main meaning (WordNet: animal, artifact, food, plant, natural object),\n    a plain base form (not a plural or an -ing form), mostly used as a noun, and not a\n    proper noun (WordNet writes those with a capital), so people can read it at a glance;\n  * no homophone anywhere in the CMU Pronouncing Dictionary (\"pair\"/\"pear\" would be scored by luck);\n  * no number words and nothing from the blocklist below;\n  * words differ from each other by at least 2 phonemes, and are spelled differently enough that the\n    phrase check can never take one pool word for another (similarity under 0.7, the same\n    properties as the earlier pool).",
+ "candidates": [
+  {
+   "word": "office",
+   "zipf": 5.4,
+   "syllables": 2
+  },
+  {
+   "word": "picture",
+   "zipf": 5.13,
+   "syllables": 2
+  },
+  {
+   "word": "hospital",
+   "zipf": 5.07,
+   "syllables": 3
+  },
+  {
+   "word": "river",
+   "zipf": 5.03,
+   "syllables": 2
+  },
+  {
+   "word": "island",
+   "zipf": 5.01,
+   "syllables": 2
+  },
+  {
+   "word": "station",
+   "zipf": 5.01,
+   "syllables": 2
+  },
+  {
+   "word": "computer",
+   "zipf": 4.97,
+   "syllables": 3
+  },
+  {
+   "word": "photo",
+   "zipf": 4.97,
+   "syllables": 2
+  },
+  {
+   "word": "hotel",
+   "zipf": 4.95,
+   "syllables": 2
+  },
+  {
+   "word": "machine",
+   "zipf": 4.9,
+   "syllables": 2
+  },
+  {
+   "word": "camera",
+   "zipf": 4.87,
+   "syllables": 3
+  },
+  {
+   "word": "library",
+   "zipf": 4.86,
+   "syllables": 3
+  },
+  {
+   "word": "airport",
+   "zipf": 4.84,
+   "syllables": 2
+  },
+  {
+   "word": "engine",
+   "zipf": 4.84,
+   "syllables": 2
+  },
+  {
+   "word": "surface",
+   "zipf": 4.83,
+   "syllables": 2
+  },
+  {
+   "word": "window",
+   "zipf": 4.8,
+   "syllables": 2
+  },
+  {
+   "word": "dinner",
+   "zipf": 4.78,
+   "syllables": 2
+  },
+  {
+   "word": "garden",
+   "zipf": 4.77,
+   "syllables": 2
+  },
+  {
+   "word": "vehicle",
+   "zipf": 4.76,
+   "syllables": 3
+  },
+  {
+   "word": "mountain",
+   "zipf": 4.73,
+   "syllables": 2
+  },
+  {
+   "word": "museum",
+   "zipf": 4.71,
+   "syllables": 3
+  },
+  {
+   "word": "ocean",
+   "zipf": 4.7,
+   "syllables": 2
+  },
+  {
+   "word": "planet",
+   "zipf": 4.68,
+   "syllables": 2
+  },
+  {
+   "word": "sugar",
+   "zipf": 4.68,
+   "syllables": 2
+  },
+  {
+   "word": "platform",
+   "zipf": 4.67,
+   "syllables": 2
+  },
+  {
+   "word": "studio",
+   "zipf": 4.66,
+   "syllables": 3
+  },
+  {
+   "word": "apartment",
+   "zipf": 4.65,
+   "syllables": 3
+  },
+  {
+   "word": "kitchen",
+   "zipf": 4.65,
+   "syllables": 2
+  },
+  {
+   "word": "aircraft",
+   "zipf": 4.64,
+   "syllables": 2
+  },
+  {
+   "word": "chicken",
+   "zipf": 4.63,
+   "syllables": 2
+  },
+  {
+   "word": "stadium",
+   "zipf": 4.63,
+   "syllables": 3
+  },
+  {
+   "word": "breakfast",
+   "zipf": 4.61,
+   "syllables": 2
+  },
+  {
+   "word": "bottle",
+   "zipf": 4.57,
+   "syllables": 2
+  },
+  {
+   "word": "button",
+   "zipf": 4.56,
+   "syllables": 2
+  },
+  {
+   "word": "turkey",
+   "zipf": 4.56,
+   "syllables": 2
+  },
+  {
+   "word": "factory",
+   "zipf": 4.55,
+   "syllables": 3
+  },
+  {
+   "word": "bathroom",
+   "zipf": 4.54,
+   "syllables": 2
+  },
+  {
+   "word": "motor",
+   "zipf": 4.53,
+   "syllables": 2
+  },
+  {
+   "word": "tower",
+   "zipf": 4.5,
+   "syllables": 2
+  },
+  {
+   "word": "cabinet",
+   "zipf": 4.49,
+   "syllables": 3
+  },
+  {
+   "word": "chocolate",
+   "zipf": 4.49,
+   "syllables": 2
+  },
+  {
+   "word": "highway",
+   "zipf": 4.49,
+   "syllables": 2
+  },
+  {
+   "word": "guitar",
+   "zipf": 4.48,
+   "syllables": 2
+  },
+  {
+   "word": "pocket",
+   "zipf": 4.48,
+   "syllables": 2
+  },
+  {
+   "word": "chamber",
+   "zipf": 4.47,
+   "syllables": 2
+  },
+  {
+   "word": "circuit",
+   "zipf": 4.47,
+   "syllables": 2
+  },
+  {
+   "word": "bedroom",
+   "zipf": 4.46,
+   "syllables": 2
+  },
+  {
+   "word": "railway",
+   "zipf": 4.46,
+   "syllables": 2
+  },
+  {
+   "word": "temple",
+   "zipf": 4.45,
+   "syllables": 2
+  },
+  {
+   "word": "pizza",
+   "zipf": 4.43,
+   "syllables": 2
+  },
+  {
+   "word": "butter",
+   "zipf": 4.4,
+   "syllables": 2
+  },
+  {
+   "word": "entrance",
+   "zipf": 4.39,
+   "syllables": 2
+  },
+  {
+   "word": "makeup",
+   "zipf": 4.39,
+   "syllables": 2
+  },
+  {
+   "word": "honey",
+   "zipf": 4.37,
+   "syllables": 2
+  },
+  {
+   "word": "satellite",
+   "zipf": 4.33,
+   "syllables": 3
+  },
+  {
+   "word": "uniform",
+   "zipf": 4.33,
+   "syllables": 3
+  },
+  {
+   "word": "jacket",
+   "zipf": 4.32,
+   "syllables": 2
+  },
+  {
+   "word": "railroad",
+   "zipf": 4.32,
+   "syllables": 2
+  },
+  {
+   "word": "piano",
+   "zipf": 4.31,
+   "syllables": 3
+  },
+  {
+   "word": "terminal",
+   "zipf": 4.31,
+   "syllables": 3
+  },
+  {
+   "word": "candy",
+   "zipf": 4.29,
+   "syllables": 2
+  },
+  {
+   "word": "furniture",
+   "zipf": 4.29,
+   "syllables": 3
+  },
+  {
+   "word": "garage",
+   "zipf": 4.25,
+   "syllables": 2
+  },
+  {
+   "word": "shelter",
+   "zipf": 4.25,
+   "syllables": 2
+  },
+  {
+   "word": "spider",
+   "zipf": 4.25,
+   "syllables": 2
+  },
+  {
+   "word": "radar",
+   "zipf": 4.2,
+   "syllables": 2
+  },
+  {
+   "word": "cargo",
+   "zipf": 4.19,
+   "syllables": 2
+  },
+  {
+   "word": "basement",
+   "zipf": 4.18,
+   "syllables": 2
+  },
+  {
+   "word": "carpet",
+   "zipf": 4.18,
+   "syllables": 2
+  },
+  {
+   "word": "costume",
+   "zipf": 4.18,
+   "syllables": 2
+  },
+  {
+   "word": "bacon",
+   "zipf": 4.15,
+   "syllables": 2
+  },
+  {
+   "word": "cattle",
+   "zipf": 4.15,
+   "syllables": 2
+  },
+  {
+   "word": "classroom",
+   "zipf": 4.15,
+   "syllables": 2
+  },
+  {
+   "word": "salad",
+   "zipf": 4.15,
+   "syllables": 2
+  },
+  {
+   "word": "wallet",
+   "zipf": 4.15,
+   "syllables": 2
+  },
+  {
+   "word": "workshop",
+   "zipf": 4.15,
+   "syllables": 2
+  },
+  {
+   "word": "buffalo",
+   "zipf": 4.14,
+   "syllables": 3
+  },
+  {
+   "word": "closet",
+   "zipf": 4.13,
+   "syllables": 2
+  },
+  {
+   "word": "eagle",
+   "zipf": 4.13,
+   "syllables": 2
+  },
+  {
+   "word": "sandwich",
+   "zipf": 4.13,
+   "syllables": 2
+  },
+  {
+   "word": "banner",
+   "zipf": 4.12,
+   "syllables": 2
+  },
+  {
+   "word": "keyboard",
+   "zipf": 4.11,
+   "syllables": 2
+  },
+  {
+   "word": "potato",
+   "zipf": 4.11,
+   "syllables": 3
+  },
+  {
+   "word": "statue",
+   "zipf": 4.09,
+   "syllables": 2
+  },
+  {
+   "word": "elephant",
+   "zipf": 4.08,
+   "syllables": 3
+  },
+  {
+   "word": "fabric",
+   "zipf": 4.08,
+   "syllables": 2
+  },
+  {
+   "word": "warehouse",
+   "zipf": 4.08,
+   "syllables": 2
+  },
+  {
+   "word": "basket",
+   "zipf": 4.07,
+   "syllables": 2
+  },
+  {
+   "word": "bucket",
+   "zipf": 4.07,
+   "syllables": 2
+  },
+  {
+   "word": "cookie",
+   "zipf": 4.07,
+   "syllables": 2
+  },
+  {
+   "word": "monkey",
+   "zipf": 4.07,
+   "syllables": 2
+  },
+  {
+   "word": "rainbow",
+   "zipf": 4.07,
+   "syllables": 2
+  },
+  {
+   "word": "grocery",
+   "zipf": 4.06,
+   "syllables": 3
+  },
+  {
+   "word": "laundry",
+   "zipf": 4.06,
+   "syllables": 2
+  },
+  {
+   "word": "rabbit",
+   "zipf": 4.05,
+   "syllables": 2
+  },
+  {
+   "word": "subway",
+   "zipf": 4.05,
+   "syllables": 2
+  },
+  {
+   "word": "tablet",
+   "zipf": 4.05,
+   "syllables": 2
+  },
+  {
+   "word": "collar",
+   "zipf": 4.04,
+   "syllables": 2
+  },
+  {
+   "word": "ladder",
+   "zipf": 4.03,
+   "syllables": 2
+  },
+  {
+   "word": "lobby",
+   "zipf": 4.03,
+   "syllables": 2
+  },
+  {
+   "word": "banana",
+   "zipf": 4.0,
+   "syllables": 3
+  },
+  {
+   "word": "cottage",
+   "zipf": 4.0,
+   "syllables": 2
+  },
+  {
+   "word": "puppy",
+   "zipf": 4.0,
+   "syllables": 2
+  },
+  {
+   "word": "bicycle",
+   "zipf": 3.98,
+   "syllables": 3
+  },
+  {
+   "word": "needle",
+   "zipf": 3.98,
+   "syllables": 2
+  },
+  {
+   "word": "canyon",
+   "zipf": 3.96,
+   "syllables": 2
+  },
+  {
+   "word": "pillow",
+   "zipf": 3.96,
+   "syllables": 2
+  },
+  {
+   "word": "locker",
+   "zipf": 3.95,
+   "syllables": 2
+  },
+  {
+   "word": "pencil",
+   "zipf": 3.95,
+   "syllables": 2
+  },
+  {
+   "word": "vegetable",
+   "zipf": 3.94,
+   "syllables": 3
+  },
+  {
+   "word": "airplane",
+   "zipf": 3.92,
+   "syllables": 2
+  },
+  {
+   "word": "sculpture",
+   "zipf": 3.92,
+   "syllables": 2
+  },
+  {
+   "word": "balloon",
+   "zipf": 3.9,
+   "syllables": 2
+  },
+  {
+   "word": "monument",
+   "zipf": 3.9,
+   "syllables": 3
+  },
+  {
+   "word": "wagon",
+   "zipf": 3.9,
+   "syllables": 2
+  },
+  {
+   "word": "nursery",
+   "zipf": 3.89,
+   "syllables": 3
+  },
+  {
+   "word": "umbrella",
+   "zipf": 3.89,
+   "syllables": 3
+  },
+  {
+   "word": "candle",
+   "zipf": 3.88,
+   "syllables": 2
+  },
+  {
+   "word": "coconut",
+   "zipf": 3.88,
+   "syllables": 3
+  },
+  {
+   "word": "corridor",
+   "zipf": 3.88,
+   "syllables": 3
+  },
+  {
+   "word": "terrace",
+   "zipf": 3.88,
+   "syllables": 2
+  },
+  {
+   "word": "backyard",
+   "zipf": 3.87,
+   "syllables": 2
+  },
+  {
+   "word": "marker",
+   "zipf": 3.87,
+   "syllables": 2
+  },
+  {
+   "word": "salon",
+   "zipf": 3.87,
+   "syllables": 2
+  },
+  {
+   "word": "curtain",
+   "zipf": 3.86,
+   "syllables": 2
+  },
+  {
+   "word": "envelope",
+   "zipf": 3.86,
+   "syllables": 3
+  },
+  {
+   "word": "maple",
+   "zipf": 3.86,
+   "syllables": 2
+  },
+  {
+   "word": "pickup",
+   "zipf": 3.86,
+   "syllables": 2
+  },
+  {
+   "word": "carriage",
+   "zipf": 3.85,
+   "syllables": 2
+  },
+  {
+   "word": "necklace",
+   "zipf": 3.85,
+   "syllables": 2
+  },
+  {
+   "word": "tomato",
+   "zipf": 3.85,
+   "syllables": 3
+  },
+  {
+   "word": "violet",
+   "zipf": 3.84,
+   "syllables": 3
+  },
+  {
+   "word": "gateway",
+   "zipf": 3.83,
+   "syllables": 2
+  },
+  {
+   "word": "ribbon",
+   "zipf": 3.81,
+   "syllables": 2
+  },
+  {
+   "word": "submarine",
+   "zipf": 3.81,
+   "syllables": 3
+  },
+  {
+   "word": "luggage",
+   "zipf": 3.8,
+   "syllables": 2
+  },
+  {
+   "word": "puppet",
+   "zipf": 3.8,
+   "syllables": 2
+  },
+  {
+   "word": "sausage",
+   "zipf": 3.8,
+   "syllables": 2
+  },
+  {
+   "word": "wardrobe",
+   "zipf": 3.8,
+   "syllables": 2
+  },
+  {
+   "word": "daisy",
+   "zipf": 3.78,
+   "syllables": 2
+  },
+  {
+   "word": "tractor",
+   "zipf": 3.78,
+   "syllables": 2
+  },
+  {
+   "word": "jelly",
+   "zipf": 3.77,
+   "syllables": 2
+  },
+  {
+   "word": "stereo",
+   "zipf": 3.77,
+   "syllables": 3
+  },
+  {
+   "word": "velvet",
+   "zipf": 3.77,
+   "syllables": 2
+  },
+  {
+   "word": "insect",
+   "zipf": 3.76,
+   "syllables": 2
+  },
+  {
+   "word": "shipment",
+   "zipf": 3.76,
+   "syllables": 2
+  },
+  {
+   "word": "volcano",
+   "zipf": 3.76,
+   "syllables": 3
+  },
+  {
+   "word": "compass",
+   "zipf": 3.74,
+   "syllables": 2
+  },
+  {
+   "word": "falcon",
+   "zipf": 3.74,
+   "syllables": 2
+  },
+  {
+   "word": "supper",
+   "zipf": 3.74,
+   "syllables": 2
+  },
+  {
+   "word": "saddle",
+   "zipf": 3.73,
+   "syllables": 2
+  },
+  {
+   "word": "pottery",
+   "zipf": 3.7,
+   "syllables": 3
+  },
+  {
+   "word": "feather",
+   "zipf": 3.69,
+   "syllables": 2
+  },
+  {
+   "word": "squirrel",
+   "zipf": 3.69,
+   "syllables": 2
+  },
+  {
+   "word": "sidewalk",
+   "zipf": 3.68,
+   "syllables": 2
+  },
+  {
+   "word": "staple",
+   "zipf": 3.68,
+   "syllables": 2
+  },
+  {
+   "word": "sushi",
+   "zipf": 3.68,
+   "syllables": 2
+  },
+  {
+   "word": "courtyard",
+   "zipf": 3.65,
+   "syllables": 2
+  },
+  {
+   "word": "driveway",
+   "zipf": 3.65,
+   "syllables": 2
+  },
+  {
+   "word": "panther",
+   "zipf": 3.65,
+   "syllables": 2
+  },
+  {
+   "word": "comet",
+   "zipf": 3.64,
+   "syllables": 2
+  },
+  {
+   "word": "lever",
+   "zipf": 3.64,
+   "syllables": 2
+  },
+  {
+   "word": "vinegar",
+   "zipf": 3.64,
+   "syllables": 3
+  },
+  {
+   "word": "attic",
+   "zipf": 3.63,
+   "syllables": 2
+  },
+  {
+   "word": "lizard",
+   "zipf": 3.63,
+   "syllables": 2
+  },
+  {
+   "word": "turbine",
+   "zipf": 3.63,
+   "syllables": 2
+  },
+  {
+   "word": "paperback",
+   "zipf": 3.62,
+   "syllables": 3
+  },
+  {
+   "word": "freeway",
+   "zipf": 3.61,
+   "syllables": 2
+  },
+  {
+   "word": "lantern",
+   "zipf": 3.61,
+   "syllables": 2
+  },
+  {
+   "word": "linen",
+   "zipf": 3.61,
+   "syllables": 2
+  },
+  {
+   "word": "mosquito",
+   "zipf": 3.61,
+   "syllables": 3
+  },
+  {
+   "word": "pigeon",
+   "zipf": 3.61,
+   "syllables": 2
+  },
+  {
+   "word": "cockpit",
+   "zipf": 3.6,
+   "syllables": 2
+  },
+  {
+   "word": "glacier",
+   "zipf": 3.58,
+   "syllables": 2
+  },
+  {
+   "word": "mosaic",
+   "zipf": 3.58,
+   "syllables": 3
+  },
+  {
+   "word": "staircase",
+   "zipf": 3.58,
+   "syllables": 2
+  },
+  {
+   "word": "orchard",
+   "zipf": 3.57,
+   "syllables": 2
+  },
+  {
+   "word": "rhino",
+   "zipf": 3.57,
+   "syllables": 2
+  },
+  {
+   "word": "chimney",
+   "zipf": 3.55,
+   "syllables": 2
+  },
+  {
+   "word": "meteor",
+   "zipf": 3.55,
+   "syllables": 3
+  },
+  {
+   "word": "sedan",
+   "zipf": 3.55,
+   "syllables": 2
+  },
+  {
+   "word": "suitcase",
+   "zipf": 3.55,
+   "syllables": 2
+  },
+  {
+   "word": "fireplace",
+   "zipf": 3.54,
+   "syllables": 3
+  },
+  {
+   "word": "oyster",
+   "zipf": 3.54,
+   "syllables": 2
+  },
+  {
+   "word": "waterfall",
+   "zipf": 3.54,
+   "syllables": 3
+  },
+  {
+   "word": "doorway",
+   "zipf": 3.51,
+   "syllables": 2
+  },
+  {
+   "word": "parachute",
+   "zipf": 3.51,
+   "syllables": 3
+  }
+ ]
+}

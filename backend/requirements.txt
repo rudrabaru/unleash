@@ -3,12 +3,13 @@
 # The extra index serves CPU-only torch wheels (plain PyPI wheels on Linux pull the CUDA build).
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-# API
-fastapi>=0.110.0
-uvicorn[standard]>=0.28.0
-pydantic>=2.6.0
-pydantic-settings>=2.2.0
-python-multipart>=0.0.9
+# API (pinned to the versions the tests ran on; sessions.py needs a Starlette that defines
+# status.HTTP_413_CONTENT_TOO_LARGE, which an old `fastapi>=0.110` could not guarantee)
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-multipart==0.0.32
 
 # Video, landmarks and anti-spoofing
 numpy==2.3.0

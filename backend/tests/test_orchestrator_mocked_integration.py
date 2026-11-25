@@ -131,7 +131,7 @@ def test_analyze_media_reports_timings_for_every_step():
         analysis = orchestrator.analyze_media(Path("dummy_video.webm"), "TURN_HEAD_LEFT", PHRASE)
 
     assert set(analysis.timings) == {
-        "frames", "landmarks", "audio", "visual_liveness", "visual_challenge", "deepfake", "replay", "fusion", "total",
+        "frames", "landmarks", "probe", "audio", "visual_liveness", "visual_challenge", "deepfake", "replay", "fusion", "total",
     }
 
 

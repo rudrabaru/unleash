@@ -10,8 +10,10 @@ from typing import Dict
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 
-from app import orchestrator
+from app import orchestrator, quality
 from app.core.config import settings
+from app.media.probe import probe_streams
+from app.protocol import PROTOCOL_V1
 from app.schemas.session import VerifyResponse, VisualChallengeType
 
 logger = logging.getLogger("unleash.verify")
@@ -26,7 +28,7 @@ def verify_clip(
     video: UploadFile = File(..., description="Recording with video and audio (.webm, .mp4, .mov or .mkv)"),
     visual_challenge: VisualChallengeType = Form(..., description="The visual action the person was asked to do"),
     verbal_challenge: str = Form(..., description="The 5 words the person was asked to say, space separated"),
-    flip_horizontal: bool = Form(default=False, description="Flip video horizontally for selfie mirror perspective"),
+    protocol: bool = Form(default=False, description="Judge the recording against the read/speak/act windows, as a session does"),
 ) -> VerifyResponse:
     if settings.ENVIRONMENT != "development":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
@@ -44,8 +46,11 @@ def verify_clip(
     try:
         with open(media_path, "wb") as buffer:
             shutil.copyfileobj(video.file, buffer)
+        refusal = quality.upload_rejection(probe_streams(media_path, limit_seconds=quality.HARD_MAX_SECONDS))
+        if refusal:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=refusal)
         analysis = orchestrator.analyze_media(
-            media_path, visual_challenge.value, verbal_challenge, flip_horizontal=flip_horizontal
+            media_path, visual_challenge.value, verbal_challenge, phases=PROTOCOL_V1 if protocol else None
         )
     finally:
         try:

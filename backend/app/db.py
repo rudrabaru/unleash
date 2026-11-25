@@ -42,6 +42,17 @@ CREATE TABLE IF NOT EXISTS signal_scores (
 """
 
 
+# What the recognizer heard. It is a person's voice in words, so it is not stored unless STORE_TRANSCRIPTS is on:
+# a session keeps the counts, the codes and the scores, which are enough to explain a result.
+_SPOKEN_CONTENT_KEYS = ("transcript", "words_detected", "word_timestamps", "matched_pairs")
+
+
+def _storable(details: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not details or settings.STORE_TRANSCRIPTS:
+        return details
+    return {key: value for key, value in details.items() if key not in _SPOKEN_CONTENT_KEYS}
+
+
 @contextmanager
 def _connect():
     _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -91,25 +102,26 @@ def claim_for_processing(session_id: str, updated_at: datetime) -> bool:
         return cursor.rowcount == 1
 
 
-def update_session_status(session_id: str, status: str, updated_at: datetime) -> None:
+def close_session(session_id: str, status: str, reason: str, updated_at: datetime) -> None:
+    """End a session with a status and a reason, for a session that never reached a verdict."""
     with _connect() as conn:
         conn.execute(
-            "UPDATE sessions SET status = ?, updated_at = ? WHERE session_id = ?",
-            (status, updated_at.isoformat(), session_id),
+            "UPDATE sessions SET status = ?, decision_reason = ?, updated_at = ? WHERE session_id = ?",
+            (status, reason, updated_at.isoformat(), session_id),
         )
 
 
 def fail_orphaned_sessions(updated_at: datetime) -> int:
     """
-    Mark every session still PROCESSING as FAILED. Analyses run inside the server process, so at
-    startup any PROCESSING session belongs to a process that has died (crash, restart, reload).
-    Returns how many were closed.
+    Close every session still PROCESSING as RETRY. Analyses run inside the server process, so at
+    startup any PROCESSING session belongs to a process that has died (crash, restart, reload); the
+    person did nothing wrong and may try again. Returns how many were closed.
     """
     with _connect() as conn:
         cursor = conn.execute(
             "UPDATE sessions SET status = ?, decision_reason = ?, updated_at = ? WHERE status = ?",
             (
-                "FAILED",
+                "RETRY",
                 "The analysis was interrupted before it finished. Please try again.",
                 updated_at.isoformat(),
                 "PROCESSING",
@@ -143,7 +155,7 @@ def write_decision(
                        error=excluded.error, details=excluded.details""",
                 (
                     session_id, name, result.score, int(result.passed), result.reason,
-                    result.error, json.dumps(result.details) if result.details else None,
+                    result.error, json.dumps(_storable(result.details)) if result.details else None,
                 ),
             )
 

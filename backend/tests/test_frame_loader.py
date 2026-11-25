@@ -134,15 +134,28 @@ def test_missing_and_garbage_files_never_raise(tmp_path):
     assert load_frames(empty).error
 
 
-def test_load_frames_flip_horizontal_mirrors_frames(tmp_path):
-    clip = _write_video(tmp_path / "test_flip.mp4", frame_count=5, fps=30)
-    bundle_normal = load_frames(clip, flip_horizontal=False)
-    bundle_flipped = load_frames(clip, flip_horizontal=True)
+def test_frames_are_returned_exactly_as_recorded_never_mirrored(tmp_path):
+    """
+    The direction convention assumes the pipeline never mirrors a frame (see visual/_pose.py).
+    The clip is white on its left half and black on its right half, so a hidden flip anywhere
+    between the file and the detectors would swap the halves, in the dense and the sparse set.
+    """
+    path = tmp_path / "left_white.mp4"
+    with av.open(str(path), mode="w", format="mp4") as container:
+        stream = container.add_stream("libx264", rate=30)
+        stream.width = stream.height = 64
+        stream.pix_fmt = "yuv420p"
+        img = np.zeros((64, 64, 3), dtype=np.uint8)
+        img[:, :32] = 255
+        for _ in range(10):
+            for packet in stream.encode(av.VideoFrame.from_ndarray(img, format="rgb24")):
+                container.mux(packet)
+        for packet in stream.encode():
+            container.mux(packet)
 
-    assert bundle_normal.error is None
-    assert bundle_flipped.error is None
-    assert len(bundle_normal.dense) == len(bundle_flipped.dense)
-    # Validate that horizontal flip mirrors the frame along axis 1 (columns)
-    for orig, flip in zip(bundle_normal.dense, bundle_flipped.dense):
-        np.testing.assert_array_equal(flip, np.fliplr(orig))
+    bundle = load_frames(path)
+
+    assert bundle.error is None and bundle.dense and bundle.sparse
+    for frame in bundle.dense + bundle.sparse:
+        assert frame[:, :32].mean() > 200 and frame[:, 32:].mean() < 55
 

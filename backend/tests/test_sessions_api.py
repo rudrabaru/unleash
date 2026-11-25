@@ -13,11 +13,10 @@ from app.core.config import settings
 from app.core.security import generate_challenge_token
 from app.api.v1.endpoints import sessions
 from app.main import app
-from app.schemas.session import VerificationStatus
+from app.schemas.session import VerificationStatus, VisualChallengeType
 from _paths import (
     GENUINE_5WORD_NOFACE_VIDEO_WEBM,
     GENUINE_5WORD_PHRASE,
-    OTHER_5WORD_PHRASE,
     require,
 )
 
@@ -51,45 +50,36 @@ def _submit(session_id: str, token: str, media_path):
         )
 
 
-def test_session_lifecycle_with_real_audio_verification():
+def test_session_lifecycle_judges_a_protocol_recording_through_every_check(protocol_take):
     """
-    Full session creation, submit and background analysis with a genuine take of the 5-word
-    challenge. `genuine_5word_noface_video.webm` pairs that audio with a video track that has
-    no face, so the session correctly comes back FAILED through the visual challenge check
-    even though every audio-side assertion passes. A VERIFIED case needs a recording with a
-    compliant face.
+    Full session creation, submit and background analysis on a recording that follows the protocol: a
+    real face that turns left, holds and returns in Act, and a real spoken 5-word take in Speak. Both
+    must-pass checks pass and, under the interim policy (deepfake, replay, voice and lip sync are
+    report-only), liveness and the challenge decide the verdict: VERIFIED.
     """
-    media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
     session_id, token = _create_session_with_phrase(GENUINE_5WORD_PHRASE)
+    with db._connect() as conn:  # the face in the recording turns left
+        conn.execute("UPDATE sessions SET visual_challenge = ? WHERE session_id = ?", ("TURN_HEAD_LEFT", session_id))
+    token, _ = generate_challenge_token(
+        session_id=session_id, visual_challenge="TURN_HEAD_LEFT", verbal_challenge=GENUINE_5WORD_PHRASE,
+        secret_key=settings.SECRET_KEY, expiry_seconds=60,
+    )
 
-    assert _submit(session_id, token, media).status_code == 202
+    assert _submit(session_id, token, protocol_take).status_code == 202
 
     # TestClient runs background tasks synchronously
-    result_resp = client.get(f"/api/v1/sessions/{session_id}")
-    assert result_resp.status_code == 200
-    res_data = result_resp.json()
-
-    assert res_data["status"] == VerificationStatus.FAILED
-    assert res_data["signals"]["audio_pipeline"]["passed"] is True
-    assert res_data["signals"]["audio_pipeline"]["details"]["phrase_matched"] is True
-    assert res_data["signals"]["visual_challenge"]["passed"] is False
-
-    audio_details = res_data["signals"]["audio_pipeline"]["details"]
-    assert isinstance(audio_details["voice_authenticity_score"], float)
-    # a video track with no face gives no lip series, so the lip-sync check has no score
-    assert audio_details.get("av_alignment_score") is None
-
-
-def test_session_lifecycle_with_wrong_challenge_fails():
-    """Speech that does not match the issued challenge fails the audio check."""
-    media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
-    session_id, token = _create_session_with_phrase(OTHER_5WORD_PHRASE)
-
-    assert _submit(session_id, token, media).status_code == 202
-
     res_data = client.get(f"/api/v1/sessions/{session_id}").json()
-    assert res_data["status"] == VerificationStatus.FAILED
-    assert res_data["signals"]["audio_pipeline"]["passed"] is False
+
+    signals = res_data["signals"]
+    assert signals["audio_pipeline"]["passed"] is True, signals["audio_pipeline"]["reason"]
+    assert signals["audio_pipeline"]["details"]["phrase_matched"] is True
+    assert signals["audio_pipeline"]["details"]["speak_window"] is not None  # judged inside the window
+    assert signals["visual_challenge"]["passed"] is True, signals["visual_challenge"]["reason"]
+    assert signals["visual_challenge"]["details"]["phase_aware"] is True
+    assert isinstance(signals["audio_pipeline"]["details"]["voice_authenticity_score"], float)
+    assert res_data["status"] == VerificationStatus.VERIFIED, res_data["decision_reason"]
+    assert res_data["confidence"] > 0.8
+    assert {"deepfake", "replay"} <= set(signals)  # still computed and shown, just not scored
 
 
 def test_submit_loses_when_another_request_claimed_the_session_first(monkeypatch):
@@ -103,3 +93,118 @@ def test_submit_loses_when_another_request_claimed_the_session_first(monkeypatch
 
 def test_challenge_selection_uses_the_os_csprng():
     assert isinstance(sessions._rng, secrets.SystemRandom)
+
+
+def test_a_new_session_is_never_given_blink_twice(monkeypatch):
+    """D-47: only the four head actions are issued; BLINK_TWICE stays in the enum for old sessions."""
+    pools = []
+
+    class RecordingRandom(secrets.SystemRandom):
+        def choice(self, seq):
+            pools.append(tuple(seq))
+            return super().choice(seq)
+
+    monkeypatch.setattr(sessions, "_rng", RecordingRandom())
+    response = client.post("/api/v1/sessions")
+
+    assert response.status_code == 201
+    assert response.json()["challenge"]["visual"] != VisualChallengeType.BLINK_TWICE.value
+    assert set(pools[0]) == {
+        VisualChallengeType.TURN_HEAD_LEFT,
+        VisualChallengeType.TURN_HEAD_RIGHT,
+        VisualChallengeType.LOOK_UP,
+        VisualChallengeType.LOOK_DOWN,
+    }
+
+
+# --- answers the API gives when something is wrong with the request ------------------------------
+
+def test_an_unknown_session_is_a_404_for_both_reading_and_submitting():
+    assert client.get("/api/v1/sessions/does-not-exist").status_code == 404
+    response = client.post(
+        "/api/v1/sessions/does-not-exist/submit", data={"token": "x"}, files={"media": ("r.webm", b"abc", "video/webm")}
+    )
+    assert response.status_code == 404
+
+
+def _token_for(session_id, expiry_seconds=60, secret=None, other_session=None):
+    session = db.get_session(session_id)
+    token, _ = generate_challenge_token(
+        session_id=other_session or session_id,
+        visual_challenge=session["visual_challenge"],
+        verbal_challenge=session["verbal_challenge"],
+        secret_key=secret or settings.SECRET_KEY,
+        expiry_seconds=expiry_seconds,
+    )
+    return token
+
+
+def test_a_bad_token_is_a_401_and_does_not_use_up_the_session():
+    session_id = client.post("/api/v1/sessions").json()["session_id"]
+    media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
+    bad_tokens = {
+        "expired": _token_for(session_id, expiry_seconds=-5),
+        "wrong secret": _token_for(session_id, secret="another-secret-of-more-than-32-characters!"),
+        "another session's token": _token_for(session_id, other_session="some-other-session"),
+        "not a token": "garbage",
+    }
+
+    for name, token in bad_tokens.items():
+        response = _submit(session_id, token, media)
+        assert response.status_code == 401, name
+
+    assert db.get_session(session_id)["status"] == VerificationStatus.CREATED.value
+
+
+def test_a_second_submit_for_the_same_session_is_a_409(monkeypatch):
+    """Not the claim race (tested above) but the plain case: the session was already submitted."""
+    from app import orchestrator
+
+    monkeypatch.setattr(orchestrator, "run_verification", lambda *args, **kwargs: None)  # no analysis needed here
+    session_id = client.post("/api/v1/sessions").json()["session_id"]
+    token = _token_for(session_id)
+    media = require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)
+
+    assert _submit(session_id, token, media).status_code == 202
+    second = _submit(session_id, token, media)
+
+    assert second.status_code == 409 and "already been submitted" in second.json()["detail"]
+
+
+def test_a_session_that_was_not_submitted_shows_created_and_no_signals():
+    session_id = client.post("/api/v1/sessions").json()["session_id"]
+
+    body = client.get(f"/api/v1/sessions/{session_id}").json()
+
+    assert body["status"] == "CREATED" and body["confidence"] is None
+    assert not body["signals"]
+
+
+# --- a verified result travels through the API unchanged -----------------------------------------
+
+def test_a_verified_verdict_is_stored_and_returned_and_the_upload_is_deleted(monkeypatch):
+    """The analysis is replaced by a stub that verifies: this tests the plumbing, not the detectors."""
+    from pathlib import Path
+
+    from app import orchestrator
+    from app.fusion import FusionResult
+    from app.schemas.detector import DetectorResult
+
+    def verified(media_path, visual_challenge, verbal_challenge, phases=None):
+        signals = {
+            "visual_challenge": DetectorResult(score=1.0, passed=True, reason="turned"),
+            "audio_pipeline": DetectorResult(score=0.9, passed=True, reason="said", details={"match_count": 5, "insertions": 0}),
+        }
+        return orchestrator.AnalysisResult(
+            signals=signals, fusion=FusionResult(VerificationStatus.VERIFIED, 0.91, "all checks agree"), phases=phases
+        )
+
+    monkeypatch.setattr(orchestrator, "analyze_media", verified)
+    session_id = client.post("/api/v1/sessions").json()["session_id"]
+
+    assert _submit(session_id, _token_for(session_id), require(GENUINE_5WORD_NOFACE_VIDEO_WEBM)).status_code == 202
+
+    body = client.get(f"/api/v1/sessions/{session_id}").json()
+    assert body["status"] == "VERIFIED" and body["confidence"] == 0.91
+    assert body["signals"]["audio_pipeline"]["details"] == {"match_count": 5, "insertions": 0}
+    assert list(Path(settings.UPLOAD_TEMP_DIR).glob("upload_*")) == []

@@ -19,8 +19,11 @@ from app.modules.audio._constants import TARGET_CHANNELS, TARGET_SAMPLE_RATE
 # extraction shorter than this share of the container's claimed duration counts as truncated.
 DEFAULT_TRUNCATION_RATIO = 0.5
 
-FFMPEG = shutil.which("ffmpeg")
-FFPROBE = shutil.which("ffprobe")
+def _get_ffmpeg() -> str | None:
+    return shutil.which("ffmpeg")
+
+def _get_ffprobe() -> str | None:
+    return shutil.which("ffprobe")
 
 
 def run_command(argv: list[str], timeout: int = 120) -> tuple[int, str, str]:
@@ -99,11 +102,12 @@ def probe_media(path: Path | str, timeout: int = 30) -> Dict[str, Any]:
     path_obj = Path(path)
     if not path_obj.exists():
         return _probe_failure(f"File does not exist: {path}")
-    if not FFPROBE:
+    ffprobe_path = _get_ffprobe()
+    if not ffprobe_path:
         return _probe_failure("ffprobe executable not found on PATH")
 
     rc, out, err = run_command(
-        [FFPROBE, "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path_obj)],
+        [ffprobe_path, "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path_obj)],
         timeout=timeout,
     )
     if rc != 0:
@@ -144,14 +148,15 @@ def extract_wav(
     if not src.exists():
         return False, f"Source media file not found: {src}", 0.0
 
-    if not FFMPEG:
+    ffmpeg_path = _get_ffmpeg()
+    if not ffmpeg_path:
         return False, "ffmpeg executable not found on PATH", 0.0
 
     dst.parent.mkdir(parents=True, exist_ok=True)
     t0 = time.perf_counter()
 
     argv = [
-        FFMPEG,
+        ffmpeg_path,
         "-hide_banner",
         "-loglevel", "error",
         "-y",

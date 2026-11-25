@@ -5,6 +5,7 @@ confirming graceful "no face detected" handling; the real-face clips cover the h
 looking up/down and blinking.
 """
 
+import numpy as np
 
 from app.media.frames import DENSE_MAX_EDGE, load_frames
 from app.modules.visual import detect_visual_liveness, verify_challenge_compliance
@@ -18,6 +19,15 @@ def _frames(name: str):
     bundle = load_frames(path, dense_max_edge=DENSE_MAX_EDGE)  # the same frames the pipeline gives the detectors
     assert bundle.dense, f"no frames decoded from {name}"
     return bundle.dense
+
+
+def _as_browser_recorded(frames):
+    """
+    Turn a mirror-image sample clip into what a browser records. The TURN_LEFT / TURN_RIGHT samples
+    were saved as mirror images (the person's own left is the left of the picture, as a selfie app
+    shows it); a browser records the camera feed unmirrored and the backend expects that.
+    """
+    return [np.ascontiguousarray(frame[:, ::-1]) for frame in frames]
 
 
 def test_liveness_empty_frames_returns_contract_compliant_error():
@@ -66,7 +76,7 @@ def test_liveness_real_face_detects_blink_and_natural_movement():
 
 
 def test_challenge_compliance_turn_head_left_real_video():
-    frames = _frames("TURN_LEFT.webm")
+    frames = _as_browser_recorded(_frames("TURN_LEFT.webm"))
     # Correct challenge must pass
     result_left = verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value)
     assert result_left.error is None
@@ -80,7 +90,7 @@ def test_challenge_compliance_turn_head_left_real_video():
 
 
 def test_challenge_compliance_turn_head_right_real_video():
-    frames = _frames("TURN_RIGHT.webm")
+    frames = _as_browser_recorded(_frames("TURN_RIGHT.webm"))
     # Correct challenge must pass
     result_right = verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_RIGHT.value)
     assert result_right.error is None
@@ -91,6 +101,40 @@ def test_challenge_compliance_turn_head_right_real_video():
     result_left = verify_challenge_compliance(frames, VisualChallengeType.TURN_HEAD_LEFT.value)
     assert result_left.error is None
     assert result_left.passed is False
+
+
+def test_the_sample_direction_clips_are_mirror_images():
+    """
+    Documents why `_as_browser_recorded` exists: judged as recorded (without the flip) the samples
+    give the OPPOSITE direction, because they are mirror images. If this ever fails, the samples
+    were replaced by browser recordings and the helper must go.
+    """
+    left_as_saved = verify_challenge_compliance(_frames("TURN_LEFT.webm"), VisualChallengeType.TURN_HEAD_RIGHT.value)
+    right_as_saved = verify_challenge_compliance(_frames("TURN_RIGHT.webm"), VisualChallengeType.TURN_HEAD_LEFT.value)
+    assert left_as_saved.passed is True
+    assert right_as_saved.passed is True
+
+
+def _yaw_series(yaws):
+    """Feature frames as the landmark step produces them, reduced to the fields the pose check reads."""
+    return {"frames": [{"yaw": yaw, "pitch": 0.0, "ear": 0.3} for yaw in yaws]}
+
+
+def test_direction_convention_left_is_positive_yaw_in_an_unmirrored_feed():
+    """
+    One convention, pinned on the numbers: in the unmirrored feed a browser records, the person's
+    own left is the right of the picture, MediaPipe's yaw is positive toward the right of the
+    picture, so TURN_HEAD_LEFT needs a positive displacement and TURN_HEAD_RIGHT a negative one.
+    """
+    from app.modules.visual._pose import evaluate_challenge
+
+    turn_toward_positive = _yaw_series([0.0] * 10 + [30.0] * 5)
+    turn_toward_negative = _yaw_series([0.0] * 10 + [-30.0] * 5)
+
+    assert evaluate_challenge(turn_toward_positive, VisualChallengeType.TURN_HEAD_LEFT)["detected"] is True
+    assert evaluate_challenge(turn_toward_positive, VisualChallengeType.TURN_HEAD_RIGHT)["detected"] is False
+    assert evaluate_challenge(turn_toward_negative, VisualChallengeType.TURN_HEAD_RIGHT)["detected"] is True
+    assert evaluate_challenge(turn_toward_negative, VisualChallengeType.TURN_HEAD_LEFT)["detected"] is False
 
 
 def test_challenge_compliance_look_down_real_video():

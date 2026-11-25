@@ -1,5 +1,5 @@
 """
-Tests for the phrase check (faster-whisper transcription plus fuzzy 4-of-5 word matching).
+Tests for the phrase check (faster-whisper transcription plus ordered, fuzzy 4-of-5 word matching).
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from app.modules.audio._phrase_compliance import (
     _WHISPER_MODEL,
     levenshtein_distance,
     word_similarity_score,
-    match_words_fuzzy,
+    align_words,
     run_phrase_compliance,
 )
 from app.schemas.detector import DetectorResult
@@ -61,62 +61,110 @@ def test_word_similarity_score():
     assert word_similarity_score("Apple,", "apple") == 1.0
 
 
-def test_match_words_fuzzy():
-    """Test fuzzy word matching algorithm."""
-    # Perfect match: all 5 words recognized with high confidence
+TARGET = ["apple", "bridge", "cloud", "dark", "eagle"]
+
+
+def _tokens(words, confidence=0.9):
+    return [(w, confidence) for w in words]
+
+
+def test_align_perfect_phrase_in_order():
     recognized = [("apple", 0.95), ("bridge", 0.92), ("cloud", 0.88), ("dark", 0.91), ("eagle", 0.89)]
-    target = ["apple", "bridge", "cloud", "dark", "eagle"]
-    match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_word_confidence=0.5, min_word_similarity=0.6)
-    assert match_count == 5
-    assert avg_conf > 0.85
+    found = align_words(recognized, TARGET, min_word_confidence=0.5, min_word_similarity=0.6)
+    assert found.match_count == 5 and found.insertions == 0
+    assert found.average_confidence > 0.85
+    assert found.pairs == ["apple -> apple", "bridge -> bridge", "cloud -> cloud", "dark -> dark", "eagle -> eagle"]
 
-    # 4 of 5 match (passes, threshold=4)
+
+def test_align_accepts_one_slip_in_spelling():
     recognized = [("apple", 0.95), ("bridget", 0.70), ("cloud", 0.88), ("dark", 0.91), ("eagle", 0.89)]
-    target = ["apple", "bridge", "cloud", "dark", "eagle"]
-    match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_word_confidence=0.5, min_word_similarity=0.6)
-    assert match_count >= 4  # "bridget" -> "bridge" with fuzzy match
+    found = align_words(recognized, TARGET, min_word_confidence=0.5, min_word_similarity=0.6)
+    assert found.match_count == 5  # "bridget" -> "bridge"
 
-    # Low confidence words filtered out
+
+def test_align_skips_a_low_confidence_word_and_counts_it_as_an_insertion():
     recognized = [("apple", 0.95), ("wrong", 0.2), ("cloud", 0.88), ("dark", 0.91), ("eagle", 0.89)]
-    target = ["apple", "bridge", "cloud", "dark", "eagle"]
-    match_count, pairs, avg_conf = match_words_fuzzy(recognized, target, min_word_confidence=0.5, min_word_similarity=0.6)
-    assert match_count == 4  # "wrong" skipped due to low confidence
-
-
-def _tokens(words):
-    return [(w, 0.9) for w in words]
+    found = align_words(recognized, TARGET, min_word_confidence=0.5, min_word_similarity=0.6)
+    assert found.match_count == 4  # "wrong" is skipped due to its low confidence
+    assert found.insertions == 1
 
 
 def test_match_rejects_filler_speech():
     """Regression: the old 2x-normalized metric accepted ~90% of unrelated sentences."""
     filler = "so i think that the best thing to do is just say a bunch of random words".split()
-    count, _, _ = match_words_fuzzy(_tokens(filler), ["apple", "bridge", "cloud", "dark", "eagle"])
-    assert count < 4
+    assert align_words(_tokens(filler), TARGET).match_count < 4
 
 
 def test_match_rejects_a_previous_sessions_phrase():
     """Replay defence: a phrase from another session must not satisfy this session's challenge."""
-    count, _, _ = match_words_fuzzy(_tokens(["above", "banner", "river", "stone", "orange"]),
-                                    ["apple", "bridge", "cloud", "dark", "eagle"])
-    assert count < 4
+    found = align_words(_tokens(["above", "banner", "river", "stone", "orange"]), TARGET)
+    assert found.match_count < 4
 
 
 def test_match_rejects_three_of_five():
-    count, _, _ = match_words_fuzzy(_tokens(["apple", "bridge", "cloud", "river", "stone"]),
-                                    ["apple", "bridge", "cloud", "dark", "eagle"])
-    assert count == 3
+    found = align_words(_tokens(["apple", "bridge", "cloud", "river", "stone"]), TARGET)
+    assert found.match_count == 3
 
 
 def test_match_accepts_case_punctuation_and_one_slip():
     recognized = [("Apple,", 0.9), ("Bridge.", 0.9), ("clouds", 0.9), ("dark", 0.9), ("eagle", 0.9)]
-    count, _, _ = match_words_fuzzy(recognized, ["apple", "bridge", "cloud", "dark", "eagle"])
-    assert count == 5
+    assert align_words(recognized, TARGET).match_count == 5
 
 
 def test_match_does_not_reuse_one_spoken_word():
     """Saying one challenge word five times must not match five target words."""
-    count, _, _ = match_words_fuzzy(_tokens(["apple"] * 5), ["apple", "apple", "cloud", "dark", "eagle"])
-    assert count == 2
+    found = align_words(_tokens(["apple"] * 5), ["apple", "apple", "cloud", "dark", "eagle"])
+    assert found.match_count == 2
+
+
+def test_the_words_must_come_in_the_challenge_order():
+    """The challenge is five words IN ORDER: the same words in another order are not the phrase."""
+    reversed_phrase = list(reversed(TARGET))
+    found = align_words(_tokens(reversed_phrase), TARGET)
+    assert found.match_count == 1  # only a single word can stay in order
+
+    swapped = ["bridge", "apple", "cloud", "dark", "eagle"]
+    assert align_words(_tokens(swapped), TARGET).match_count == 4  # one swap still leaves 4 in order
+
+
+def test_extra_words_around_the_phrase_are_counted_not_forgiven():
+    around = ["um", "apple", "bridge", "cloud", "dark", "eagle", "ok", "thanks"]
+    found = align_words(_tokens(around), TARGET)
+    assert found.match_count == 5 and found.insertions == 3
+
+
+def test_reading_many_vocabulary_words_does_not_pass_by_chance():
+    """
+    Regression for the bag-of-words matcher: reading 40 random vocabulary words covered the challenge
+    2.6% of the time. In order, with at most 3 extra words allowed, it must not.
+    """
+    import random
+
+    rng = random.Random(7)
+    accepted = 0
+    for _ in range(2000):
+        challenge = rng.sample(CHALLENGE_VOCABULARY, 5)
+        said = rng.sample(CHALLENGE_VOCABULARY, 40)
+        found = align_words(_tokens(said), challenge)
+        accepted += found.match_count >= 4 and found.insertions <= _pc.MAX_INSERTED_WORDS
+    assert accepted == 0
+
+
+def test_a_take_with_too_many_extra_words_fails_even_when_the_phrase_is_in_it(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    heard = ["so", "um", "apple", "bridge", "cloud", "dark", "eagle", "yeah", "right"]
+    words = [SimpleNamespace(word=w, start=float(i), end=i + 0.5, probability=0.9) for i, w in enumerate(heard)]
+    segment = SimpleNamespace(text=" ".join(heard), words=words)
+    monkeypatch.setattr(_pc, "_transcribe", lambda path: ([segment], SimpleNamespace(language="en"), 0.1))
+    wav = tmp_path / "speech.wav"
+    wav.write_bytes(b"RIFF")
+
+    result = run_phrase_compliance(wav, " ".join(TARGET))
+
+    assert result.details["match_count"] == 5 and result.details["insertions"] == 4
+    assert result.passed is False and result.error is None
+    assert "extra words" in result.reason
 
 
 def test_recognizer_settings_are_the_agreed_ones():

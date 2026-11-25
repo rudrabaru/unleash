@@ -130,7 +130,8 @@ def test_pipeline_with_real_speech_fixture(genuine_pipeline_result):
     assert isinstance(res, DetectorResult)
     assert res.passed is True
     assert res.error is None
-    assert res.score is not None and res.score >= 0.6
+    assert res.score is None  # the must-pass checks carry no score
+    assert isinstance(res.details["voice_authenticity_score"], float)  # the advisory checks are in the details
     assert res.details is not None
     assert res.details["speech_detected"] is True
     assert res.details["speech_duration_seconds"] >= SPEECH_DURATION_THRESHOLD_S
