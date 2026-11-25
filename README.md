@@ -1,6 +1,6 @@
 # Unleash
 
-A multimodal, active challenge-response check that a live person is in front of a camera and microphone. A session issues a random visual action (a head turn, looking up or down, or blinking) and a random 5-word phrase; the recording is checked for the action, the words, and signs of replay, deepfake or synthetic voice, and a verdict (`VERIFIED`, `SUSPICIOUS` or `FAILED`) is produced from the combined evidence.
+A multimodal, active challenge-response check that a live person is in front of a camera and microphone. A session issues a random visual action (turn the head left or right, or look up or down) and a random 5-word phrase; the recording is checked for the action, the words, and signs of replay, deepfake or synthetic voice, and a verdict (`VERIFIED`, `SUSPICIOUS`, `FAILED`, or `RETRY` when the recording cannot be judged) is produced from the combined evidence.
 
 It targets replay, face-swap, photo and synthetic-voice attacks, but none of these is a proven defence yet: see `V1_RELEASE_PLAN.md` for what is measured and what is not. It does not identify anyone and stores no face or voice prints.
 

@@ -15,6 +15,17 @@ class VisualChallengeType(str, Enum):
     BLINK_TWICE = "BLINK_TWICE"
 
 
+# The actions a new session may be given (D-47). BLINK_TWICE stays in the enum so an old session
+# that carries it can still be read and judged, but it is no longer issued: natural blinking alone
+# passes it most of the time in a 13 s recording.
+ISSUED_VISUAL_CHALLENGES = (
+    VisualChallengeType.TURN_HEAD_LEFT,
+    VisualChallengeType.TURN_HEAD_RIGHT,
+    VisualChallengeType.LOOK_UP,
+    VisualChallengeType.LOOK_DOWN,
+)
+
+
 class VerificationStatus(str, Enum):
     CREATED = "CREATED"
     PROCESSING = "PROCESSING"

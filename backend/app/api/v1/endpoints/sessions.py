@@ -13,13 +13,13 @@ from app.media.probe import probe_streams
 from app.modules.audio.vocabulary import CHALLENGE_VOCABULARY
 from app.protocol import PROTOCOL_V1
 from app.schemas.session import (
+    ISSUED_VISUAL_CHALLENGES,
     ChallengePayload,
     ProtocolPayload,
     SessionCreateResponse,
     SessionResultResponse,
     SessionSubmitResponse,
     VerificationStatus,
-    VisualChallengeType,
 )
 
 router = APIRouter()
@@ -32,12 +32,12 @@ _rng = secrets.SystemRandom()
 def create_session():
     """
     Create a new human verification session.
-    Generates a random visual challenge (5 types: head turns, blinks) and a 5-word
-    verbal challenge (from curated, phonetically-distinct vocabulary). Signs HMAC token.
+    Generates a random visual challenge (one of the four head actions; BLINK_TWICE is no longer
+    issued, D-47) and a 5-word verbal challenge from the curated vocabulary. Signs HMAC token.
     """
     session_id = str(uuid.uuid4())
 
-    visual_choice = _rng.choice(list(VisualChallengeType))
+    visual_choice = _rng.choice(ISSUED_VISUAL_CHALLENGES)
     verbal_choice = " ".join(_rng.sample(CHALLENGE_VOCABULARY, 5))
 
     token, expires_at = generate_challenge_token(

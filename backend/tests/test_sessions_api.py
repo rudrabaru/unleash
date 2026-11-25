@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.core.security import generate_challenge_token
 from app.api.v1.endpoints import sessions
 from app.main import app
-from app.schemas.session import VerificationStatus
+from app.schemas.session import VerificationStatus, VisualChallengeType
 from _paths import (
     GENUINE_5WORD_NOFACE_VIDEO_WEBM,
     GENUINE_5WORD_PHRASE,
@@ -93,6 +93,28 @@ def test_submit_loses_when_another_request_claimed_the_session_first(monkeypatch
 
 def test_challenge_selection_uses_the_os_csprng():
     assert isinstance(sessions._rng, secrets.SystemRandom)
+
+
+def test_a_new_session_is_never_given_blink_twice(monkeypatch):
+    """D-47: only the four head actions are issued; BLINK_TWICE stays in the enum for old sessions."""
+    pools = []
+
+    class RecordingRandom(secrets.SystemRandom):
+        def choice(self, seq):
+            pools.append(tuple(seq))
+            return super().choice(seq)
+
+    monkeypatch.setattr(sessions, "_rng", RecordingRandom())
+    response = client.post("/api/v1/sessions")
+
+    assert response.status_code == 201
+    assert response.json()["challenge"]["visual"] != VisualChallengeType.BLINK_TWICE.value
+    assert set(pools[0]) == {
+        VisualChallengeType.TURN_HEAD_LEFT,
+        VisualChallengeType.TURN_HEAD_RIGHT,
+        VisualChallengeType.LOOK_UP,
+        VisualChallengeType.LOOK_DOWN,
+    }
 
 
 # --- answers the API gives when something is wrong with the request ------------------------------

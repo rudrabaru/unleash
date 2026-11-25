@@ -46,7 +46,7 @@ Local demo first, then hosted MVP; desktop Chrome/Edge/Firefox only; three devel
 
 ## Working rules
 
-One package = one short-lived branch off `integration` and one pull request with green CI. `orchestrator.py`, `sessions.py`, `schemas/session.py`, `fusion.py`, `decisions.md` and `globals.css` have one writer at a time; P1-0 lands first. Every package that changes a check, threshold, weight, status value, contract or the upload design adds a decision-log line in the same commit and waits for the owner at its gate. Before recording the calibration set, freeze: phase windows, vocabulary, capture settings (audio constraints, bitrate, MIME type) and the yaw convention.
+Solo since 2026-11-25 (D-55): work lands on `integration`, and `main` receives only finished, release-ready code; a branch and pull request per package are optional. Every package that changes a check, threshold, weight, status value, contract or the upload design adds a decision-log line in the same commit and waits for the owner at its gate. Before recording the calibration set, freeze: phase windows, vocabulary, capture settings (audio constraints, bitrate, MIME type) and the yaw convention.
 
 ## Approval gates (the owner decides)
 
