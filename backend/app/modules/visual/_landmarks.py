@@ -97,6 +97,11 @@ def extract_landmark_features(
             "original_index": original_indices[i] if original_indices and i < len(original_indices) else i,
         }
         try:
+            # MediaPipe reads the buffer as tightly packed rows. The decoder pads each row when the width
+            # is not a multiple of 16 (360 or 424 px, for example), and MediaPipe then sees a scrambled
+            # image and finds no face, without raising. A contiguous copy fixes that; for an already
+            # contiguous frame it is a no-op.
+            frame_rgb = np.ascontiguousarray(frame_rgb)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
             result = landmarker.detect(mp_image)
         except Exception:
