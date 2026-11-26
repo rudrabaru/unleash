@@ -39,8 +39,10 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements*.txt
 
+      # MediaPipe's face landmarker loads libEGL and libGLESv2 on Linux even on the CPU; without them every
+      # test that looks at a face fails with "libEGL.so.1: cannot open shared object file". Windows needs neither.
       - name: Install system packages
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg libgl1
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libgl1 libegl1 libgles2
 
       - name: Install Python dependencies
         run: pip install -r backend/requirements-dev.txt
