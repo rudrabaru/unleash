@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+from app.media.containers import UPLOAD_DEMUXERS, WAV_DEMUXERS, ffmpeg_input_args
 from app.modules.audio._constants import TARGET_CHANNELS, TARGET_SAMPLE_RATE
 
 # ffmpeg can exit 0 and still lose most of the audio (seen on a clip cut off after 2 KB), so an
@@ -86,9 +87,10 @@ def _audio_info(audio_stream: Optional[Dict[str, Any]]) -> Optional[Dict[str, An
     }
 
 
-def probe_media(path: Path | str, timeout: int = 30) -> Dict[str, Any]:
+def probe_media(path: Path | str, timeout: int = 30, demuxers=UPLOAD_DEMUXERS) -> Dict[str, Any]:
     """
-    Probe container and stream information using ffprobe.
+    Probe container and stream information using ffprobe, opening only the `demuxers` given
+    (an upload by default; see app/media/containers.py).
     Returns dict:
       {
         "ok": bool,
@@ -107,7 +109,7 @@ def probe_media(path: Path | str, timeout: int = 30) -> Dict[str, Any]:
         return _probe_failure("ffprobe executable not found on PATH")
 
     rc, out, err = run_command(
-        [ffprobe_path, "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path_obj)],
+        [ffprobe_path, "-v", "error", *ffmpeg_input_args(demuxers), "-show_streams", "-show_format", "-of", "json", str(path_obj)],
         timeout=timeout,
     )
     if rc != 0:
@@ -160,6 +162,7 @@ def extract_wav(
         "-hide_banner",
         "-loglevel", "error",
         "-y",
+        *ffmpeg_input_args(),
         "-i", str(src),
         "-vn",                           # Drop video
         "-ac", str(TARGET_CHANNELS),     # Force mono
@@ -186,7 +189,7 @@ def verify_wav(path: Path | str) -> Tuple[bool, str]:
     Verify that an output WAV file strictly satisfies the 16kHz mono contract.
     Returns (is_valid, description_or_error).
     """
-    info = probe_media(path)
+    info = probe_media(path, demuxers=WAV_DEMUXERS)
     if not info["ok"] or not info["audio"]:
         return False, f"Could not probe audio stream: {info.get('error') or 'no audio stream'}"
 

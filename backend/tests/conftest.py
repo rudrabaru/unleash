@@ -20,8 +20,16 @@ os.environ["DATABASE_URL"] = "sqlite:///" + (_SANDBOX / "unleash.db").as_posix()
 os.environ["UPLOAD_TEMP_DIR"] = str(_SANDBOX / "uploads")
 # Tests upload a recording right after creating its session; the "too early" refusal has its own tests.
 os.environ["MIN_SUBMIT_SECONDS"] = "0"
+# Tests create many sessions from one address; the limiter has its own tests.
+os.environ["RATE_LIMIT_PER_MINUTE"] = "0"
 
 from _paths import GENUINE_5WORD_PHRASE, GENUINE_5WORD_WEBM  # noqa: E402  (after the environment is set)
+from app.analysis_queue import analysis_queue  # noqa: E402
+
+# The tests do not run the app's lifespan (which starts the analysis worker): a submitted recording is
+# analysed at once in the request, so a test can read the result right after submitting it. The worker
+# itself has its own tests.
+analysis_queue.use_inline()
 
 
 def pytest_sessionfinish(session, exitstatus):

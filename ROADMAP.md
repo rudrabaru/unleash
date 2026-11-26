@@ -1,6 +1,6 @@
 # Unleash - roadmap to the final deliverable
 
-Last updated 2026-10-05. Near-term status and the current work order are in `V1_RELEASE_PLAN.md`; decisions in `.claude/context/decisions.md`. If files disagree: decision log, then `CLAUDE.md`, then the plans.
+Last updated 2026-11-25. Near-term status and the current work order are in `V1_RELEASE_PLAN.md`; decisions in `.claude/context/decisions.md`. If files disagree: decision log, then `CLAUDE.md`, then the plans.
 
 ## 1. The final deliverable
 
@@ -26,9 +26,9 @@ Nothing starts on a red build. The current order of work is in `V1_RELEASE_PLAN.
 
 ## 3. v1.1 workstreams
 
-**A. Verbal challenge (D-04, D-10).** Run one recorded comparison of digits, rare words (today), common high-frequency words and a short template sentence on the same recordings, judged by genuine pass rate, false-accept rate, per-word error and latency. If common words or a sentence win: rebuild the pool from high-frequency, phonetically distinct words, generate phrases from a loose template, and replace the fixed 4-of-5 count with word-level alignment that also enforces order and caps extra words. Choose the confidence floor from at least 10 genuine takes from at least 3 speakers. It stays a must-pass check; update `audio-checks.md`, `CLAUDE.md`, the tests and the decision log in one commit.
+**A. Verbal challenge (D-04, D-10).** Done: the common-word pool (D-52) and word-level alignment that enforces order and allows at most 3 extra words (D-47). Still open: the confidence floor and the recognizer, chosen from human pilot takes. Original plan: run one recorded comparison of digits, rare words (today), common high-frequency words and a short template sentence on the same recordings, judged by genuine pass rate, false-accept rate, per-word error and latency. If common words or a sentence win: rebuild the pool from high-frequency, phonetically distinct words, generate phrases from a loose template, and replace the fixed 4-of-5 count with word-level alignment that also enforces order and caps extra words. Choose the confidence floor from at least 10 genuine takes from at least 3 speakers. It stays a must-pass check; update `audio-checks.md`, `CLAUDE.md`, the tests and the decision log in one commit.
 
-**B. Visual challenge (D-09).** Run it as read, speak, act (words shown and said facing the camera, then the action) so the person can read and lip sync sees the mouth; test whether look up and down earn their place; evaluate a random hand-gesture challenge ("show N fingers") alongside the head actions. Head turn is primary: make it a random two-step sequence (raises the cost of a pre-recorded clip), make blink a passive liveness signal with dense sampling, add smile or mouth-open and a parallax flatness check as advisory signals. Adding challenge types changes `VisualChallengeType`, which needs approval.
+**B. Visual challenge (D-09).** Done: read, speak, act with the head action judged only in Act as turn, hold and return (D-47); blink is no longer issued (D-53). Still open: the two-step sequence, look up/down, the hand gesture and the advisory signals below. Original plan: run it as read, speak, act (words shown and said facing the camera, then the action) so the person can read and lip sync sees the mouth; test whether look up and down earn their place; evaluate a random hand-gesture challenge ("show N fingers") alongside the head actions. Head turn is primary: make it a random two-step sequence (raises the cost of a pre-recorded clip), make blink a passive liveness signal with dense sampling, add smile or mouth-open and a parallax flatness check as advisory signals. Adding challenge types changes `VisualChallengeType`, which needs approval.
 
 **C. Cross-modal binding (D-11).** Calibrate the lip-sync check on real genuine and attack recordings with a shuffled-audio control; then have the person speak while turning and check word times against the yaw timeline (advisory first); show the challenge only at recording start and log the delay before speech.
 
@@ -51,9 +51,9 @@ Nothing starts on a red build. The current order of work is in `V1_RELEASE_PLAN.
 | Attack | Signals that should stop it | Status | Planned |
 |---|---|---|---|
 | No speech or muted microphone | speech check | Stopped in tests | quality check gives "try again" (v1.1) |
-| Wrong words, filler or background speech | phrase check | Stopped in tests (0% false accepts on 2,000 random challenges); order and extra words not enforced | word-level alignment (v1.1) |
+| Wrong words, filler or background speech | phrase check | Stopped in tests (0% false accepts on 2,000 random challenges); order enforced, at most 3 extra words (D-47) | confidence floor from human takes |
 | Replayed audio or video from another session | random phrase, phrase check, visual challenge | Audio stopped; visual challenge has only 5 random actions | two-step sequence, retry limits (v1.1); screen flash (v2) |
-| Wrong head direction | visual challenge | Stopped on real clips (one performer) | two-step sequence |
+| Wrong head direction, or the action outside the Act window | visual challenge | Stopped in tests on real clips (one performer) | two-step sequence |
 | Static photo or printout | visual challenge, liveness | Targeted, not measured | parallax (v1.1), evaluation |
 | Phone or monitor replay | replay detector, deepfake, challenge | **Not stopped**: replay scores genuine clips as fake and no replay recordings exist | calibration (v1.1); screen flash (v2) |
 | Synthetic voice reading the phrase | voice check, lip sync, visual challenge | **Not demonstrated**: the voice check showed no separation; lip sync uncalibrated | calibration, speak-while-turning, offline spoof model |

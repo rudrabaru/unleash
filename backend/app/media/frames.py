@@ -17,9 +17,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Set, Union
 
-import av
 import numpy as np
 
+from app.media.containers import open_media
 from app.media.sampling import sample_indices
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ def _failure(error: str) -> FrameBundle:
 
 def _count_frames(path: str) -> int:
     """Number of video frames, found by demuxing packets only (no decoding)."""
-    with av.open(path) as container:
+    with open_media(path) as container:
         stream = container.streams.video[0]
         count = 0
         for packet in container.demux(stream):
@@ -85,7 +85,7 @@ def _decode(path: str, total: int, dense_ids: List[int], sparse_ids: Set[int], m
     """One decode pass over the first `total` frames, converting only the frames that are kept."""
     wanted_dense = set(dense_ids)
     out = _Decoded()
-    with av.open(path) as container:
+    with open_media(path) as container:
         stream = container.streams.video[0]
         for index, frame in enumerate(container.decode(stream)):
             if index >= total:
@@ -118,7 +118,7 @@ def load_frames(video_source: Union[str, Path], dense_max_edge: Optional[int] = 
     """
     path = str(video_source)
     try:
-        with av.open(path) as container:
+        with open_media(path) as container:
             if not container.streams.video:
                 return _failure("No video stream in media file.")
     except Exception as exc:  # noqa: BLE001 - must never raise to the caller

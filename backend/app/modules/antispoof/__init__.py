@@ -47,7 +47,7 @@ def detect_deepfake(frames: list) -> DetectorResult:
 def detect_replay_attack(frames: list) -> DetectorResult:
     """
     Replay screen-attack detector: FFT moire (55%) + temporal noise std (30%) +
-    brightness histogram shape (15%), pass threshold 0.60. See `_replay.py` for the
+    brightness histogram shape (15%), pass line REPLAY_PASS_THRESHOLD. Report-only. See `_replay.py` for the
     per-signal design and its [UNCALIBRATED] status.
     """
     if not frames:

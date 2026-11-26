@@ -20,7 +20,7 @@ Detectors: `process_audio_pipeline`, `detect_visual_liveness`, `verify_challenge
 
 ## Interface check
 
-Find every call site of each entry point (`backend/app/orchestrator.py`, tools, tests) and confirm the argument names, order and types match the definition, and that callers only read fields that exist (`score`, `passed`, `reason`, `error`, `details`) and the `details` keys fusion reads (`voice_authenticity_score`, `av_alignment_score`). Report which side is stale; do not edit either side.
+Find every call site of each entry point (`backend/app/orchestrator.py`, tools, tests) and confirm the argument names, order and types match the definition, and that callers only read fields that exist (`score`, `passed`, `reason`, `error`, `details`) (fusion reads no `details` keys since D-51). Report which side is stale; do not edit either side.
 
 ## Report
 

@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 
 from app.core.config import settings
 from app.schemas.detector import DetectorResult
+from app.schemas.session import VerificationStatus
 
 _DB_PATH = Path(settings.DATABASE_URL.replace("sqlite:///", "", 1)) if "sqlite" in settings.DATABASE_URL else Path("./unleash.db")
 
@@ -97,7 +98,7 @@ def claim_for_processing(session_id: str, updated_at: datetime) -> bool:
     with _connect() as conn:
         cursor = conn.execute(
             "UPDATE sessions SET status = ?, updated_at = ? WHERE session_id = ? AND status = ?",
-            ("PROCESSING", updated_at.isoformat(), session_id, "CREATED"),
+            (VerificationStatus.PROCESSING.value, updated_at.isoformat(), session_id, VerificationStatus.CREATED.value),
         )
         return cursor.rowcount == 1
 
@@ -121,13 +122,26 @@ def fail_orphaned_sessions(updated_at: datetime) -> int:
         cursor = conn.execute(
             "UPDATE sessions SET status = ?, decision_reason = ?, updated_at = ? WHERE status = ?",
             (
-                "RETRY",
+                VerificationStatus.RETRY.value,
                 "The analysis was interrupted before it finished. Please try again.",
                 updated_at.isoformat(),
-                "PROCESSING",
+                VerificationStatus.PROCESSING.value,
             ),
         )
         return cursor.rowcount
+
+
+def delete_sessions_created_before(cutoff: datetime) -> int:
+    """
+    Delete every session created before `cutoff`, with its stored scores, except one still being
+    analysed. Returns how many sessions were deleted. Timestamps are stored as UTC ISO strings, so
+    they compare correctly as text.
+    """
+    with _connect() as conn:
+        old = "SELECT session_id FROM sessions WHERE created_at < ? AND status != ?"
+        params = (cutoff.isoformat(), VerificationStatus.PROCESSING.value)
+        conn.execute(f"DELETE FROM signal_scores WHERE session_id IN ({old})", params)
+        return conn.execute("DELETE FROM sessions WHERE created_at < ? AND status != ?", params).rowcount
 
 
 def write_decision(

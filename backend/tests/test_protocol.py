@@ -36,15 +36,6 @@ def test_window_is_the_phase_widened_on_both_sides_and_never_negative():
     assert PROTOCOL_V1.window("read", before=WINDOW_GUARD_SECONDS) == (0.0, 3.0)
 
 
-def test_phase_at_names_the_phase_a_moment_falls_in():
-    assert PROTOCOL_V1.phase_at(0.0) == "read"
-    assert PROTOCOL_V1.phase_at(2.99) == "read"
-    assert PROTOCOL_V1.phase_at(3.0) == "speak"
-    assert PROTOCOL_V1.phase_at(8.0) == "act"
-    assert PROTOCOL_V1.phase_at(13.0) is None
-    assert PROTOCOL_V1.phase_at(-0.1) is None
-
-
 def test_an_unknown_phase_is_an_error_not_an_empty_window():
     with pytest.raises(KeyError):
         PROTOCOL_V1.window("listen")

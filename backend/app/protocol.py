@@ -14,7 +14,7 @@ judged cannot drift apart. The server's wall clock plays no part: the browser cr
 and then starts the recorder, so every window is an offset on the recording itself.
 """
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Tuple
 
 PROTOCOL_VERSION = 1
 
@@ -67,13 +67,6 @@ class PhaseWindows:
     def speech_window(self) -> Tuple[float, float]:
         """Where the spoken phrase is looked for: Speak, widened by the guard before and the trailing allowance after."""
         return self.window("speak", before=WINDOW_GUARD_SECONDS, after=SPEAK_TRAILING_SECONDS)
-
-    def phase_at(self, seconds: float) -> Optional[str]:
-        """The phase a moment on the recording falls in, or None before the start and after the end."""
-        for phase in self.phases:
-            if phase.start <= seconds < phase.end:
-                return phase.name
-        return None
 
 
 PROTOCOL_V1 = PhaseWindows(

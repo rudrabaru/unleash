@@ -34,7 +34,6 @@ fast speech. The screen finds words that fail even then; the human pilot decides
 from __future__ import annotations
 
 import argparse
-import itertools
 import json
 import random
 import shutil

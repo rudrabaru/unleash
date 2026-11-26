@@ -12,7 +12,7 @@ These are the steps that need a person at a camera. Everything the system does w
 Record on each of **two different cameras** (for example the laptop webcam and a phone used as a webcam, with its own "mirror" option **off**): keep going until you have saved one clip whose challenge was `TURN_HEAD_LEFT` and one `TURN_HEAD_RIGHT`. Do the movement as shown (turn, hold, come back). Save each with **Save recording**. Tell me the file names and which camera each came from; they become test fixtures that prove "left" means your left through the real browser path.
 
 ## 2. Pilot takes (about 30)
-Three speakers, about ten genuine takes each: do exactly what the screen asks, as you naturally would, with a mix of the five actions, some in dimmer light, some a bit faster. Save every take, including the ones that fail: failures are the point.
+Three speakers, about ten genuine takes each: do exactly what the screen asks, as you naturally would, with a mix of the four actions (left, right, up, down), some in dimmer light, some a bit faster. Save every take, including the ones that fail: failures are the point.
 
 Then, from `backend/`:
 

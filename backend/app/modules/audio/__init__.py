@@ -22,6 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 from app.core.config import settings
+from app.media.containers import WAV_DEMUXERS
 from app.modules.audio._io import read_wav_numpy
 from app.modules.audio._av_alignment import run_av_alignment, to_container_time
 from app.modules.audio._extraction import (
@@ -141,7 +142,7 @@ def _prepare_wav(
     if not ok:
         return _Prepared(failure=_failure(f"Extracted audio failed format verification: {description}", description))
 
-    extracted = probe_media(wav_path).get("duration")
+    extracted = probe_media(wav_path, demuxers=WAV_DEMUXERS).get("duration")
     complete, truncation_error = check_extraction_completeness(info.get("duration"), extracted)
     if not complete:
         return _Prepared(failure=_failure(

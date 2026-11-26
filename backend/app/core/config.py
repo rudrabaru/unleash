@@ -41,6 +41,21 @@ class Settings(BaseSettings):
     # Only counts and codes are stored with a session. Turn this on for a development database that should
     # also keep what the recognizer heard (the transcript and the word list), for example while calibrating.
     STORE_TRANSCRIPTS: bool = False
+    # Sessions (and their stored scores) older than this are deleted at start-up and, at most every ten
+    # minutes, when a new session is created. A result is only needed while the person waits for it.
+    # 0 keeps everything.
+    SESSION_RETENTION_HOURS: float = 24.0
+
+    # Abuse limits. Each client may create this many sessions, and submit this many recordings, per
+    # minute (429 above it); 0 turns the limit off. A client is the connecting address. Behind a
+    # proxy every request comes from the proxy, so all users share one allowance unless
+    # TRUST_FORWARDED_FOR is on; turn it on only when the backend can be reached solely through a
+    # proxy you control (the client's address is then the first X-Forwarded-For entry).
+    RATE_LIMIT_PER_MINUTE: int = 10
+    TRUST_FORWARDED_FOR: bool = False
+    # Recordings accepted for analysis at once (one running, the rest waiting). Above it a submit is
+    # refused with 503 and the session stays usable, instead of every waiting upload holding a server thread.
+    MAX_QUEUED_ANALYSES: int = 8
 
     # Deepfake model (environment names kept from before; also readable from backend/.env)
     XCEPTION_CHECKPOINT: Optional[str] = Field(default=None, validation_alias="UNLEASH_XCEPTION_CHECKPOINT")

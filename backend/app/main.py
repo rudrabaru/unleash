@@ -1,49 +1,46 @@
-import logging
-import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app import housekeeping, orchestrator
+from app.analysis_queue import analysis_queue
 from app.api.v1.router import api_router
 from app.core.body_limit import BodyLimitMiddleware
 from app.core.config import settings
-from app import db, housekeeping, orchestrator
 
-# Ensure temp uploads directory exists
-os.makedirs(settings.UPLOAD_TEMP_DIR, exist_ok=True)
-_swept = housekeeping.sweep_leftover_media(Path(settings.UPLOAD_TEMP_DIR))
-if _swept:
-    logging.getLogger("unleash").warning("Removed %d leftover upload(s) from a previous run", _swept)
-db.init_db()
-_orphaned = db.fail_orphaned_sessions(datetime.now(timezone.utc))
-if _orphaned:
-    logging.getLogger("unleash").warning("Closed %d session(s) left in PROCESSING by a previous run", _orphaned)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Blocking, but it runs once before the server accepts requests.
+    # Blocking, but it runs once before the server accepts requests. Nothing here runs at import, so
+    # importing the app (a test, a tool) never touches the database or the upload folder.
+    housekeeping.startup()
     orchestrator.warm_up()
+    analysis_queue.start(settings.MAX_QUEUED_ANALYSES)
     yield
+    analysis_queue.stop()
 
+
+API_VERSION = "1.0.0"
 
 app = FastAPI(
     lifespan=lifespan,
     title="Unleash Multimodal Human Verification API",
-    version="1.0.0",
-    description="Multimodal active challenge-response verification defending against deepfakes and replay attacks."
+    version=API_VERSION,
+    # Claims policy (D-08): "targets", never "defends against", until an attack is measured.
+    description="Active challenge-response check that a live person is present. Targets replay, face-swap, "
+    "photo and synthetic-voice attacks; none of these is a measured defence yet.",
 )
 
-# Configure CORS
+# CORS, for a browser that calls the API directly instead of through the Next.js proxy. The API uses no
+# cookies or other credentials, and the browser only sends GETs and POSTs (form uploads, no custom headers).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 # Outermost, so an oversized body is refused while it arrives, before anything else reads it
@@ -70,7 +67,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "unleash-verification-api",
-        "version": "1.0.0",
+        "version": API_VERSION,
         "environment": settings.ENVIRONMENT
     }
 

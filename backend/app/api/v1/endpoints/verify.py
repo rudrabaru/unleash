@@ -48,7 +48,7 @@ def verify_clip(
             shutil.copyfileobj(video.file, buffer)
         refusal = quality.upload_rejection(probe_streams(media_path, limit_seconds=quality.HARD_MAX_SECONDS))
         if refusal:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=refusal)
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=refusal)
         analysis = orchestrator.analyze_media(
             media_path, visual_challenge.value, verbal_challenge, phases=PROTOCOL_V1 if protocol else None
         )

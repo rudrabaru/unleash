@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
 
-import av
+from app.media.containers import open_media
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,7 @@ def probe_streams(source: Union[str, Path], limit_seconds: Optional[float] = Non
     that claims hours costs a few milliseconds, not hours. Never raises.
     """
     try:
-        with av.open(str(source)) as container:
+        with open_media(source) as container:
             video_stream = container.streams.video[0] if container.streams.video else None
             audio_stream = container.streams.audio[0] if container.streams.audio else None
             if video_stream is None and audio_stream is None:

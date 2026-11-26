@@ -1,6 +1,6 @@
 # Unleash v1.0 - status and work order
 
-Last updated 2026-10-10. Near-term plan; the long-term plan is `ROADMAP.md`. If they disagree: `.claude/context/decisions.md`, then `CLAUDE.md`, then these plans. Numbers below come from runs on the current code unless marked as a record from an earlier date.
+Last updated 2026-11-25. Near-term plan; the long-term plan is `ROADMAP.md`. If they disagree: `.claude/context/decisions.md`, then `CLAUDE.md`, then these plans. Numbers below come from runs on the current code unless marked as a record from an earlier date.
 
 ## Scope
 
@@ -31,14 +31,14 @@ What it shows: **deepfake scores `real.webm` and `fake.webm` the same (0.48)**, 
 
 | Area | Works | Open |
 |---|---|---|
-| Audio | ffmpeg extraction with truncation check; speech check; phrase check (`base.en`, 4 of 5, passes the one real take at 4/5); voice authenticity and lip sync run; temporary WAV always removed | Whole-clip, order not enforced, extra words free, 136 rare nouns hard to recognise (replaced by 156 common words, D-52), floor from one speaker; voice check and lip sync uncalibrated |
-| Visual | MediaPipe landmarks, liveness, yaw/pitch challenge, lip series with real timestamps | No Read/Speak/Act windows, no hold, no return; blink challenge near-vacuous; liveness proves little; mirror handling inconsistent (P0-C) |
-| Anti-spoofing | Deepfake (landmark crop) and replay run and report | Deepfake near chance (validation 33/56); replay design unsound; neither may decide anything |
-| Fusion | Interim policy (D-51): must-pass checks fail closed; liveness and the challenge carry the score; deepfake, replay, voice and lip sync are report-only; minimum coverage caps at `SUSPICIOUS` | A genuine take reaches `VERIFIED`; the calibrated, learned fusion is gate G3 |
-| Pipeline / API | One decode, one analysis entry, worker thread with lock, atomic claim, size cap, secret guard, orphan sweep | No duration/resolution caps before decoding; `ENVIRONMENT` defaults to development; no readiness endpoint; no rate limit |
-| Frontend | 5-screen flow (D-45), builds and renders | Does not render phases from the server; developer strings in results; no MIME fallback |
-| Evaluation | `tools/measure_clips.py`, `add_clips.py`, `phrase_model_comparison.py` | No attack recordings, no TAR/FAR tooling, `/scenario-runner` and `/threshold-sweep` cannot run |
-| CI | Backend job, conflict-marker job, frontend type-check + build job (P0-B) | Not yet run on GitHub |
+| Audio | ffmpeg extraction with truncation check; speech and phrase checks judged in the Speak window; ordered alignment, at most 3 extra words; 156 common words (D-52); silent microphone gives `RETRY`; voice authenticity and lip sync run; temporary WAV always removed | Confidence floor and recognizer from human takes (pilot); voice check and lip sync uncalibrated |
+| Visual | MediaPipe landmarks, liveness, phase-aware head action (baseline in Read, turn, hold and return in Act); one direction convention, no frame flip (D-46); blink no longer issued (D-53) | Browser left/right fixtures from two cameras (P0-C); liveness proves little; look up/down unproven |
+| Anti-spoofing | Deepfake (face crop) and replay run and are reported | Deepfake near chance (validation 33/56); replay flags genuine clips (0.30-0.42 against 0.45); both report-only |
+| Fusion | Interim policy (D-51): must-pass checks fail closed; liveness and the challenge carry the score; the rest report-only; minimum coverage caps at `SUSPICIOUS` | A passed head action always scores 1.0, so the verdict rests on liveness; calibrated, learned fusion is gate G3 |
+| Pipeline / API | One decode, one analysis entry, worker thread with lock, atomic claim, streaming size cap, duration and resolution caps, minimum submit delay, `RETRY`, `/ready`, safe `ENVIRONMENT` default, orphan sweep | Hardening done (D-56): container allow-list, rate limit, retention, no internal errors in results, start-up in the lifespan, one worker behind a bounded queue. Open: per-device retry limits, a single probe per recording |
+| Frontend | 5-screen flow drawn from the server's windows, plain-language results, debug flag | Security headers and CSP done (D-56). Open: Next 14 has open advisories (upgrade belongs to hosting) |
+| Evaluation | `measure_clips.py`, `add_clips.py`, `trial_plan.py`, `dump_features.py`, `eval_report.py`, phrase-model comparison | No pilot or attack recordings yet |
+| CI | Backend tests, conflict markers, frontend type-check and build | No lint, type check or dependency audit |
 
 ## Decisions already taken (2026-10-09)
 

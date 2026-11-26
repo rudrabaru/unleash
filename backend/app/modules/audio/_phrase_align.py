@@ -31,6 +31,9 @@ MIN_WORD_SIMILARITY: float = 0.8
 # word, one misheard word): re-set from the 99th percentile of genuine takes once there are enough.
 MAX_INSERTED_WORDS: int = 3
 
+# How many of the five challenge words must be heard, in order, for the phrase check to pass (D-02).
+MIN_MATCHED_WORDS: int = 4
+
 
 def levenshtein_distance(s1: str, s2: str) -> int:
     """Edit distance between two strings (insert, delete or substitute one character costs 1)."""

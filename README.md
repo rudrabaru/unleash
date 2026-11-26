@@ -20,7 +20,7 @@ uvicorn app.main:app --reload --port 8000
 - Health check: http://localhost:8000/health - interactive docs: http://localhost:8000/docs
 - The deepfake model checkpoint is not in git (about 250 MB). Put it at `backend/checkpoints/xception_deepfake_best.pth` or set `UNLEASH_XCEPTION_CHECKPOINT`. Without it the deepfake signal reports an error and is left out of the verdict. Expected SHA-256: `cb731a0a53dbdcaddb09ab6855039b24d6e633d723d951d08f566d79a9d1eb0b` (the file is not published yet).
 - The first start downloads the speech model (faster-whisper `base.en`) once. The face and deepfake models are loaded when the server starts, so the first request is not slow.
-- Settings are read from the environment or `backend/.env` (any folder you start from; relative paths for the database and uploads are also relative to `backend/`). **`ENVIRONMENT` defaults to `production`**, so for local work copy `.env.example` to `.env` (it sets `development`); outside development the server refuses to start unless `SECRET_KEY` is a private value of at least 32 characters (for example `openssl rand -hex 32`). A request body above `MAX_UPLOAD_BYTES` (25 MB) is refused with 413 while it arrives; an unreadable recording, one longer than 30 s or with a picture above 1920x1080, or one uploaded less than `MIN_SUBMIT_SECONDS` after its session was created, is refused with 422 and the session stays usable. `/health` says the process is up; `/ready` says whether the speech, face and (optionally) deepfake models are loaded.
+- Settings are read from the environment or `backend/.env` (any folder you start from; relative paths for the database and uploads are also relative to `backend/`). **`ENVIRONMENT` defaults to `production`**, so for local work copy `.env.example` to `.env` (it sets `development`); outside development the server refuses to start unless `SECRET_KEY` is a private value of at least 32 characters (for example `openssl rand -hex 32`). A request body above `MAX_UPLOAD_BYTES` (25 MB) is refused with 413 while it arrives; an unreadable recording, one longer than 30 s or with a picture above 1920x1080, or one uploaded less than `MIN_SUBMIT_SECONDS` after its session was created, is refused with 422 and the session stays usable. `/health` says the process is up; `/ready` says whether the speech, face and (optionally) deepfake models are loaded. Each client may create `RATE_LIMIT_PER_MINUTE` sessions and submit as many recordings per minute (429 above it); at most `MAX_QUEUED_ANALYSES` recordings wait for analysis (503 above it, the session stays usable); sessions older than `SESSION_RETENTION_HOURS` are deleted. Uploads are opened only as WebM/Matroska or MP4 and only from local files.
 
 **Module demo (development only):** open `/docs`, call `POST /api/v1/verify` with a recording, the visual action it contains and the 5 spoken words; the response lists every detector's score, pass/fail and reason, the verdict and the time of each step. To score a set of clips from the command line: `python tools/measure_clips.py` (clips are listed in `backend/eval/manifest.json`).
 
@@ -33,7 +33,7 @@ python tools/measure_clips.py --manifest eval/calibration.json
 
 Tests: `cd backend && python -m pytest tests -q`.
 
-Frontend: a recorder page. Choose the camera, press Start, and follow the three steps (read the words, say them facing the camera, then do the action that appears). It stops by itself after 13 s; **Analyse Clip** uploads the recording and shows the verdict with every signal, and **Save Clip** keeps the file. Start the backend first. The preview on screen is mirrored like a mirror, but the recording is not, and the backend reads it that way: "left" means the person's own left. A camera driver or phone-as-webcam app with its own "mirror" option must have it switched off, or left and right swap.
+Frontend: five screens (welcome, pre-scan, challenge, processing, result). The challenge is one 13 s recording in three phases drawn from the windows the server sends: Read (the words are shown), Speak (say them in order), Act (the words disappear and the head action is cued). The recording is uploaded by itself and the result is explained in plain words; scores, technical reasons and a **Save recording** button appear only with `NEXT_PUBLIC_DEBUG=1`. Start the backend first. The preview on screen is mirrored like a mirror, but the recording is not, and the backend reads it that way: "left" means the person's own left. A camera driver or phone-as-webcam app with its own "mirror" option must have it switched off, or left and right swap.
 
 ```bash
 cd frontend
@@ -60,7 +60,8 @@ backend/
   app/
     main.py                 FastAPI app (health, sessions, development-only verify)
     orchestrator.py         analyze_media: runs every detector, fuses, times each step
-    fusion.py               must-pass checks, joint veto, weighted score, verdict
+    fusion.py               must-pass checks, weighted score, verdict (report-only signals add nothing)
+    protocol.py quality.py  the Read/Speak/Act windows; upload refusals and RETRY
     db.py  core/            SQLite persistence; config and HMAC session tokens
     api/v1/endpoints/       sessions.py, verify.py
     media/                  load_frames: one video decode for all detectors

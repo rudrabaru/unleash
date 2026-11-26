@@ -20,7 +20,7 @@ Every detector returns exactly this (`backend/app/schemas/detector.py`, `Detecto
 { "score": 0.92, "passed": true, "reason": "text", "error": null, "details": {} }
 ```
 
-`score` is 0.0-1.0 (1.0 = genuine) or `null`; **when `error` is set, `score` is `null`**. `passed` is the module's own pass/fail. `reason` is never empty. `details` is diagnostic telemetry stored with the session; fusion reads only `details["voice_authenticity_score"]` and `details["av_alignment_score"]` from the audio result. A detector never raises: on any failure it returns `score=null, passed=false` with `error` set.
+`score` is 0.0-1.0 (1.0 = genuine) or `null`; **when `error` is set, `score` is `null`**. `passed` is the module's own pass/fail. `reason` is never empty. `details` is diagnostic telemetry stored with the session; fusion reads no details: voice authenticity and lip sync travel in the audio result's details as report-only values (D-51). A detector never raises: on any failure it returns `score=null, passed=false` with `error` set.
 
 ## Working mode: solo (D-55)
 
@@ -45,7 +45,7 @@ Only the visual challenge and the two audio checks are must-pass; a missing one 
 
 - **Frames:** `app/media/frames.py::load_frames` decodes a recording once (PyAV) and returns up to 120 timestamped frames for the visual detectors and up to 30 native-resolution frames (a subset) for deepfake and replay, exactly as recorded (never mirrored: "left" is the person's own left in an unmirrored feed, see `visual/_pose.py`).
 - **Lip series** (visual to lip sync): `{"fps": float, "series": [{"frame_index", "time_seconds", "lip_openness_ratio"}]}` on the container clock; **word times** (phrase check to lip sync): `[{"word", "start", "end", "probability"}]` relative to the extracted WAV. `process_audio_pipeline` converts one to the other's clock. Details: `.claude/context/audio-pipeline/av-alignment-interface.md`.
-- **One analysis entry:** `app/orchestrator.py::analyze_media(path, visual_challenge, verbal_challenge)` runs every detector with failure isolation and returns signals, the fused verdict and per-step timings. The session flow (`run_verification`) and the development-only `POST /api/v1/verify` both use it. Detectors are plain blocking functions run in worker threads, one analysis at a time.
+- **One analysis entry:** `app/orchestrator.py::analyze_media(path, visual_challenge, verbal_challenge)` runs every detector with failure isolation and returns signals, the fused verdict and per-step timings. The session flow (`run_verification`) and the development-only `POST /api/v1/verify` both use it. Detectors are plain blocking functions, one analysis at a time: session analyses run on one worker thread behind a bounded queue (`app/analysis_queue.py`, D-56). Uploads are opened only through `app/media/containers.py` (Matroska/WebM or MP4, local files only).
 
 ## Evaluation targets
 

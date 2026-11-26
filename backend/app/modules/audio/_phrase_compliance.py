@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.modules.audio._phrase_align import (  # noqa: F401 - re-exported: tests and tools import them from here
     MAX_INSERTED_WORDS,
+    MIN_MATCHED_WORDS,
     MIN_WORD_CONFIDENCE,
     MIN_WORD_SIMILARITY,
     Alignment,
@@ -185,7 +186,7 @@ def _success_details(
 def run_phrase_compliance(
     wav_path: Path | str,
     challenge_phrase: str,
-    threshold: int = 4,
+    threshold: int = MIN_MATCHED_WORDS,
     min_word_confidence: float = MIN_WORD_CONFIDENCE,
     max_insertions: int = MAX_INSERTED_WORDS,
 ) -> DetectorResult:

@@ -50,14 +50,19 @@ def _must_pass_failed(signals: Dict[str, DetectorResult]) -> Optional[str]:
     if visual_challenge is None:
         return "Visual challenge compliance failed: the check produced no result."
     if not visual_challenge.passed:
-        return f"Visual challenge compliance failed: {visual_challenge.reason}"
+        return f"Visual challenge compliance failed: {_public_reason(visual_challenge)}"
 
     audio = signals.get("audio_pipeline")
     if audio is None:
         return "Audio must-pass check failed: the check produced no result."
     if not audio.passed:
-        return f"Audio must-pass check failed: {audio.reason}"
+        return f"Audio must-pass check failed: {_public_reason(audio)}"
     return None
+
+
+def _public_reason(result: DetectorResult) -> str:
+    """The check's own reason, unless it failed with an internal error (whose text can name server paths)."""
+    return "the check could not be completed on the server." if result.error is not None else result.reason
 
 
 def _scored(signals: Dict[str, DetectorResult]) -> Dict[str, float]:
