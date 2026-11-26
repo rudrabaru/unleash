@@ -31,5 +31,7 @@ To see what is still missing at any time: `.venv\Scripts\python.exe tools/trial_
 - the **hold and return** tolerances and the **insertion cap** (3 extra words), from genuine takes;
 - whether five seconds of Speak is enough for a normal-paced read of five words.
 
+> Since D-57 (2026-11-26) no pilot or campaign is recorded: the checks are evaluated on public datasets. The steps below are kept for anyone who later records takes.
+
 ## 4. Later: attacks (the calibration campaign)
 Phone or monitor replay of a genuine take, a printed or on-screen photo with a live voice, a synthetic voice over a live face, wrong words, silence, wrong direction and no movement, recorded through the same recorder and added with the matching `--kind` (`trial_plan.py` lists the kinds, how many of each, and how to make them). The plan and the numbers are in `V1_RELEASE_PLAN.md` (P2).
